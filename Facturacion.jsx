@@ -1,0 +1,4 @@
+import CrudPage from "../components/CrudPage.jsx";
+export default function Facturacion(){return <CrudPage title="Facturación" description="Facturas emitidas y control de cobros." table="facturas" fields={[
+{name:"numero",label:"N.º factura",required:true},{name:"fecha",label:"Fecha",type:"date",required:true},{name:"cliente",label:"Cliente",required:true},{name:"concepto",label:"Concepto"},{name:"base_imponible",label:"Base €",type:"number",step:"0.01"},{name:"iva",label:"IVA %",type:"number",default:10},{name:"total",label:"Total €",type:"number",step:"0.01"},{name:"estado",label:"Estado",type:"select",options:["Pendiente","Enviada","Cobrada","Vencida","Anulada"],default:"Pendiente"},{name:"fecha_cobro",label:"Fecha cobro",type:"date"},{name:"observaciones",label:"Observaciones",type:"textarea",full:true}
+]}/>}

@@ -1,0 +1,4 @@
+import CrudPage from "../components/CrudPage.jsx";
+export default function CatalogoProveedores(){return <CrudPage title="Catálogo de proveedores" description="Precios, formatos, IVA y coste unitario." table="catalogo_proveedores" fields={[
+{name:"proveedor",label:"Proveedor",required:true},{name:"producto",label:"Producto",required:true},{name:"categoria",label:"Categoría"},{name:"codigo_proveedor",label:"Código"},{name:"cantidad_formato",label:"Cantidad formato",type:"number",step:"0.001"},{name:"unidad",label:"Unidad"},{name:"precio_sin_iva",label:"Sin IVA €",type:"number",step:"0.01"},{name:"iva",label:"IVA %",type:"number",default:10},{name:"precio_con_iva",label:"Con IVA €",type:"number",step:"0.01"},{name:"precio_unitario",label:"Unitario €",type:"number",step:"0.0001"},{name:"fecha_precio",label:"Fecha precio",type:"date"},{name:"activo",label:"Activo",type:"checkbox",default:true}
+]}/>}

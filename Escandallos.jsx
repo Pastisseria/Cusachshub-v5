@@ -1,0 +1,4 @@
+import CrudPage from "../components/CrudPage.jsx";
+export default function Escandallos(){return <CrudPage title="Escandallos" description="Costes, precio recomendado y margen por producto." table="escandallos" fields={[
+{name:"producto",label:"Producto",required:true},{name:"coste_ingredientes",label:"Ingredientes €",type:"number",step:"0.01"},{name:"mano_obra",label:"Mano de obra €",type:"number",step:"0.01"},{name:"packaging",label:"Packaging €",type:"number",step:"0.01"},{name:"indirectos_pct",label:"Indirectos %",type:"number",default:8},{name:"coste_total",label:"Coste total €",type:"number",step:"0.01"},{name:"precio_venta",label:"Precio venta €",type:"number",step:"0.01"},{name:"margen_pct",label:"Margen %",type:"number",step:"0.01"},{name:"observaciones",label:"Observaciones",type:"textarea",full:true}
+]}/>}

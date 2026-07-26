@@ -1,13 +1,66 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#7c3aed" />
-    <title>Cusachs Hub v3</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#6f4a8e" />
+  <meta name="description" content="Cusachs Hub - ERP para Pastisseria Cusachs" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Cusachs Hub</title>
+</head>
+<body>
+  <div id="login" class="login-screen">
+    <form id="loginForm" class="login-card">
+      <div class="brand-mark">C</div>
+      <h1>Cusachs Hub</h1>
+      <p>Gestión integral · Pastisseria Cusachs</p>
+      <label>Usuario<input id="user" value="admin" autocomplete="username" /></label>
+      <label>Contraseña<input id="pass" type="password" value="cusachs" autocomplete="current-password" /></label>
+      <button type="submit">Entrar</button>
+      <small>Acceso de prueba: admin / cusachs</small>
+    </form>
+  </div>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <div class="brand-mark small">C</div>
+        <div><strong>Cusachs Hub</strong><span>Gestión integral</span></div>
+        <button id="closeMenu" class="icon-btn mobile-only">✕</button>
+      </div>
+      <nav id="nav"></nav>
+      <div class="sidebar-foot">
+        <button id="backupBtn">⬇ Copia de seguridad</button>
+        <button id="logoutBtn">↩ Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <button id="menuBtn" class="icon-btn mobile-only">☰</button>
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="pageSubtitle">Resumen general de la actividad</p>
+        </div>
+        <div class="top-actions">
+          <span id="today"></span>
+          <button id="installBtn" class="secondary hidden">Instalar app</button>
+        </div>
+      </header>
+      <section id="content" class="content"></section>
+    </main>
+  </div>
+
+  <dialog id="modal">
+    <form method="dialog" id="modalForm" class="modal-card">
+      <header><h2 id="modalTitle">Nuevo registro</h2><button value="cancel" class="icon-btn">✕</button></header>
+      <div id="modalFields" class="form-grid"></div>
+      <footer><button value="cancel" class="secondary">Cancelar</button><button id="saveModal" value="default">Guardar</button></footer>
+    </form>
+  </dialog>
+
+  <script src="app.js" defer></script>
+</body>
 </html>

@@ -1,0 +1,16 @@
+# Dependencias
+node_modules/
+
+# Variables privadas de Supabase
+.env
+.env.local
+.env.*.local
+
+# Archivos generados
+dist/
+build/
+
+# Sistema y editor
+.DS_Store
+Thumbs.db
+.vscode/

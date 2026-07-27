@@ -6,16 +6,27 @@ import {
 } from "react-router-dom";
 
 import Sidebar from "./components/Sidebar.jsx";
-import "./App.css";
 
-function PaginaPrueba({ titulo }) {
-  return (
-    <section className="panel">
-      <h1>{titulo}</h1>
-      <p>La aplicación Cusachs Hub funciona correctamente.</p>
-    </section>
-  );
-}
+import Dashboard from "./pages/dashboard.jsx";
+import Clientes from "./pages/clientespages.jsx";
+import Productos from "./pages/productos.jsx";
+import Presupuestos from "./pages/presupuestos.jsx";
+import Catering from "./pages/catering.jsx";
+import Menaje from "./pages/menaje.jsx";
+import Bebidas from "./pages/bebidas.jsx";
+import Produccion from "./pages/produccion.jsx";
+import Ingredientes from "./pages/ingredientes.jsx";
+import Escandallos from "./pages/escandallos.jsx";
+import DietarioAnual from "./pages/dietarioanual.jsx";
+import Proveedores from "./pages/proveedores.jsx";
+import CatalogoProveedores from "./pages/catalogoproveedores.jsx";
+import ComparadorPrecios from "./pages/comparadorprecios.jsx";
+import Compras from "./pages/compras.jsx";
+import VisitadoresMedicos from "./pages/visitadoresmedicos.jsx";
+import Facturacion from "./pages/facturacion.jsx";
+import ModuloPendiente from "./pages/modulopendiente.jsx";
+
+import "./App.css";
 
 function App() {
   return (
@@ -30,104 +41,68 @@ function App() {
               element={<Navigate to="/dashboard" replace />}
             />
 
-            <Route
-              path="/dashboard"
-              element={<PaginaPrueba titulo="Dashboard" />}
-            />
+            <Route path="/dashboard" element={<Dashboard />} />
 
-            <Route
-              path="/clientes"
-              element={<PaginaPrueba titulo="Clientes" />}
-            />
+            <Route path="/clientes" element={<Clientes />} />
 
-            <Route
-              path="/productos"
-              element={<PaginaPrueba titulo="Productos" />}
-            />
+            <Route path="/productos" element={<Productos />} />
 
-            <Route
-              path="/presupuestos"
-              element={<PaginaPrueba titulo="Presupuestos" />}
-            />
+            <Route path="/presupuestos" element={<Presupuestos />} />
 
-            <Route
-              path="/catering"
-              element={<PaginaPrueba titulo="Catering" />}
-            />
+            <Route path="/catering" element={<Catering />} />
 
-            <Route
-              path="/menaje"
-              element={<PaginaPrueba titulo="Menaje" />}
-            />
+            <Route path="/menaje" element={<Menaje />} />
 
-            <Route
-              path="/bebidas"
-              element={<PaginaPrueba titulo="Bebidas" />}
-            />
+            <Route path="/bebidas" element={<Bebidas />} />
 
-            <Route
-              path="/produccion"
-              element={<PaginaPrueba titulo="Producción" />}
-            />
+            <Route path="/produccion" element={<Produccion />} />
 
-            <Route
-              path="/ingredientes"
-              element={<PaginaPrueba titulo="Ingredientes" />}
-            />
+            <Route path="/ingredientes" element={<Ingredientes />} />
 
-            <Route
-              path="/escandallos"
-              element={<PaginaPrueba titulo="Escandallos" />}
-            />
+            <Route path="/escandallos" element={<Escandallos />} />
 
-            <Route
-              path="/dietario"
-              element={<PaginaPrueba titulo="Dietario anual" />}
-            />
+            <Route path="/dietario" element={<DietarioAnual />} />
 
-            <Route
-              path="/proveedores"
-              element={<PaginaPrueba titulo="Proveedores" />}
-            />
+            <Route path="/proveedores" element={<Proveedores />} />
 
             <Route
               path="/catalogo-proveedores"
-              element={<PaginaPrueba titulo="Catálogo de proveedores" />}
+              element={<CatalogoProveedores />}
             />
 
             <Route
               path="/comparador-precios"
-              element={<PaginaPrueba titulo="Comparador de precios" />}
+              element={<ComparadorPrecios />}
             />
 
-            <Route
-              path="/compras"
-              element={<PaginaPrueba titulo="Compras" />}
-            />
+            <Route path="/compras" element={<Compras />} />
 
             <Route
               path="/visitadores"
-              element={<PaginaPrueba titulo="Visitadores médicos" />}
+              element={<VisitadoresMedicos />}
             />
+
+            <Route path="/facturacion" element={<Facturacion />} />
 
             <Route
               path="/importar-emails"
-              element={<PaginaPrueba titulo="Importar emails" />}
-            />
-
-            <Route
-              path="/facturacion"
-              element={<PaginaPrueba titulo="Facturación" />}
+              element={
+                <ModuloPendiente titulo="Importar emails" />
+              }
             />
 
             <Route
               path="/estadisticas"
-              element={<PaginaPrueba titulo="Estadísticas" />}
+              element={
+                <ModuloPendiente titulo="Estadísticas" />
+              }
             />
 
             <Route
               path="/configuracion"
-              element={<PaginaPrueba titulo="Configuración" />}
+              element={
+                <ModuloPendiente titulo="Configuración" />
+              }
             />
 
             <Route

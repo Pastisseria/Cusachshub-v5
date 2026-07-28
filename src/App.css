@@ -3152,3 +3152,18 @@ comparador-page {
     font-size: 14pt !important;
   }
 }
+.importador-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  }
+
+.importador-bloque {
+  background: #fff;
+  border: 1px solid #e7e2eb;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

@@ -24,6 +24,8 @@ import ComparadorPrecios from "./pages/comparadorprecios.jsx";
 import Compras from "./pages/compras.jsx";
 import VisitadoresMedicos from "./pages/visitadoresmedicos.jsx";
 import Facturacion from "./pages/facturacion.jsx";
+import ImportadorEmails from "./pages/ImportadorEmails.jsx";
+import ImportadorAlbaranes from "./pages/ImportadorAlbaranes.jsx";
 import ModuloPendiente from "./pages/modulopendiente.jsx";
 
 import "./App.css";
@@ -36,79 +38,38 @@ function App() {
 
         <main className="contenido">
           <Routes>
-            <Route
-              path="/"
-              element={<Navigate to="/dashboard" replace />}
-            />
-
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
-
             <Route path="/clientes" element={<Clientes />} />
-
             <Route path="/productos" element={<Productos />} />
-
             <Route path="/presupuestos" element={<Presupuestos />} />
-
             <Route path="/catering" element={<Catering />} />
-
             <Route path="/menaje" element={<Menaje />} />
-
             <Route path="/bebidas" element={<Bebidas />} />
-
             <Route path="/produccion" element={<Produccion />} />
-
             <Route path="/ingredientes" element={<Ingredientes />} />
-
             <Route path="/escandallos" element={<Escandallos />} />
-
             <Route path="/dietario" element={<DietarioAnual />} />
-
             <Route path="/proveedores" element={<Proveedores />} />
-
-            <Route
-              path="/catalogo-proveedores"
-              element={<CatalogoProveedores />}
-            />
-
-            <Route
-              path="/comparador-precios"
-              element={<ComparadorPrecios />}
-            />
-
+            <Route path="/catalogo-proveedores" element={<CatalogoProveedores />} />
+            <Route path="/comparador-precios" element={<ComparadorPrecios />} />
             <Route path="/compras" element={<Compras />} />
-
-            <Route
-              path="/visitadores"
-              element={<VisitadoresMedicos />}
-            />
-
+            <Route path="/visitadores" element={<VisitadoresMedicos />} />
             <Route path="/facturacion" element={<Facturacion />} />
 
-            <Route
-              path="/importar-emails"
-              element={
-                <ModuloPendiente titulo="Importar emails" />
-              }
-            />
+            <Route path="/importar-emails" element={<ImportadorEmails />} />
+            <Route path="/importar-albaranes" element={<ImportadorAlbaranes />} />
 
             <Route
               path="/estadisticas"
-              element={
-                <ModuloPendiente titulo="Estadísticas" />
-              }
+              element={<ModuloPendiente titulo="Estadísticas" />}
             />
-
             <Route
               path="/configuracion"
-              element={
-                <ModuloPendiente titulo="Configuración" />
-              }
+              element={<ModuloPendiente titulo="Configuración" />}
             />
 
-            <Route
-              path="*"
-              element={<Navigate to="/dashboard" replace />}
-            />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
       </div>

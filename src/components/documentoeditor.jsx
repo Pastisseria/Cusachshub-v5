@@ -1843,20 +1843,20 @@ function DocumentoEditor({
 
             <section className="presupuesto-print-datos">
               <div className="presupuesto-print-cliente">
-                <h2>
-                  ● {documentoAbierto.tipo_documento === "Visitador médico"
-                    ? textos.visitador.toUpperCase()
-                    : textos.cliente}
-                </h2>
+                {documentoAbierto.tipo_documento !== "Visitador médico" && (
+                  <h2>● {textos.cliente}</h2>
+                )}
+
                 <strong>
                   {documentoAbierto.tipo_documento === "Visitador médico"
-                    ? documentoAbierto.visitador_nombre || "Visitador médico"
+                    ? documentoAbierto.visitador_nombre || "—"
                     : documentoAbierto.clientes?.empresa ||
                       documentoAbierto.clientes?.nombre ||
                       "Cliente"}
                 </strong>
 
-                {documentoAbierto.clientes?.empresa &&
+                {documentoAbierto.tipo_documento !== "Visitador médico" &&
+                  documentoAbierto.clientes?.empresa &&
                   documentoAbierto.clientes?.nombre && (
                     <p>{documentoAbierto.clientes.nombre}</p>
                   )}
@@ -1914,7 +1914,6 @@ function DocumentoEditor({
             {documentoAbierto.tipo_documento ===
               "Visitador médico" && (
               <section className="presupuesto-print-bloque-extra">
-                <h3>{textos.visitador}</h3>
                 <p>
                   <strong>{textos.nombre}</strong>{" "}
                   {documentoAbierto.visitador_nombre || "—"}

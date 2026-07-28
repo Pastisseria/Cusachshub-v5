@@ -110,6 +110,8 @@ function DocumentoEditor({
   icono = "📝",
 }) {
   const [clientes, setClientes] = useState([]);
+  const [visitadoresMedicos, setVisitadoresMedicos] = useState([]);
+  const [visitadorSeleccionadoId, setVisitadorSeleccionadoId] = useState("");
   const [productos, setProductos] = useState([]);
   const [documentos, setDocumentos] = useState([]);
 
@@ -194,6 +196,7 @@ function DocumentoEditor({
 
       const [
         respuestaClientes,
+        respuestaVisitadores,
         respuestaProductos,
         respuestaDocumentos,
       ] = await Promise.all([
@@ -202,6 +205,12 @@ function DocumentoEditor({
           .select("id, nombre, empresa")
           .eq("activo", true)
           .order("nombre"),
+
+        // Cargamos los visitadores por separado. Usamos select("*") para
+        // que funcione aunque tu tabla tenga campos adicionales.
+        supabase
+          .from("visitadores_medicos")
+          .select("*"),
 
         supabase
           .from("productos")
@@ -218,6 +227,10 @@ function DocumentoEditor({
         throw respuestaClientes.error;
       }
 
+      if (respuestaVisitadores.error) {
+        throw respuestaVisitadores.error;
+      }
+
       if (respuestaProductos.error) {
         throw respuestaProductos.error;
       }
@@ -227,6 +240,15 @@ function DocumentoEditor({
       }
 
       setClientes(respuestaClientes.data ?? []);
+      setVisitadoresMedicos(
+        [...(respuestaVisitadores.data ?? [])].sort((a, b) =>
+          obtenerNombreVisitador(a).localeCompare(
+            obtenerNombreVisitador(b),
+            "es",
+            { sensitivity: "base" },
+          ),
+        ),
+      );
       setProductos(respuestaProductos.data ?? []);
       setDocumentos(respuestaDocumentos.data ?? []);
     } catch (err) {
@@ -296,6 +318,7 @@ function DocumentoEditor({
     setDocumentoEditando(null);
     setTipoDocumento(tipoDocumentoFijo || "Catering");
     setClienteId("");
+    setVisitadorSeleccionadoId("");
     setFecha(fechaActual());
     setValidezHasta("");
     setEstado("Borrador");
@@ -324,6 +347,39 @@ function DocumentoEditor({
       top: 0,
       behavior: "smooth",
     });
+  }
+
+  function cambiarTipoDocumento(nuevoTipo) {
+    setTipoDocumento(nuevoTipo);
+    setClienteId("");
+    setVisitadorSeleccionadoId("");
+    setVisitadorNombre("");
+    setLaboratorio("");
+    setCentroMedico("");
+  }
+
+  function seleccionarVisitador(visitadorId) {
+    setVisitadorSeleccionadoId(visitadorId);
+
+    const visitador = visitadoresMedicos.find(
+      (elemento) => String(elemento.id) === String(visitadorId),
+    );
+
+    if (!visitador) {
+      setVisitadorNombre("");
+      setLaboratorio("");
+      setCentroMedico("");
+      setClienteId("");
+      return;
+    }
+
+    setVisitadorNombre(obtenerNombreVisitador(visitador));
+    setLaboratorio(obtenerEmpresaVisitador(visitador));
+    setCentroMedico(obtenerCentroVisitador(visitador));
+
+    // Algunas instalaciones vinculan cada visitador con un cliente.
+    // Si existe ese campo, conservamos la relación automáticamente.
+    setClienteId(visitador.cliente_id ? String(visitador.cliente_id) : "");
   }
 
   function cancelarFormulario() {
@@ -398,21 +454,18 @@ function DocumentoEditor({
   async function guardarDocumento(event) {
     event.preventDefault();
 
-    if (!clienteId) {
-      setError("Selecciona un cliente.");
-      return;
-    }
-
     if (!tipoDocumento) {
       setError("Selecciona el tipo de documento.");
       return;
     }
 
-    if (
-      tipoDocumento === "Visitador médico" &&
-      !visitadorNombre.trim()
-    ) {
-      setError("Indica el nombre del visitador médico.");
+    if (tipoDocumento === "Visitador médico") {
+      if (!visitadorSeleccionadoId && !visitadorNombre.trim()) {
+        setError("Selecciona un visitador médico.");
+        return;
+      }
+    } else if (!clienteId) {
+      setError("Selecciona un cliente.");
       return;
     }
 
@@ -442,7 +495,7 @@ function DocumentoEditor({
 
     const datosDocumento = {
       numero,
-      cliente_id: clienteId,
+      cliente_id: clienteId || null,
       tipo_documento: tipoDocumento,
       fecha,
       validez_hasta: validezHasta || null,
@@ -587,6 +640,7 @@ function DocumentoEditor({
       setMostrarFormulario(false);
       setDocumentoEditando(null);
       setClienteId("");
+      setVisitadorSeleccionadoId("");
       setLineas([nuevaLinea()]);
       setObservaciones("");
 
@@ -650,6 +704,14 @@ function DocumentoEditor({
 
       setVisitadorNombre(
         documento.visitador_nombre || "",
+      );
+      const visitadorCoincidente = visitadoresMedicos.find(
+        (visitador) =>
+          obtenerNombreVisitador(visitador).trim().toLowerCase() ===
+          String(documento.visitador_nombre || "").trim().toLowerCase(),
+      );
+      setVisitadorSeleccionadoId(
+        visitadorCoincidente ? String(visitadorCoincidente.id) : "",
       );
       setLaboratorio(documento.laboratorio || "");
       setCentroMedico(
@@ -1206,7 +1268,7 @@ function DocumentoEditor({
                 <select
                   value={tipoDocumento}
                   onChange={(event) =>
-                    setTipoDocumento(event.target.value)
+                    cambiarTipoDocumento(event.target.value)
                   }
                   disabled={guardando}
                   required
@@ -1220,33 +1282,63 @@ function DocumentoEditor({
               </label>
             )}
 
-            <label>
-              Cliente *
-              <select
-                value={clienteId}
-                onChange={(event) =>
-                  setClienteId(event.target.value)
-                }
-                disabled={guardando}
-                required
-              >
-                <option value="">
-                  Selecciona un cliente
-                </option>
-
-                {clientes.map((cliente) => (
-                  <option
-                    key={cliente.id}
-                    value={cliente.id}
-                  >
-                    {cliente.nombre}
-                    {cliente.empresa
-                      ? ` — ${cliente.empresa}`
-                      : ""}
+            {esVisitador ? (
+              <label>
+                Visitador médico *
+                <select
+                  value={visitadorSeleccionadoId}
+                  onChange={(event) =>
+                    seleccionarVisitador(event.target.value)
+                  }
+                  disabled={guardando}
+                  required
+                >
+                  <option value="">
+                    Selecciona un visitador médico
                   </option>
-                ))}
-              </select>
-            </label>
+
+                  {visitadoresMedicos.map((visitador) => (
+                    <option
+                      key={visitador.id}
+                      value={visitador.id}
+                    >
+                      {obtenerNombreVisitador(visitador)}
+                      {obtenerEmpresaVisitador(visitador)
+                        ? ` — ${obtenerEmpresaVisitador(visitador)}`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label>
+                Cliente *
+                <select
+                  value={clienteId}
+                  onChange={(event) =>
+                    setClienteId(event.target.value)
+                  }
+                  disabled={guardando}
+                  required
+                >
+                  <option value="">
+                    Selecciona un cliente
+                  </option>
+
+                  {clientes.map((cliente) => (
+                    <option
+                      key={cliente.id}
+                      value={cliente.id}
+                    >
+                      {cliente.nombre}
+                      {cliente.empresa
+                        ? ` — ${cliente.empresa}`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             <label>
               Fecha
@@ -1751,11 +1843,17 @@ function DocumentoEditor({
 
             <section className="presupuesto-print-datos">
               <div className="presupuesto-print-cliente">
-                <h2>● {textos.cliente}</h2>
+                <h2>
+                  ● {documentoAbierto.tipo_documento === "Visitador médico"
+                    ? textos.visitador.toUpperCase()
+                    : textos.cliente}
+                </h2>
                 <strong>
-                  {documentoAbierto.clientes?.empresa ||
-                    documentoAbierto.clientes?.nombre ||
-                    "Cliente"}
+                  {documentoAbierto.tipo_documento === "Visitador médico"
+                    ? documentoAbierto.visitador_nombre || "Visitador médico"
+                    : documentoAbierto.clientes?.empresa ||
+                      documentoAbierto.clientes?.nombre ||
+                      "Cliente"}
                 </strong>
 
                 {documentoAbierto.clientes?.empresa &&
@@ -1976,8 +2074,9 @@ function DocumentoEditor({
                   <h3>{documento.numero}</h3>
 
                   <p>
-                    {documento.clientes?.nombre ||
-                      "Cliente no disponible"}
+                    {documento.tipo_documento === "Visitador médico"
+                      ? documento.visitador_nombre || "Visitador no disponible"
+                      : documento.clientes?.nombre || "Cliente no disponible"}
                   </p>
 
                   <p>
@@ -2045,6 +2144,36 @@ function DocumentoEditor({
           </div>
         )}
     </section>
+  );
+}
+
+function obtenerNombreVisitador(visitador) {
+  return String(
+    visitador?.nombre ??
+      visitador?.nombre_visitador ??
+      visitador?.visitador_nombre ??
+      visitador?.nombre_completo ??
+      visitador?.contacto ??
+      "Visitador sin nombre",
+  );
+}
+
+function obtenerEmpresaVisitador(visitador) {
+  return String(
+    visitador?.laboratorio ??
+      visitador?.empresa ??
+      visitador?.nombre_comercial ??
+      visitador?.compania ??
+      "",
+  );
+}
+
+function obtenerCentroVisitador(visitador) {
+  return String(
+    visitador?.centro_medico ??
+      visitador?.centro ??
+      visitador?.hospital ??
+      "",
   );
 }
 

@@ -1,48 +1,52 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase.js";
-import {
-  analizarAlbaran,
-  recalcularAlbaran,
-} from "../ai/parserAlbaranes.js";
+import { analizarEmail } from "../ai/parserEmails.js";
 
 const RESULTADO_VACIO = {
-  numero_albaran: "",
-  fecha_albaran: "",
-  proveedor_id: "",
-  proveedor_nombre: "",
+  cliente_id: "",
+  cliente_nombre: "",
+  email: "",
+  telefono: "",
+  fecha_evento: "",
+  hora_evento: "",
+  numero_personas: "",
   lineas: [],
-  base_imponible: 0,
-  total_iva: 0,
-  total: 0,
-  texto_original: "",
+  observaciones: "",
 };
 
-function ImportadorAlbaranes() {
+function ImportadorEmails() {
   const [texto, setTexto] = useState("");
-  const [proveedores, setProveedores] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [productos, setProductos] = useState([]);
   const [resultado, setResultado] = useState(RESULTADO_VACIO);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    cargarProveedores();
+    cargarDatos();
   }, []);
 
-  async function cargarProveedores() {
+  async function cargarDatos() {
     setCargando(true);
+    setError("");
 
-    const { data, error: errorSupabase } = await supabase
-      .from("proveedores")
-      .select("*")
-      .order("nombre", { ascending: true });
+    const [respuestaClientes, respuestaProductos] = await Promise.all([
+      supabase.from("clientes").select("*").order("nombre", { ascending: true }),
+      supabase.from("productos").select("*").eq("activo", true).order("nombre"),
+    ]);
 
-    if (errorSupabase) {
-      setError(errorSupabase.message);
+    if (respuestaClientes.error || respuestaProductos.error) {
+      setError(
+        respuestaClientes.error?.message ||
+          respuestaProductos.error?.message ||
+          "No se pudieron cargar los datos."
+      );
     }
 
-    setProveedores(data || []);
+    setClientes(respuestaClientes.data || []);
+    setProductos(respuestaProductos.data || []);
     setCargando(false);
   }
 
@@ -55,23 +59,18 @@ function ImportadorAlbaranes() {
 
     const extension = archivo.name.split(".").pop()?.toLowerCase();
 
-    if (["txt", "csv"].includes(extension)) {
-      try {
-        setTexto(await archivo.text());
-      } catch {
-        setError("No se pudo leer el archivo.");
-      }
+    if (!["txt", "eml"].includes(extension)) {
+      setError("Para emails utiliza un archivo .eml o .txt.");
+      evento.target.value = "";
       return;
     }
 
-    if (["pdf", "jpg", "jpeg", "png"].includes(extension)) {
-      setError(
-        "El archivo se ha seleccionado, pero PDF e imágenes necesitan OCR en una función segura de Supabase. Mientras tanto, copia y pega el texto del albarán en el cuadro."
-      );
-      return;
+    try {
+      const contenido = await archivo.text();
+      setTexto(contenido);
+    } catch {
+      setError("No se pudo leer el archivo seleccionado.");
     }
-
-    setError("Formato no compatible.");
   }
 
   function analizar() {
@@ -79,11 +78,17 @@ function ImportadorAlbaranes() {
     setMensaje("");
 
     if (!texto.trim()) {
-      setError("Pega el texto del albarán o carga un archivo .txt/.csv.");
+      setError("Pega el contenido del email o carga un archivo.");
       return;
     }
 
-    setResultado(analizarAlbaran(texto));
+    setResultado(
+      analizarEmail({
+        texto,
+        clientes,
+        productos,
+      })
+    );
   }
 
   function actualizarCampo(campo, valor) {
@@ -99,23 +104,6 @@ function ImportadorAlbaranes() {
     }));
   }
 
-  function añadirLinea() {
-    setResultado((anterior) => ({
-      ...anterior,
-      lineas: [
-        ...anterior.lineas,
-        {
-          descripcion: "",
-          cantidad: 1,
-          unidad: "unidad",
-          precio_unitario: 0,
-          iva: 10,
-          total_linea: 0,
-        },
-      ],
-    }));
-  }
-
   function eliminarLinea(indice) {
     setResultado((anterior) => ({
       ...anterior,
@@ -123,54 +111,79 @@ function ImportadorAlbaranes() {
     }));
   }
 
-  const totalesCalculados = useMemo(
-    () => recalcularAlbaran(resultado.lineas),
-    [resultado.lineas]
-  );
+  function añadirLinea() {
+    setResultado((anterior) => ({
+      ...anterior,
+      lineas: [
+        ...anterior.lineas,
+        {
+          producto_id: "",
+          nombre: "",
+          cantidad: 1,
+          precio_unitario: 0,
+          confirmado: true,
+        },
+      ],
+    }));
+  }
 
-  async function guardarAlbaran() {
+  async function guardarBorrador() {
     setGuardando(true);
     setError("");
     setMensaje("");
 
-    const proveedor = proveedores.find(
-      (item) => String(item.id) === String(resultado.proveedor_id)
+    const clienteSeleccionado = clientes.find(
+      (cliente) => String(cliente.id) === String(resultado.cliente_id)
     );
 
     const payload = {
-      proveedor_id: resultado.proveedor_id || null,
-      proveedor_nombre:
-        proveedor?.nombre ||
-        proveedor?.nombre_comercial ||
-        resultado.proveedor_nombre ||
-        null,
-      numero_albaran: resultado.numero_albaran || null,
-      fecha_albaran: resultado.fecha_albaran || null,
-      lineas: resultado.lineas,
-      base_imponible: totalesCalculados.base_imponible,
-      total_iva: totalesCalculados.total_iva,
-      total: totalesCalculados.total,
       texto_original: texto,
+      cliente_id: resultado.cliente_id || null,
+      cliente_nombre:
+        clienteSeleccionado?.nombre ||
+        clienteSeleccionado?.nombre_comercial ||
+        resultado.cliente_nombre ||
+        null,
+      email_contacto: resultado.email || null,
+      telefono_contacto: resultado.telefono || null,
+      fecha_evento: resultado.fecha_evento || null,
+      hora_evento: resultado.hora_evento || null,
+      numero_personas: resultado.numero_personas
+        ? Number(resultado.numero_personas)
+        : null,
+      lineas: resultado.lineas,
+      observaciones: resultado.observaciones || null,
       estado: "pendiente_revision",
     };
 
     const { error: errorGuardado } = await supabase
-      .from("importaciones_albaran")
+      .from("importaciones_email")
       .insert(payload);
 
     if (errorGuardado) {
       setError(errorGuardado.message);
     } else {
-      setMensaje("Albarán guardado como borrador pendiente de revisión.");
+      setMensaje("Email guardado como borrador pendiente de revisión.");
     }
 
     setGuardando(false);
   }
 
+  const totalEstimado = useMemo(
+    () =>
+      resultado.lineas.reduce(
+        (total, linea) =>
+          total +
+          Number(linea.cantidad || 0) * Number(linea.precio_unitario || 0),
+        0
+      ),
+    [resultado.lineas]
+  );
+
   if (cargando) {
     return (
       <section className="panel">
-        <p>Cargando importador de albaranes...</p>
+        <p>Cargando importador de emails...</p>
       </section>
     );
   }
@@ -179,11 +192,11 @@ function ImportadorAlbaranes() {
     <section className="panel importador-panel">
       <div className="cabecera-seccion">
         <div>
-          <p className="etiqueta">COMPRAS</p>
-          <h1>📄 Importar albaranes</h1>
+          <p className="etiqueta">ADMINISTRACIÓN</p>
+          <h1>📥 Importar emails</h1>
           <p>
-            El importador analiza texto y archivos .txt/.csv. Los PDF y las
-            fotografías necesitarán el módulo OCR seguro de Supabase.
+            Pega un correo o carga un archivo .eml. El sistema prepara un
+            borrador para revisar, pero no crea ningún presupuesto automáticamente.
           </p>
         </div>
       </div>
@@ -193,70 +206,98 @@ function ImportadorAlbaranes() {
 
       <div className="importador-bloque">
         <label>
-          Cargar albarán
-          <input
-            type="file"
-            accept=".txt,.csv,.pdf,.jpg,.jpeg,.png,text/plain,text/csv,application/pdf,image/*"
-            onChange={leerArchivo}
-          />
+          Cargar email (.eml o .txt)
+          <input type="file" accept=".eml,.txt,text/plain,message/rfc822" onChange={leerArchivo} />
         </label>
 
         <label>
-          Texto del albarán
+          Contenido del email
           <textarea
             rows="14"
             value={texto}
             onChange={(evento) => setTexto(evento.target.value)}
-            placeholder={"Ejemplo:\n2 Harina 25 kg 18,50 37,00\n1 Mantequilla 10 kg 65,00 65,00"}
+            placeholder="Pega aquí el correo completo..."
           />
         </label>
 
         <button type="button" className="boton-principal" onClick={analizar}>
-          Analizar albarán
+          Analizar email
         </button>
       </div>
 
-      {(resultado.texto_original || resultado.lineas.length > 0) && (
+      {(resultado.observaciones || resultado.lineas.length > 0) && (
         <div className="importador-bloque">
-          <h2>Revisión del albarán</h2>
+          <h2>Revisión del borrador</h2>
 
           <div className="form-grid">
             <label>
-              Proveedor
+              Cliente
               <select
-                value={resultado.proveedor_id}
+                value={resultado.cliente_id}
                 onChange={(evento) =>
-                  actualizarCampo("proveedor_id", evento.target.value)
+                  actualizarCampo("cliente_id", evento.target.value)
                 }
               >
-                <option value="">Seleccionar proveedor</option>
-                {proveedores.map((proveedor) => (
-                  <option key={proveedor.id} value={proveedor.id}>
-                    {proveedor.nombre ||
-                      proveedor.nombre_comercial ||
-                      "Proveedor sin nombre"}
+                <option value="">Sin cliente asignado</option>
+                {clientes.map((cliente) => (
+                  <option key={cliente.id} value={cliente.id}>
+                    {cliente.nombre ||
+                      cliente.nombre_comercial ||
+                      cliente.empresa ||
+                      "Cliente sin nombre"}
                   </option>
                 ))}
               </select>
             </label>
 
             <label>
-              Número de albarán
+              Email
               <input
-                value={resultado.numero_albaran}
+                value={resultado.email}
+                onChange={(evento) => actualizarCampo("email", evento.target.value)}
+              />
+            </label>
+
+            <label>
+              Teléfono
+              <input
+                value={resultado.telefono}
                 onChange={(evento) =>
-                  actualizarCampo("numero_albaran", evento.target.value)
+                  actualizarCampo("telefono", evento.target.value)
                 }
               />
             </label>
 
             <label>
-              Fecha
+              Fecha del evento
               <input
                 type="date"
-                value={resultado.fecha_albaran}
+                value={resultado.fecha_evento}
                 onChange={(evento) =>
-                  actualizarCampo("fecha_albaran", evento.target.value)
+                  actualizarCampo("fecha_evento", evento.target.value)
+                }
+              />
+            </label>
+
+            <label>
+              Hora
+              <input
+                type="time"
+                value={resultado.hora_evento}
+                onChange={(evento) =>
+                  actualizarCampo("hora_evento", evento.target.value)
+                }
+              />
+            </label>
+
+            <label>
+              Personas
+              <input
+                type="number"
+                min="0"
+                value={resultado.numero_personas}
+                onChange={(evento) =>
+                  actualizarCampo("numero_personas", evento.target.value)
                 }
               />
             </label>
@@ -266,151 +307,132 @@ function ImportadorAlbaranes() {
             <table>
               <thead>
                 <tr>
-                  <th>Descripción</th>
+                  <th>Producto</th>
                   <th>Cantidad</th>
-                  <th>Unidad</th>
                   <th>Precio</th>
-                  <th>IVA</th>
                   <th>Total</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {resultado.lineas.map((linea, indice) => {
-                  const totalLinea =
-                    Number(linea.cantidad || 0) *
-                    Number(linea.precio_unitario || 0);
+                {resultado.lineas.map((linea, indice) => (
+                  <tr key={`${linea.producto_id}-${indice}`}>
+                    <td>
+                      <select
+                        value={linea.producto_id}
+                        onChange={(evento) => {
+                          const producto = productos.find(
+                            (item) =>
+                              String(item.id) === String(evento.target.value)
+                          );
 
-                  return (
-                    <tr key={indice}>
-                      <td>
-                        <input
-                          value={linea.descripcion}
-                          onChange={(evento) =>
-                            actualizarLinea(
-                              indice,
-                              "descripcion",
-                              evento.target.value
-                            )
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.001"
-                          value={linea.cantidad}
-                          onChange={(evento) =>
-                            actualizarLinea(
-                              indice,
-                              "cantidad",
-                              evento.target.value
-                            )
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          value={linea.unidad}
-                          onChange={(evento) =>
-                            actualizarLinea(
-                              indice,
-                              "unidad",
-                              evento.target.value
-                            )
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={linea.precio_unitario}
-                          onChange={(evento) =>
-                            actualizarLinea(
-                              indice,
-                              "precio_unitario",
-                              evento.target.value
-                            )
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={linea.iva}
-                          onChange={(evento) =>
-                            actualizarLinea(indice, "iva", evento.target.value)
-                          }
-                        />
-                      </td>
-                      <td>
-                        {totalLinea.toLocaleString("es-ES", {
-                          style: "currency",
-                          currency: "EUR",
-                        })}
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="boton-peligro"
-                          onClick={() => eliminarLinea(indice)}
-                        >
-                          Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                          actualizarLinea(
+                            indice,
+                            "producto_id",
+                            evento.target.value
+                          );
+                          actualizarLinea(
+                            indice,
+                            "nombre",
+                            producto?.nombre || ""
+                          );
+                          actualizarLinea(
+                            indice,
+                            "precio_unitario",
+                            Number(producto?.precio_venta || 0)
+                          );
+                        }}
+                      >
+                        <option value="">Seleccionar producto</option>
+                        {productos.map((producto) => (
+                          <option key={producto.id} value={producto.id}>
+                            {producto.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={linea.cantidad}
+                        onChange={(evento) =>
+                          actualizarLinea(indice, "cantidad", evento.target.value)
+                        }
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={linea.precio_unitario}
+                        onChange={(evento) =>
+                          actualizarLinea(
+                            indice,
+                            "precio_unitario",
+                            evento.target.value
+                          )
+                        }
+                      />
+                    </td>
+                    <td>
+                      {(
+                        Number(linea.cantidad || 0) *
+                        Number(linea.precio_unitario || 0)
+                      ).toLocaleString("es-ES", {
+                        style: "currency",
+                        currency: "EUR",
+                      })}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="boton-peligro"
+                        onClick={() => eliminarLinea(indice)}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
 
           <button type="button" onClick={añadirLinea}>
-            + Añadir línea
+            + Añadir producto
           </button>
 
-          <div className="totales-importador">
-            <p>
-              Base imponible:{" "}
-              <strong>
-                {totalesCalculados.base_imponible.toLocaleString("es-ES", {
-                  style: "currency",
-                  currency: "EUR",
-                })}
-              </strong>
-            </p>
-            <p>
-              IVA:{" "}
-              <strong>
-                {totalesCalculados.total_iva.toLocaleString("es-ES", {
-                  style: "currency",
-                  currency: "EUR",
-                })}
-              </strong>
-            </p>
-            <p>
-              Total:{" "}
-              <strong>
-                {totalesCalculados.total.toLocaleString("es-ES", {
-                  style: "currency",
-                  currency: "EUR",
-                })}
-              </strong>
-            </p>
-          </div>
+          <p className="total-importador">
+            Total estimado:{" "}
+            <strong>
+              {totalEstimado.toLocaleString("es-ES", {
+                style: "currency",
+                currency: "EUR",
+              })}
+            </strong>
+          </p>
+
+          <label>
+            Observaciones
+            <textarea
+              rows="7"
+              value={resultado.observaciones}
+              onChange={(evento) =>
+                actualizarCampo("observaciones", evento.target.value)
+              }
+            />
+          </label>
 
           <button
             type="button"
             className="boton-principal"
             disabled={guardando}
-            onClick={guardarAlbaran}
+            onClick={guardarBorrador}
           >
-            {guardando ? "Guardando..." : "Guardar albarán para revisión"}
+            {guardando ? "Guardando..." : "Guardar borrador para revisión"}
           </button>
         </div>
       )}
@@ -418,4 +440,4 @@ function ImportadorAlbaranes() {
   );
 }
 
-export default ImportadorAlbaranes;
+export default ImportadorEmails;

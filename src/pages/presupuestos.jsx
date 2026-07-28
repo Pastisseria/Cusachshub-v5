@@ -1,4 +1,4 @@
-import DocumentoEditor from "../components/documentoeditor.jsx";
+import DocumentoEditor from "../components/DocumentoEditor.jsx";
 
 function Presupuestos() {
   return (

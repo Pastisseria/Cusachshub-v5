@@ -6,6 +6,7 @@ const PRODUCTO_VACIO = {
   nombre: "",
   referencia: "",
   categoria: "",
+  zona_produccion: "obrador",
   unidad: "unidad",
   coste: "",
   precio_venta: "",
@@ -60,7 +61,13 @@ function Productos() {
     if (!texto) return productos;
 
     return productos.filter((producto) =>
-      [producto.nombre, producto.referencia, producto.categoria, producto.unidad]
+      [
+        producto.nombre,
+        producto.referencia,
+        producto.categoria,
+        producto.zona_produccion,
+        producto.unidad,
+      ]
         .filter(Boolean)
         .some((valor) => normalizarTexto(valor).includes(texto)),
     );
@@ -89,6 +96,7 @@ function Productos() {
       nombre: producto.nombre ?? "",
       referencia: producto.referencia ?? "",
       categoria: producto.categoria ?? "",
+      zona_produccion: producto.zona_produccion ?? "obrador",
       unidad: producto.unidad ?? "unidad",
       coste: producto.coste ?? "",
       precio_venta: producto.precio_venta ?? "",
@@ -135,6 +143,7 @@ function Productos() {
       nombre: nombreLimpio,
       referencia: formulario.referencia.trim() || null,
       categoria: formulario.categoria.trim() || null,
+      zona_produccion: formulario.zona_produccion || "obrador",
       unidad: formulario.unidad.trim() || "unidad",
       coste,
       precio_venta: precioVenta,
@@ -351,6 +360,21 @@ function Productos() {
             <Campo etiqueta="Categoría" name="categoria" value={formulario.categoria} onChange={cambiarCampo} disabled={guardando} placeholder="Bollería, bocadillos, bebidas..." />
 
             <label>
+              Zona de producción
+              <select
+                name="zona_produccion"
+                value={formulario.zona_produccion}
+                onChange={cambiarCampo}
+                disabled={guardando}
+                style={estiloCampo}
+              >
+                <option value="obrador">🏭 Obrador</option>
+                <option value="cocina">👨‍🍳 Cocina</option>
+                <option value="barra">☕ Barra</option>
+              </select>
+            </label>
+
+            <label>
               Unidad de venta
               <select name="unidad" value={formulario.unidad} onChange={cambiarCampo} disabled={guardando} style={estiloCampo}>
                 <option value="unidad">Unidad</option>
@@ -418,6 +442,9 @@ function Productos() {
                   <p>{producto.categoria || "Sin categoría"}{producto.referencia ? ` · Ref. ${producto.referencia}` : ""}</p>
                   <p>Venta: <strong>{formatearEuros(producto.precio_venta)}</strong> + {Number(producto.iva || 0)} % IVA</p>
                   <p>Coste: {formatearEuros(producto.coste)} · Margen: {margen === null ? "—" : `${margen.toFixed(1)} %`}</p>
+                  <p>
+                    Zona: <strong>{formatearZona(producto.zona_produccion)}</strong>
+                  </p>
                   <p>Unidad: {producto.unidad || "unidad"} · {producto.activo === false ? "Inactivo" : "Activo"}</p>
                   <div className="acciones">
                     <button type="button" onClick={() => editarProducto(producto)}>✏️ Editar</button>
@@ -444,6 +471,7 @@ function convertirFilaExcel(fila) {
     nombre: String(nombre).trim(),
     referencia: null,
     categoria: String(categoria || "").trim() || null,
+    zona_produccion: deducirZonaProduccion(categoria, nombre),
     unidad: deducirUnidad(categoria, nombre),
     coste: 0,
     precio_venta: convertirNumero(precio),
@@ -469,6 +497,47 @@ function deducirUnidad(categoria, nombre) {
   if (texto.includes("servicio")) return "servicio";
   if (texto.includes("caja")) return "caja";
   return "unidad";
+}
+
+function deducirZonaProduccion(categoria, nombre) {
+  const texto = normalizarTexto(`${categoria || ""} ${nombre || ""}`);
+
+  const palabrasBarra = [
+    "cafe",
+    "infusion",
+    "te",
+    "zumo",
+    "refresco",
+    "cerveza",
+    "agua",
+    "bebida",
+  ];
+
+  const palabrasCocina = [
+    "ensalada",
+    "arroz",
+    "pasta",
+    "carne",
+    "pescado",
+    "caliente",
+    "cocina",
+    "guiso",
+    "sopa",
+  ];
+
+  if (palabrasBarra.some((palabra) => texto.includes(palabra))) return "barra";
+  if (palabrasCocina.some((palabra) => texto.includes(palabra))) return "cocina";
+  return "obrador";
+}
+
+function formatearZona(zona) {
+  const zonas = {
+    obrador: "🏭 Obrador",
+    cocina: "👨‍🍳 Cocina",
+    barra: "☕ Barra",
+  };
+
+  return zonas[zona] || "🏭 Obrador";
 }
 
 const estiloCampo = {

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase.js";
 import logoCusachs from "../assets/logo-cusachs.png";
+import { escucharUnaOrden, navegadorAdmiteVoz } from "../ai/voz.js";
+import { prepararPropuestaAsistente } from "../ai/asistente.js";
 
 const TIPOS_DOCUMENTO = [
   "Catering",
@@ -162,6 +164,112 @@ function DocumentoEditor({
 
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+
+  const [asistenteVisible, setAsistenteVisible] = useState(false);
+  const [escuchandoVoz, setEscuchandoVoz] = useState(false);
+  const [textoAsistente, setTextoAsistente] = useState("");
+  const [propuestaAsistente, setPropuestaAsistente] = useState(null);
+  const [errorAsistente, setErrorAsistente] = useState("");
+  const [analizandoAsistente, setAnalizandoAsistente] = useState(false);
+
+  async function iniciarDictadoAsistente() {
+    setErrorAsistente("");
+    setPropuestaAsistente(null);
+
+    try {
+      const texto = await escucharUnaOrden({
+        idioma: idioma === "ca" ? "ca-ES" : idioma === "en" ? "en-GB" : "es-ES",
+        onInicio: () => setEscuchandoVoz(true),
+        onFin: () => setEscuchandoVoz(false),
+        onTextoParcial: (parcial) => setTextoAsistente(parcial),
+      });
+
+      setTextoAsistente(texto);
+      await analizarOrdenAsistente(texto);
+    } catch (err) {
+      setErrorAsistente(err.message || "No s'ha pogut utilitzar el micròfon.");
+      setEscuchandoVoz(false);
+    }
+  }
+
+  async function analizarOrdenAsistente(texto = textoAsistente) {
+    if (!texto.trim()) {
+      setErrorAsistente("Escriu o dicta una ordre.");
+      return;
+    }
+
+    setAnalizandoAsistente(true);
+    setErrorAsistente("");
+
+    try {
+      const propuesta = await prepararPropuestaAsistente({
+        texto,
+        clientes,
+        productos,
+      });
+
+      setPropuestaAsistente(propuesta);
+    } catch (err) {
+      setErrorAsistente(err.message || "No s'ha pogut interpretar l'ordre.");
+    } finally {
+      setAnalizandoAsistente(false);
+    }
+  }
+
+  function aplicarPropuestaAlPresupuesto() {
+    const datos = propuestaAsistente?.datos;
+
+    if (!propuestaAsistente?.puedeAplicarseAlPresupuesto || !datos) {
+      setErrorAsistente("Aquesta proposta no es pot aplicar al pressupost.");
+      return;
+    }
+
+    abrirNuevoDocumento();
+
+    if (datos.cliente?.id) {
+      setClienteId(String(datos.cliente.id));
+    }
+
+    if (datos.fecha) setFecha(datos.fecha);
+    if (datos.hora) setHoraEntrega(datos.hora);
+    if (datos.idioma) setIdioma(datos.idioma);
+
+    if (datos.lineas?.length) {
+      setLineas(
+        datos.lineas.map((linea) => ({
+          temporalId:
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random()}`,
+          producto_id: linea.producto_id || "",
+          descripcion: linea.producto_nombre || "",
+          cantidad: String(linea.cantidad || 1),
+          precio_unitario: String(linea.precio_unitario ?? 0),
+          iva: String(linea.iva ?? 10),
+        })),
+      );
+    }
+
+    const observacionesIA = [
+      datos.personas ? `Persones: ${datos.personas}` : "",
+      datos.observaciones ? `Ordre dictada: ${datos.observaciones}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    if (observacionesIA) setObservaciones(observacionesIA);
+
+    setAsistenteVisible(false);
+    setPropuestaAsistente(null);
+    setMensaje(
+      "Proposta aplicada al formulari. Revisa-la abans de desar el document.",
+    );
+  }
+
+  function cancelarPropuestaAsistente() {
+    setPropuestaAsistente(null);
+    setErrorAsistente("");
+  }
 
   async function cargarDatos() {
     setCargando(true);
@@ -1175,7 +1283,197 @@ function DocumentoEditor({
         >
           + Nuevo documento
         </button>
+
+        <button
+          type="button"
+          className="boton-secundario"
+          onClick={() => {
+            setAsistenteVisible((anterior) => !anterior);
+            setErrorAsistente("");
+          }}
+        >
+          🎤 Parlar amb Cusachs Hub
+        </button>
       </div>
+
+      {asistenteVisible && (
+        <div
+          className="formulario"
+          style={{
+            marginBottom: "22px",
+            padding: "18px",
+            border: "2px solid #8f63a8",
+          }}
+        >
+          <div className="titulo-seccion" style={{ marginBottom: "14px" }}>
+            <div>
+              <p className="etiqueta">Assistent segur</p>
+              <h3>🎤 Parlar amb Cusachs Hub</h3>
+            </div>
+
+            <button
+              type="button"
+              className="boton-cancelar"
+              onClick={() => {
+                setAsistenteVisible(false);
+                cancelarPropuestaAsistente();
+              }}
+            >
+              Tancar
+            </button>
+          </div>
+
+          <p>
+            Dicta o escriu la petició. L'assistent només prepararà una proposta:
+            no desarà, facturarà ni modificarà dades sense la teva confirmació.
+          </p>
+
+          <textarea
+            rows="4"
+            value={textoAsistente}
+            onChange={(event) => setTextoAsistente(event.target.value)}
+            placeholder="Exemple: Pressupost per a Hospital Clínic divendres a les 9, per a 75 persones, amb 75 cafès i 75 mini croissants."
+            style={{ width: "100%", marginTop: "10px" }}
+          />
+
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+              marginTop: "12px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={iniciarDictadoAsistente}
+              disabled={escuchandoVoz || analizandoAsistente || !navegadorAdmiteVoz()}
+            >
+              {escuchandoVoz ? "🎙️ Escoltant..." : "🎤 Dictar"}
+            </button>
+
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={() => analizarOrdenAsistente()}
+              disabled={analizandoAsistente || !textoAsistente.trim()}
+            >
+              {analizandoAsistente ? "Analitzant..." : "✨ Preparar proposta"}
+            </button>
+
+            <button
+              type="button"
+              className="boton-cancelar"
+              onClick={() => {
+                setTextoAsistente("");
+                cancelarPropuestaAsistente();
+              }}
+            >
+              Netejar
+            </button>
+          </div>
+
+          {!navegadorAdmiteVoz() && (
+            <p className="mensaje-error">
+              El navegador no admet el micròfon. Pots escriure l'ordre o obrir
+              l'aplicació amb Chrome o Edge.
+            </p>
+          )}
+
+          {errorAsistente && (
+            <p className="mensaje-error">Error: {errorAsistente}</p>
+          )}
+
+          {propuestaAsistente && (
+            <div
+              style={{
+                marginTop: "18px",
+                padding: "16px",
+                border: "1px solid #d8c8df",
+                borderRadius: "12px",
+                background: "#faf7fc",
+              }}
+            >
+              <h3>{propuestaAsistente.titulo}</h3>
+
+              <p>
+                <strong>Acció detectada:</strong>{" "}
+                {propuestaAsistente.intencion}
+              </p>
+
+              {propuestaAsistente.datos?.cliente && (
+                <p>
+                  <strong>Client:</strong>{" "}
+                  {propuestaAsistente.datos.cliente.empresa ||
+                    propuestaAsistente.datos.cliente.nombre}
+                </p>
+              )}
+
+              {propuestaAsistente.datos?.fecha && (
+                <p>
+                  <strong>Data:</strong> {propuestaAsistente.datos.fecha}
+                </p>
+              )}
+
+              {propuestaAsistente.datos?.hora && (
+                <p>
+                  <strong>Hora:</strong> {propuestaAsistente.datos.hora}
+                </p>
+              )}
+
+              {propuestaAsistente.datos?.personas && (
+                <p>
+                  <strong>Persones:</strong>{" "}
+                  {propuestaAsistente.datos.personas}
+                </p>
+              )}
+
+              {propuestaAsistente.datos?.lineas?.length > 0 && (
+                <>
+                  <h4>Productes detectats</h4>
+                  <ul>
+                    {propuestaAsistente.datos.lineas.map((linea) => (
+                      <li key={`${linea.producto_id}-${linea.producto_nombre}`}>
+                        {linea.cantidad} × {linea.producto_nombre}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {propuestaAsistente.advertencias?.map((advertencia) => (
+                <p key={advertencia}>⚠️ {advertencia}</p>
+              ))}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  marginTop: "14px",
+                }}
+              >
+                {propuestaAsistente.puedeAplicarseAlPresupuesto && (
+                  <button
+                    type="button"
+                    onClick={aplicarPropuestaAlPresupuesto}
+                  >
+                    ✅ Aplicar al pressupost
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="boton-cancelar"
+                  onClick={cancelarPropuestaAsistente}
+                >
+                  ❌ Cancel·lar proposta
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div
         className="formulario"
@@ -2197,7 +2495,7 @@ function calcularLinea(linea) {
 }
 
 function calcularTotales(lineas) {
-  return lineas.reduce(
+  const acumulado = lineas.reduce(
     (acumulado, linea) => {
       const calculo = calcularLinea(linea);
 
@@ -2221,6 +2519,18 @@ function calcularTotales(lineas) {
       total: 0,
     },
   );
+
+  // Redondeamos únicamente el total final al múltiplo de 0,50 € más cercano.
+  // La base y el IVA conservan los céntimos exactos.
+  return {
+    ...acumulado,
+    totalExacto: acumulado.total,
+    total: redondearA05(acumulado.total),
+  };
+}
+
+function redondearA05(numero) {
+  return Math.round((Number(numero || 0) + Number.EPSILON) * 2) / 2;
 }
 
 function convertirNumero(valor) {

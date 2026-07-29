@@ -6,7 +6,7 @@ import {
   recalcularAlbaran,
 } from "../ai/parserAlbaranes.js";
 
-import { leerDocumento } from "../services/lectorDocumentos.js";
+import { leerDocumento } from "../services/lectordocumentos.js";
 
 const RESULTADO_VACIO = {
   numero_albaran: "",

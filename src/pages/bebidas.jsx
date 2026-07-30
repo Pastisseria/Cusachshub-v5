@@ -6,13 +6,17 @@ const FORMULARIO_INICIAL = {
   marca: "",
   categoria: "",
   formato: "",
+
   unidades_por_caja: "1",
-  stock_total: "",
-  stock_reservado: "",
-  stock_minimo: "",
-  precio_coste: "",
+
+  stock_cajas: "",
+  stock_reservado_cajas: "",
+  stock_minimo_cajas: "",
+
+  precio_caja: "",
   precio_venta: "",
   iva: "21",
+
   observaciones: "",
   activo: true,
 };
@@ -20,9 +24,11 @@ const FORMULARIO_INICIAL = {
 function Bebidas() {
   const [bebidas, setBebidas] = useState([]);
   const [formulario, setFormulario] = useState(FORMULARIO_INICIAL);
+
   const [editandoId, setEditandoId] = useState(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("todas");
+
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -31,6 +37,21 @@ function Bebidas() {
   useEffect(() => {
     cargarBebidas();
   }, []);
+
+  const unidadesPorCajaFormulario = Number(
+    formulario.unidades_por_caja || 0,
+  );
+
+  const precioCajaFormulario = Number(formulario.precio_caja || 0);
+  const stockCajasFormulario = Number(formulario.stock_cajas || 0);
+
+  const precioUnidadCalculado =
+    unidadesPorCajaFormulario > 0
+      ? precioCajaFormulario / unidadesPorCajaFormulario
+      : 0;
+
+  const stockUnidadesCalculado =
+    stockCajasFormulario * unidadesPorCajaFormulario;
 
   async function cargarBebidas() {
     setCargando(true);
@@ -68,20 +89,30 @@ function Bebidas() {
       marca: bebida.marca ?? "",
       categoria: bebida.categoria ?? "",
       formato: bebida.formato ?? "",
-      unidades_por_caja: bebida.unidades_por_caja ?? "1",
-      stock_total: bebida.stock_total ?? "",
-      stock_reservado: bebida.stock_reservado ?? "",
-      stock_minimo: bebida.stock_minimo ?? "",
-      precio_coste: bebida.precio_coste ?? "",
-      precio_venta: bebida.precio_venta ?? "",
-      iva: bebida.iva ?? "21",
+
+      unidades_por_caja: String(bebida.unidades_por_caja ?? 1),
+
+      stock_cajas: String(bebida.stock_cajas ?? ""),
+      stock_reservado_cajas: String(
+        bebida.stock_reservado_cajas ?? "",
+      ),
+      stock_minimo_cajas: String(bebida.stock_minimo_cajas ?? ""),
+
+      precio_caja: String(bebida.precio_caja ?? ""),
+      precio_venta: String(bebida.precio_venta ?? ""),
+      iva: String(bebida.iva ?? 21),
+
       observaciones: bebida.observaciones ?? "",
       activo: bebida.activo ?? true,
     });
 
     setError("");
     setMensaje("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   }
 
   function cancelarEdicion() {
@@ -99,30 +130,55 @@ function Bebidas() {
       return;
     }
 
-    const unidadesPorCaja = Number(formulario.unidades_por_caja || 1);
-    const stockTotal = Number(formulario.stock_total || 0);
-    const stockReservado = Number(formulario.stock_reservado || 0);
-    const stockMinimo = Number(formulario.stock_minimo || 0);
-    const precioCoste = Number(formulario.precio_coste || 0);
+    const unidadesPorCaja = Number(
+      formulario.unidades_por_caja || 1,
+    );
+
+    const stockCajas = Number(formulario.stock_cajas || 0);
+
+    const stockReservadoCajas = Number(
+      formulario.stock_reservado_cajas || 0,
+    );
+
+    const stockMinimoCajas = Number(
+      formulario.stock_minimo_cajas || 0,
+    );
+
+    const precioCaja = Number(formulario.precio_caja || 0);
     const precioVenta = Number(formulario.precio_venta || 0);
     const iva = Number(formulario.iva || 0);
 
     if (!Number.isInteger(unidadesPorCaja) || unidadesPorCaja <= 0) {
-      setError("Las unidades por caja deben ser un número entero mayor que cero.");
+      setError(
+        "Las unidades por caja deben ser un número entero mayor que cero.",
+      );
       return;
     }
+
+    const valoresNumericos = [
+      stockCajas,
+      stockReservadoCajas,
+      stockMinimoCajas,
+      precioCaja,
+      precioVenta,
+      iva,
+    ];
 
     if (
-      [stockTotal, stockReservado, stockMinimo, precioCoste, precioVenta, iva].some(
-        (valor) => Number.isNaN(valor) || valor < 0,
+      valoresNumericos.some(
+        (valor) => !Number.isFinite(valor) || valor < 0,
       )
     ) {
-      setError("Los valores numéricos deben ser iguales o mayores que cero.");
+      setError(
+        "Los valores numéricos deben ser iguales o mayores que cero.",
+      );
       return;
     }
 
-    if (stockReservado > stockTotal) {
-      setError("El stock reservado no puede ser mayor que el stock total.");
+    if (stockReservadoCajas > stockCajas) {
+      setError(
+        "Las cajas reservadas no pueden ser mayores que las cajas totales.",
+      );
       return;
     }
 
@@ -130,6 +186,11 @@ function Bebidas() {
       setError("El IVA no puede ser superior al 100 %.");
       return;
     }
+
+    const precioUnidad =
+      unidadesPorCaja > 0 ? precioCaja / unidadesPorCaja : 0;
+
+    const stockUnidades = stockCajas * unidadesPorCaja;
 
     setGuardando(true);
     setError("");
@@ -140,15 +201,23 @@ function Bebidas() {
       marca: formulario.marca.trim() || null,
       categoria: formulario.categoria.trim() || null,
       formato: formulario.formato.trim() || null,
+
       unidades_por_caja: unidadesPorCaja,
-      stock_total: stockTotal,
-      stock_reservado: stockReservado,
-      stock_minimo: stockMinimo,
-      precio_coste: precioCoste,
+
+      stock_cajas: stockCajas,
+      stock_unidades: stockUnidades,
+      stock_reservado_cajas: stockReservadoCajas,
+      stock_minimo_cajas: stockMinimoCajas,
+
+      precio_caja: precioCaja,
+      precio_unidad: precioUnidad,
+
       precio_venta: precioVenta,
       iva,
+
       observaciones: formulario.observaciones.trim() || null,
       activo: formulario.activo,
+
       updated_at: new Date().toISOString(),
     };
 
@@ -160,7 +229,7 @@ function Bebidas() {
         .update(datos)
         .eq("id", editandoId);
     } else {
-      resultado = await supabase.from("bebidas").insert(datos);
+      resultado = await supabase.from("bebidas").insert([datos]);
     }
 
     if (resultado.error) {
@@ -229,7 +298,8 @@ function Bebidas() {
 
     return bebidas.filter((bebida) => {
       const coincideCategoria =
-        filtroCategoria === "todas" || bebida.categoria === filtroCategoria;
+        filtroCategoria === "todas" ||
+        bebida.categoria === filtroCategoria;
 
       const coincideBusqueda =
         !texto ||
@@ -245,16 +315,37 @@ function Bebidas() {
   const resumen = useMemo(() => {
     return bebidas.reduce(
       (acumulado, bebida) => {
-        const stockTotal = Number(bebida.stock_total || 0);
-        const stockReservado = Number(bebida.stock_reservado || 0);
-        const stockDisponible = stockTotal - stockReservado;
+        const unidadesPorCaja = Number(
+          bebida.unidades_por_caja || 1,
+        );
+
+        const stockCajas = Number(bebida.stock_cajas || 0);
+
+        const stockReservadoCajas = Number(
+          bebida.stock_reservado_cajas || 0,
+        );
+
+        const stockDisponibleCajas =
+          stockCajas - stockReservadoCajas;
+
+        const stockUnidades =
+          stockCajas * unidadesPorCaja;
+
+        const stockDisponibleUnidades =
+          stockDisponibleCajas * unidadesPorCaja;
 
         acumulado.totalBebidas += 1;
-        acumulado.stockTotal += stockTotal;
-        acumulado.stockReservado += stockReservado;
-        acumulado.stockDisponible += stockDisponible;
+        acumulado.stockCajas += stockCajas;
+        acumulado.stockReservadoCajas += stockReservadoCajas;
+        acumulado.stockDisponibleCajas += stockDisponibleCajas;
+        acumulado.stockUnidades += stockUnidades;
+        acumulado.stockDisponibleUnidades +=
+          stockDisponibleUnidades;
 
-        if (stockDisponible <= Number(bebida.stock_minimo || 0)) {
+        if (
+          stockDisponibleCajas <=
+          Number(bebida.stock_minimo_cajas || 0)
+        ) {
           acumulado.stockBajo += 1;
         }
 
@@ -262,9 +353,11 @@ function Bebidas() {
       },
       {
         totalBebidas: 0,
-        stockTotal: 0,
-        stockReservado: 0,
-        stockDisponible: 0,
+        stockCajas: 0,
+        stockReservadoCajas: 0,
+        stockDisponibleCajas: 0,
+        stockUnidades: 0,
+        stockDisponibleUnidades: 0,
         stockBajo: 0,
       },
     );
@@ -275,37 +368,74 @@ function Bebidas() {
       <div className="titulo-seccion">
         <div>
           <p className="etiqueta">Inventario</p>
+
           <h2>Bebidas</h2>
+
           <p>
-            Controla el stock disponible, reservado y pendiente de reposición.
+            Controla las cajas disponibles y calcula automáticamente
+            las unidades y el precio unitario.
           </p>
         </div>
 
-        <span className="contador">{bebidas.length} bebidas</span>
+        <span className="contador">
+          {bebidas.length} bebidas
+        </span>
       </div>
 
       <div style={estiloResumen}>
-        <TarjetaResumen titulo="Bebidas" valor={resumen.totalBebidas} />
-        <TarjetaResumen titulo="Stock total" valor={resumen.stockTotal} />
         <TarjetaResumen
-          titulo="Stock reservado"
-          valor={resumen.stockReservado}
+          titulo="Bebidas"
+          valor={resumen.totalBebidas}
         />
+
         <TarjetaResumen
-          titulo="Stock disponible"
-          valor={resumen.stockDisponible}
+          titulo="Cajas totales"
+          valor={formatearNumero(resumen.stockCajas)}
         />
-        <TarjetaResumen titulo="Stock bajo" valor={resumen.stockBajo} />
+
+        <TarjetaResumen
+          titulo="Cajas reservadas"
+          valor={formatearNumero(resumen.stockReservadoCajas)}
+        />
+
+        <TarjetaResumen
+          titulo="Cajas disponibles"
+          valor={formatearNumero(resumen.stockDisponibleCajas)}
+        />
+
+        <TarjetaResumen
+          titulo="Unidades disponibles"
+          valor={formatearNumero(
+            resumen.stockDisponibleUnidades,
+          )}
+        />
+
+        <TarjetaResumen
+          titulo="Stock bajo"
+          valor={resumen.stockBajo}
+        />
       </div>
 
-      <form onSubmit={guardarBebida} style={estiloFormulario}>
+      <form
+        onSubmit={guardarBebida}
+        style={estiloFormulario}
+      >
         <div style={estiloCabeceraFormulario}>
           <div>
             <h3 style={{ margin: 0 }}>
-              {editandoId ? "Editar bebida" : "Nueva bebida"}
+              {editandoId
+                ? "Editar bebida"
+                : "Nueva bebida"}
             </h3>
-            <p style={{ margin: "6px 0 0", opacity: 0.75 }}>
-              Añade la información comercial y el stock.
+
+            <p
+              style={{
+                margin: "6px 0 0",
+                opacity: 0.75,
+              }}
+            >
+              Introduce las cajas y el programa calculará
+              automáticamente las unidades.
             </p>
           </div>
 
@@ -374,64 +504,101 @@ function Bebidas() {
               name="unidades_por_caja"
               value={formulario.unidades_por_caja}
               onChange={actualizarCampo}
+              placeholder="Ej. 12"
               style={estiloCampo}
             />
           </label>
 
           <label>
-            Stock total
-            <input
-              type="number"
-              min="0"
-              step="1"
-              name="stock_total"
-              value={formulario.stock_total}
-              onChange={actualizarCampo}
-              style={estiloCampo}
-            />
-          </label>
-
-          <label>
-            Stock reservado
-            <input
-              type="number"
-              min="0"
-              step="1"
-              name="stock_reservado"
-              value={formulario.stock_reservado}
-              onChange={actualizarCampo}
-              style={estiloCampo}
-            />
-          </label>
-
-          <label>
-            Stock mínimo
-            <input
-              type="number"
-              min="0"
-              step="1"
-              name="stock_minimo"
-              value={formulario.stock_minimo}
-              onChange={actualizarCampo}
-              style={estiloCampo}
-            />
-          </label>
-
-          <label>
-            Precio de coste
+            Stock en cajas
             <input
               type="number"
               min="0"
               step="0.01"
-              name="precio_coste"
-              value={formulario.precio_coste}
+              name="stock_cajas"
+              value={formulario.stock_cajas}
               onChange={actualizarCampo}
+              placeholder="Ej. 10"
               style={estiloCampo}
             />
           </label>
 
           <label>
-            Precio de venta
+            Cajas reservadas
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              name="stock_reservado_cajas"
+              value={formulario.stock_reservado_cajas}
+              onChange={actualizarCampo}
+              placeholder="Ej. 2"
+              style={estiloCampo}
+            />
+          </label>
+
+          <label>
+            Stock mínimo en cajas
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              name="stock_minimo_cajas"
+              value={formulario.stock_minimo_cajas}
+              onChange={actualizarCampo}
+              placeholder="Ej. 3"
+              style={estiloCampo}
+            />
+          </label>
+
+          <label>
+            Precio por caja
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              name="precio_caja"
+              value={formulario.precio_caja}
+              onChange={actualizarCampo}
+              placeholder="Ej. 30,00 €"
+              style={estiloCampo}
+            />
+          </label>
+
+          <label>
+            Precio por unidad
+            <input
+              type="text"
+              value={formatearEuros(
+                precioUnidadCalculado,
+              )}
+              readOnly
+              style={estiloCampoCalculado}
+            />
+
+            <small style={estiloAyuda}>
+              Precio por caja ÷ unidades por caja
+            </small>
+          </label>
+
+          <label>
+            Stock total en unidades
+            <input
+              type="text"
+              value={formatearNumero(
+                stockUnidadesCalculado,
+              )}
+              readOnly
+              style={estiloCampoCalculado}
+            />
+
+            <small style={estiloAyuda}>
+              Cajas × unidades por caja
+            </small>
+          </label>
+
+          <label>
+            Precio de venta por unidad
             <input
               type="number"
               min="0"
@@ -439,6 +606,7 @@ function Bebidas() {
               name="precio_venta"
               value={formulario.precio_venta}
               onChange={actualizarCampo}
+              placeholder="Ej. 2,50 €"
               style={estiloCampo}
             />
           </label>
@@ -457,28 +625,30 @@ function Bebidas() {
             />
           </label>
 
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              minHeight: "48px",
-              marginTop: "24px",
-            }}
-          >
+          <label style={estiloCheckbox}>
             <input
               type="checkbox"
               name="activo"
               checked={formulario.activo}
               onChange={actualizarCampo}
-              style={{ width: "22px", height: "22px" }}
+              style={{
+                width: "22px",
+                height: "22px",
+              }}
             />
+
             Bebida activa
           </label>
         </div>
 
-        <label style={{ display: "block", marginTop: "18px" }}>
+        <label
+          style={{
+            display: "block",
+            marginTop: "18px",
+          }}
+        >
           Observaciones
+
           <textarea
             name="observaciones"
             value={formulario.observaciones}
@@ -493,11 +663,45 @@ function Bebidas() {
           />
         </label>
 
-        {error && <p style={estiloError}>Error: {error}</p>}
-        {mensaje && <p style={estiloMensaje}>{mensaje}</p>}
+        <div style={estiloEjemplo}>
+          <strong>Ejemplo del cálculo</strong>
+
+          <span>
+            {formatearNumero(stockCajasFormulario)} cajas ×{" "}
+            {formatearNumero(unidadesPorCajaFormulario)} unidades
+            ={" "}
+            <strong>
+              {formatearNumero(stockUnidadesCalculado)} unidades
+            </strong>
+          </span>
+
+          <span>
+            {formatearEuros(precioCajaFormulario)} por caja ÷{" "}
+            {formatearNumero(unidadesPorCajaFormulario)} unidades
+            ={" "}
+            <strong>
+              {formatearEuros(precioUnidadCalculado)} por unidad
+            </strong>
+          </span>
+        </div>
+
+        {error && (
+          <p style={estiloError}>
+            Error: {error}
+          </p>
+        )}
+
+        {mensaje && (
+          <p style={estiloMensaje}>
+            {mensaje}
+          </p>
+        )}
 
         <div style={{ marginTop: "18px" }}>
-          <button type="submit" disabled={guardando}>
+          <button
+            type="submit"
+            disabled={guardando}
+          >
             {guardando
               ? "Guardando..."
               : editandoId
@@ -510,20 +714,37 @@ function Bebidas() {
       <div style={estiloFiltros}>
         <input
           value={busqueda}
-          onChange={(evento) => setBusqueda(evento.target.value)}
+          onChange={(evento) =>
+            setBusqueda(evento.target.value)
+          }
           placeholder="Buscar por nombre, marca, categoría o formato..."
-          style={{ ...estiloCampo, marginTop: 0, flex: "1 1 320px" }}
+          style={{
+            ...estiloCampo,
+            marginTop: 0,
+            flex: "1 1 320px",
+          }}
         />
 
         <select
           value={filtroCategoria}
-          onChange={(evento) => setFiltroCategoria(evento.target.value)}
-          style={{ ...estiloCampo, marginTop: 0, maxWidth: "240px" }}
+          onChange={(evento) =>
+            setFiltroCategoria(evento.target.value)
+          }
+          style={{
+            ...estiloCampo,
+            marginTop: 0,
+            maxWidth: "240px",
+          }}
         >
-          <option value="todas">Todas las categorías</option>
+          <option value="todas">
+            Todas las categorías
+          </option>
 
           {categorias.map((categoria) => (
-            <option key={categoria} value={categoria}>
+            <option
+              key={categoria}
+              value={categoria}
+            >
               {categoria}
             </option>
           ))}
@@ -533,7 +754,9 @@ function Bebidas() {
       {cargando ? (
         <p>Cargando bebidas...</p>
       ) : bebidasFiltradas.length === 0 ? (
-        <p>No hay bebidas que coincidan con la búsqueda.</p>
+        <p>
+          No hay bebidas que coincidan con la búsqueda.
+        </p>
       ) : (
         <div style={{ overflowX: "auto" }}>
           <table style={estiloTabla}>
@@ -543,12 +766,14 @@ function Bebidas() {
                 <th style={estiloCabecera}>Categoría</th>
                 <th style={estiloCabecera}>Formato</th>
                 <th style={estiloCabecera}>Uds./caja</th>
-                <th style={estiloCabecera}>Total</th>
-                <th style={estiloCabecera}>Reservado</th>
-                <th style={estiloCabecera}>Disponible</th>
+                <th style={estiloCabecera}>Cajas</th>
+                <th style={estiloCabecera}>Reservadas</th>
+                <th style={estiloCabecera}>Disponibles</th>
+                <th style={estiloCabecera}>Unidades disponibles</th>
                 <th style={estiloCabecera}>Mínimo</th>
-                <th style={estiloCabecera}>Coste</th>
-                <th style={estiloCabecera}>Venta</th>
+                <th style={estiloCabecera}>Precio caja</th>
+                <th style={estiloCabecera}>Precio unidad</th>
+                <th style={estiloCabecera}>Venta unidad</th>
                 <th style={estiloCabecera}>IVA</th>
                 <th style={estiloCabecera}>Estado</th>
                 <th style={estiloCabecera}>Acciones</th>
@@ -557,17 +782,38 @@ function Bebidas() {
 
             <tbody>
               {bebidasFiltradas.map((bebida) => {
-                const disponible =
-                  Number(bebida.stock_total || 0) -
-                  Number(bebida.stock_reservado || 0);
+                const unidadesPorCaja = Number(
+                  bebida.unidades_por_caja || 1,
+                );
+
+                const stockCajas = Number(
+                  bebida.stock_cajas || 0,
+                );
+
+                const reservadoCajas = Number(
+                  bebida.stock_reservado_cajas || 0,
+                );
+
+                const disponibleCajas =
+                  stockCajas - reservadoCajas;
+
+                const disponibleUnidades =
+                  disponibleCajas * unidadesPorCaja;
+
+                const precioCaja = Number(
+                  bebida.precio_caja || 0,
+                );
+
+                const precioUnidad =
+                  unidadesPorCaja > 0
+                    ? precioCaja / unidadesPorCaja
+                    : 0;
 
                 const stockBajo =
-                  disponible <= Number(bebida.stock_minimo || 0);
-
-                const cajasDisponibles =
-                  Number(bebida.unidades_por_caja || 1) > 0
-                    ? disponible / Number(bebida.unidades_por_caja || 1)
-                    : 0;
+                  disponibleCajas <=
+                  Number(
+                    bebida.stock_minimo_cajas || 0,
+                  );
 
                 return (
                   <tr key={bebida.id}>
@@ -575,38 +821,96 @@ function Bebidas() {
                       <strong>{bebida.nombre}</strong>
 
                       {bebida.marca && (
-                        <div style={{ opacity: 0.65, marginTop: "4px" }}>
+                        <div
+                          style={{
+                            opacity: 0.65,
+                            marginTop: "4px",
+                          }}
+                        >
                           {bebida.marca}
                         </div>
                       )}
                     </td>
 
-                    <td style={estiloCelda}>{bebida.categoria || "—"}</td>
-                    <td style={estiloCelda}>{bebida.formato || "—"}</td>
-                    <td style={estiloCelda}>{bebida.unidades_por_caja}</td>
-                    <td style={estiloCelda}>{bebida.stock_total}</td>
-                    <td style={estiloCelda}>{bebida.stock_reservado}</td>
+                    <td style={estiloCelda}>
+                      {bebida.categoria || "—"}
+                    </td>
 
                     <td style={estiloCelda}>
-                      <strong>{disponible}</strong>
+                      {bebida.formato || "—"}
+                    </td>
 
-                      <div style={{ opacity: 0.65, marginTop: "4px" }}>
-                        {formatearNumero(cajasDisponibles)} cajas
+                    <td style={estiloCelda}>
+                      {formatearNumero(unidadesPorCaja)}
+                    </td>
+
+                    <td style={estiloCelda}>
+                      {formatearNumero(stockCajas)}
+                    </td>
+
+                    <td style={estiloCelda}>
+                      {formatearNumero(reservadoCajas)}
+                    </td>
+
+                    <td style={estiloCelda}>
+                      <strong>
+                        {formatearNumero(disponibleCajas)}
+                      </strong>
+
+                      <div
+                        style={{
+                          opacity: 0.65,
+                          marginTop: "4px",
+                        }}
+                      >
+                        cajas
                       </div>
 
                       {stockBajo && (
-                        <div style={estiloAvisoStock}>Stock bajo</div>
+                        <div style={estiloAvisoStock}>
+                          Stock bajo
+                        </div>
                       )}
                     </td>
 
-                    <td style={estiloCelda}>{bebida.stock_minimo}</td>
-
                     <td style={estiloCelda}>
-                      {formatearEuros(bebida.precio_coste)}
+                      <strong>
+                        {formatearNumero(
+                          disponibleUnidades,
+                        )}
+                      </strong>
+
+                      <div
+                        style={{
+                          opacity: 0.65,
+                          marginTop: "4px",
+                        }}
+                      >
+                        unidades
+                      </div>
                     </td>
 
                     <td style={estiloCelda}>
-                      {formatearEuros(bebida.precio_venta)}
+                      {formatearNumero(
+                        bebida.stock_minimo_cajas,
+                      )}{" "}
+                      cajas
+                    </td>
+
+                    <td style={estiloCelda}>
+                      {formatearEuros(precioCaja)}
+                    </td>
+
+                    <td style={estiloCelda}>
+                      <strong>
+                        {formatearEuros(precioUnidad)}
+                      </strong>
+                    </td>
+
+                    <td style={estiloCelda}>
+                      {formatearEuros(
+                        bebida.precio_venta,
+                      )}
                     </td>
 
                     <td style={estiloCelda}>
@@ -614,20 +918,18 @@ function Bebidas() {
                     </td>
 
                     <td style={estiloCelda}>
-                      {bebida.activo ? "Activa" : "Inactiva"}
+                      {bebida.activo
+                        ? "Activa"
+                        : "Inactiva"}
                     </td>
 
                     <td style={estiloCelda}>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          flexWrap: "wrap",
-                        }}
-                      >
+                      <div style={estiloAcciones}>
                         <button
                           type="button"
-                          onClick={() => prepararEdicion(bebida)}
+                          onClick={() =>
+                            prepararEdicion(bebida)
+                          }
                         >
                           Editar
                         </button>
@@ -635,7 +937,9 @@ function Bebidas() {
                         <button
                           type="button"
                           className="boton-cancelar"
-                          onClick={() => eliminarBebida(bebida)}
+                          onClick={() =>
+                            eliminarBebida(bebida)
+                          }
                         >
                           Eliminar
                         </button>
@@ -655,8 +959,13 @@ function Bebidas() {
 function TarjetaResumen({ titulo, valor }) {
   return (
     <div style={estiloTarjeta}>
-      <span style={{ opacity: 0.7 }}>{titulo}</span>
-      <strong style={{ fontSize: "26px" }}>{valor}</strong>
+      <span style={{ opacity: 0.7 }}>
+        {titulo}
+      </span>
+
+      <strong style={{ fontSize: "26px" }}>
+        {valor}
+      </strong>
     </div>
   );
 }
@@ -665,6 +974,8 @@ function formatearEuros(valor) {
   return new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
   }).format(Number(valor || 0));
 }
 
@@ -688,6 +999,21 @@ const estiloCampo = {
   fontSize: "16px",
 };
 
+const estiloCampoCalculado = {
+  ...estiloCampo,
+  background: "#302b35",
+  color: "#b9f4c5",
+  fontWeight: "700",
+  cursor: "not-allowed",
+};
+
+const estiloAyuda = {
+  display: "block",
+  marginTop: "6px",
+  opacity: 0.65,
+  fontSize: "12px",
+};
+
 const estiloFormulario = {
   marginBottom: "28px",
   padding: "22px",
@@ -707,13 +1033,15 @@ const estiloCabeceraFormulario = {
 
 const estiloGridFormulario = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+  gridTemplateColumns:
+    "repeat(auto-fit, minmax(210px, 1fr))",
   gap: "16px",
 };
 
 const estiloResumen = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gridTemplateColumns:
+    "repeat(auto-fit, minmax(150px, 1fr))",
   gap: "14px",
   marginBottom: "24px",
 };
@@ -738,7 +1066,7 @@ const estiloFiltros = {
 const estiloTabla = {
   width: "100%",
   borderCollapse: "collapse",
-  minWidth: "1400px",
+  minWidth: "1750px",
 };
 
 const estiloCabecera = {
@@ -772,6 +1100,31 @@ const estiloError = {
 const estiloMensaje = {
   marginTop: "16px",
   color: "#9fe1ae",
+};
+
+const estiloCheckbox = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  minHeight: "48px",
+  marginTop: "24px",
+};
+
+const estiloEjemplo = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
+  marginTop: "18px",
+  padding: "14px",
+  borderRadius: "12px",
+  background: "rgba(159, 225, 174, 0.08)",
+  border: "1px solid rgba(159, 225, 174, 0.3)",
+};
+
+const estiloAcciones = {
+  display: "flex",
+  gap: "8px",
+  flexWrap: "wrap",
 };
 
 export default Bebidas;

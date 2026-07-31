@@ -323,7 +323,7 @@ function DocumentoEditor({
         supabase
           .from("productos")
           .select(
-            "id, nombre, referencia, precio_venta, iva, activo",
+            "id, nombre, nombre_ca, nombre_en, referencia, precio_venta, iva, activo",
           )
           .eq("activo", true)
           .order("nombre"),
@@ -530,7 +530,7 @@ function DocumentoEditor({
         return {
           ...linea,
           producto_id: producto.id,
-          descripcion: producto.nombre ?? "",
+          descripcion: obtenerNombreProducto(producto, idioma),
           precio_unitario: String(
             producto.precio_venta ?? 0,
           ),
@@ -2247,7 +2247,13 @@ function DocumentoEditor({
                   key={linea.id}
                 >
                   <strong>{linea.cantidad}</strong>
-                  <span>{linea.descripcion}</span>
+                  <span>
+                    {obtenerDescripcionTraducida(
+                      linea,
+                      idiomaDocumento,
+                      productos,
+                    )}
+                  </span>
                 </div>
               ))}
             </section>
@@ -2450,6 +2456,33 @@ function DocumentoEditor({
         )}
     </section>
   );
+}
+
+function obtenerNombreProducto(producto, idioma = "es") {
+  if (!producto) return "";
+
+  if (idioma === "ca") {
+    return producto.nombre_ca || producto.nombre || "";
+  }
+
+  if (idioma === "en") {
+    return producto.nombre_en || producto.nombre || "";
+  }
+
+  return producto.nombre || "";
+}
+
+function obtenerDescripcionTraducida(linea, idioma, productos) {
+  const producto = productos.find(
+    (elemento) =>
+      String(elemento.id) === String(linea.producto_id),
+  );
+
+  if (!producto) {
+    return linea.descripcion || "";
+  }
+
+  return obtenerNombreProducto(producto, idioma) || linea.descripcion || "";
 }
 
 function obtenerNombreVisitador(visitador) {

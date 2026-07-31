@@ -739,19 +739,10 @@ function DocumentoEditor({
         throw errorLineas;
       }
 
-      if (
-        tipoDocumento === "Catering" &&
-        estado === "Aceptado"
-      ) {
-        await sincronizarCateringYProduccion(documentoGuardado.id);
-      }
-
       setMensaje(
-        tipoDocumento === "Catering" && estado === "Aceptado"
-          ? `Documento ${numero} guardado. El catering y la producción ya están preparados.`
-          : documentoEditando
-            ? `Documento ${numero} actualizado correctamente.`
-            : `Documento ${numero} guardado correctamente.`,
+        documentoEditando
+          ? `Documento ${numero} actualizado correctamente.`
+          : `Documento ${numero} guardado correctamente.`,
       );
 
       setMostrarFormulario(false);
@@ -1172,154 +1163,6 @@ function DocumentoEditor({
     }
   }
 
-  async function sincronizarCateringYProduccion(documentoId) {
-    const { data: documento, error: errorDocumento } = await supabase
-      .from("presupuestos")
-      .select(`
-        *,
-        clientes (
-          id,
-          nombre,
-          empresa,
-          direccion,
-          codigo_postal,
-          poblacion
-        )
-      `)
-      .eq("id", documentoId)
-      .single();
-
-    if (errorDocumento) {
-      throw errorDocumento;
-    }
-
-    if (
-      documento.tipo_documento !== "Catering" ||
-      documento.estado !== "Aceptado"
-    ) {
-      return;
-    }
-
-    const { data: lineasDocumento, error: errorLineas } = await supabase
-      .from("presupuesto_lineas")
-      .select("*")
-      .eq("presupuesto_id", documentoId)
-      .order("created_at");
-
-    if (errorLineas) {
-      throw errorLineas;
-    }
-
-    const cliente = documento.clientes || {};
-    const nombreCliente =
-      cliente.empresa || cliente.nombre || "Cliente sin indicar";
-
-    const { data: cateringExistente, error: errorBuscarCatering } =
-      await supabase
-        .from("caterings")
-        .select("id")
-        .eq("presupuesto_id", documentoId)
-        .limit(1)
-        .maybeSingle();
-
-    if (errorBuscarCatering) {
-      throw errorBuscarCatering;
-    }
-
-    const datosCatering = {
-      cliente_id: documento.cliente_id || null,
-      presupuesto_id: documento.id,
-      titulo: `${nombreCliente} — ${documento.numero}`,
-      fecha: documento.fecha,
-      hora_inicio: documento.hora_entrega || null,
-      hora_fin: null,
-      direccion:
-        documento.direccion_entrega ||
-        cliente.direccion ||
-        null,
-      poblacion: cliente.poblacion || null,
-      codigo_postal: cliente.codigo_postal || null,
-      numero_personas: 0,
-      responsable: documento.persona_contacto || null,
-      telefono_contacto: documento.telefono_contacto || null,
-      estado: "Confirmado",
-      tipo_servicio: "Catering",
-      observaciones: documento.observaciones || null,
-      updated_at: new Date().toISOString(),
-    };
-
-    let cateringId = cateringExistente?.id || null;
-
-    if (cateringId) {
-      const { error: errorActualizarCatering } = await supabase
-        .from("caterings")
-        .update(datosCatering)
-        .eq("id", cateringId);
-
-      if (errorActualizarCatering) {
-        throw errorActualizarCatering;
-      }
-    } else {
-      const { data: cateringCreado, error: errorCrearCatering } =
-        await supabase
-          .from("caterings")
-          .insert(datosCatering)
-          .select("id")
-          .single();
-
-      if (errorCrearCatering) {
-        throw errorCrearCatering;
-      }
-
-      cateringId = cateringCreado.id;
-    }
-
-    const { data: produccionExistente, error: errorBuscarProduccion } =
-      await supabase
-        .from("producciones")
-        .select("id")
-        .eq("catering_id", cateringId)
-        .limit(1);
-
-    if (errorBuscarProduccion) {
-      throw errorBuscarProduccion;
-    }
-
-    if ((produccionExistente || []).length === 0) {
-      const filasProduccion = (lineasDocumento || []).map((linea) => ({
-        catering_id: cateringId,
-        cliente_id: documento.cliente_id || null,
-        cliente_nombre: nombreCliente,
-        pedido_nombre: documento.numero,
-        fecha: documento.fecha,
-        zona: "Obrador",
-        producto_id: linea.producto_id || null,
-        producto_nombre: linea.descripcion,
-        cantidad: Number(linea.cantidad || 0),
-        unidad: "unidades",
-        responsable: null,
-        hora_limite: documento.hora_entrega || null,
-        estado: "Pendiente",
-        direccion_entrega:
-          documento.direccion_entrega ||
-          cliente.direccion ||
-          null,
-        observaciones: documento.observaciones || null,
-        updated_at: new Date().toISOString(),
-      }));
-
-      if (filasProduccion.length > 0) {
-        const { error: errorCrearProduccion } = await supabase
-          .from("producciones")
-          .insert(filasProduccion);
-
-        if (errorCrearProduccion) {
-          throw errorCrearProduccion;
-        }
-      }
-    }
-  }
-
   async function cambiarEstado(
     documentoId,
     nuevoEstado,
@@ -1342,9 +1185,7 @@ function DocumentoEditor({
         throw supabaseError;
       }
 
-      if (nuevoEstado === "Aceptado") {
-        await sincronizarCateringYProduccion(documentoId);
-      }
+      setMensaje("Estado actualizado correctamente.");
 
       setDocumentoAbierto((anterior) =>
         anterior?.id === documentoId
@@ -1353,12 +1194,6 @@ function DocumentoEditor({
               ...datosActualizados,
             }
           : anterior,
-      );
-
-      setMensaje(
-        nuevoEstado === "Aceptado"
-          ? "Estado actualizado. El catering y la producción ya están preparados."
-          : "Estado actualizado correctamente.",
       );
 
       await cargarDatos();

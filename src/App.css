@@ -3167,3 +3167,230 @@ comparador-page {
   flex-direction: column;
   gap: 16px;
 }
+/* =========================================================
+   CUSACHS HUB V6 - FACTURAS SIN PRECIOS POR LÍNEA
+   ========================================================= */
+.factura-print-tabla-sin-precios th:first-child,
+.factura-print-tabla-sin-precios td:first-child {
+  width: 110px;
+  text-align: center;
+}
+
+.factura-print-tabla-sin-precios th:last-child,
+.factura-print-tabla-sin-precios td:last-child {
+  text-align: left;
+}
+
+/* =========================================================
+   CUSACHS HUB V6 - LISTADO SEMANAL DE CATERINGS
+   ========================================================= */
+.catering-acciones-cabecera,
+.catering-semana-cabecera,
+.catering-semana-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.catering-semana {
+  margin-top: 22px;
+}
+
+.catering-semana-cabecera {
+  margin-bottom: 18px;
+}
+
+.catering-semana-titulo {
+  padding: 18px 20px;
+  border: 1px solid #cfc4d5;
+  border-bottom: 0;
+  background: #f7f2f9;
+}
+
+.catering-semana-titulo p,
+.catering-semana-titulo h3 {
+  margin: 0;
+}
+
+.catering-semana-titulo p {
+  color: #6b3293;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.catering-semana-titulo h3 {
+  margin-top: 4px;
+  font-size: 23px;
+}
+
+.catering-semana-tabla {
+  display: grid;
+  grid-template-columns: 74px repeat(7, minmax(145px, 1fr));
+  min-width: 1120px;
+  overflow: hidden;
+  border: 1px solid #8d8791;
+  background: #fff;
+}
+
+.catering-semana {
+  overflow-x: auto;
+}
+
+.catering-semana-hora-cabecera,
+.catering-semana-dia-cabecera {
+  padding: 10px 7px;
+  border-right: 1px solid #8d8791;
+  border-bottom: 1px solid #8d8791;
+  background: #e8ede9;
+  text-align: center;
+}
+
+.catering-semana-dia-cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.catering-semana-dia-cabecera span {
+  font-size: 12px;
+}
+
+.catering-semana-fila {
+  display: contents;
+}
+
+.catering-semana-hora,
+.catering-semana-celda {
+  min-height: 78px;
+  padding: 7px;
+  border-right: 1px solid #8d8791;
+  border-bottom: 1px solid #8d8791;
+}
+
+.catering-semana-hora {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: #eef2ef;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.catering-semana-celda {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #fff;
+}
+
+.catering-semana-evento {
+  display: flex;
+  min-height: auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid #c9b8d1;
+  border-radius: 5px;
+  background: #fff7be;
+  color: #26212a;
+  text-align: left;
+  box-shadow: none;
+}
+
+.catering-semana-evento:hover {
+  color: #26212a;
+  transform: none;
+}
+
+.catering-semana-evento strong {
+  font-size: 12px;
+}
+
+.catering-semana-evento span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.catering-semana-evento small {
+  font-size: 11px;
+}
+
+.catering-semana-evento.estado-confirmado,
+.catering-semana-evento.estado-realizado {
+  background: #dff4df;
+}
+
+.catering-semana-evento.estado-cancelado {
+  background: #f6dddd;
+}
+
+@media (max-width: 760px) {
+  .catering-acciones-cabecera,
+  .catering-semana-cabecera {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .catering-acciones-cabecera button,
+  .catering-semana-cabecera button {
+    width: 100%;
+  }
+}
+
+@media print {
+  body.imprimiendo-semana-catering {
+    background: #fff !important;
+  }
+
+  body.imprimiendo-semana-catering * {
+    visibility: hidden !important;
+  }
+
+  body.imprimiendo-semana-catering #catering-semana-imprimible,
+  body.imprimiendo-semana-catering #catering-semana-imprimible * {
+    visibility: visible !important;
+  }
+
+  body.imprimiendo-semana-catering #catering-semana-imprimible {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-tabla {
+    grid-template-columns: 48px repeat(7, 1fr) !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 9px !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-hora,
+  body.imprimiendo-semana-catering .catering-semana-celda {
+    min-height: 52px !important;
+    padding: 3px !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-evento {
+    padding: 3px !important;
+    border-radius: 0 !important;
+    font-size: 8px !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-evento span,
+  body.imprimiendo-semana-catering .catering-semana-evento strong,
+  body.imprimiendo-semana-catering .catering-semana-evento small {
+    font-size: 8px !important;
+  }
+
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+}

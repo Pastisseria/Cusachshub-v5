@@ -63,6 +63,10 @@ function Catering() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [vista, setVista] = useState("mes");
+  const [fechaSemana, setFechaSemana] = useState(
+    obtenerInicioSemana(new Date()),
+  );
 
   useEffect(() => {
     cargarDatos();
@@ -136,6 +140,33 @@ function Catering() {
     });
   }, [caterings, fechaVisible]);
 
+  const diasSemanaVisible = useMemo(() => {
+    return Array.from({ length: 7 }, (_, indice) => {
+      const fecha = new Date(`${fechaSemana}T12:00:00`);
+      fecha.setDate(fecha.getDate() + indice);
+      return fecha;
+    });
+  }, [fechaSemana]);
+
+  const cateringsSemana = useMemo(() => {
+    const fechas = new Set(
+      diasSemanaVisible.map((dia) => obtenerFechaISO(dia)),
+    );
+
+    return caterings
+      .filter((catering) => fechas.has(catering.fecha))
+      .sort((a, b) => {
+        const porFecha = String(a.fecha || "").localeCompare(
+          String(b.fecha || ""),
+        );
+        if (porFecha !== 0) return porFecha;
+
+        return String(a.hora_inicio || "").localeCompare(
+          String(b.hora_inicio || ""),
+        );
+      });
+  }, [caterings, diasSemanaVisible]);
+
   const presupuestosFiltrados = useMemo(() => {
     if (!formulario.cliente_id) {
       return presupuestos;
@@ -146,6 +177,28 @@ function Catering() {
         presupuesto.cliente_id === formulario.cliente_id,
     );
   }, [formulario.cliente_id, presupuestos]);
+
+  function cambiarSemana(cantidad) {
+    const fecha = new Date(`${fechaSemana}T12:00:00`);
+    fecha.setDate(fecha.getDate() + cantidad * 7);
+    setFechaSemana(obtenerInicioSemana(fecha));
+  }
+
+  function irSemanaActual() {
+    setFechaSemana(obtenerInicioSemana(new Date()));
+  }
+
+  function imprimirSemana() {
+    document.body.classList.add("imprimiendo-semana-catering");
+
+    const limpiar = () => {
+      document.body.classList.remove("imprimiendo-semana-catering");
+      window.removeEventListener("afterprint", limpiar);
+    };
+
+    window.addEventListener("afterprint", limpiar);
+    window.print();
+  }
 
   function cambiarMes(cantidad) {
     setFechaVisible(
@@ -364,17 +417,35 @@ function Catering() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              abrirNuevoCatering(obtenerFechaISO(new Date()))
-            }
-          >
-            + Nuevo catering
-          </button>
+          <div className="catering-acciones-cabecera no-imprimir">
+            <button
+              type="button"
+              className={vista === "mes" ? "" : "boton-secundario"}
+              onClick={() => setVista("mes")}
+            >
+              Vista mensual
+            </button>
+
+            <button
+              type="button"
+              className={vista === "semana" ? "" : "boton-secundario"}
+              onClick={() => setVista("semana")}
+            >
+              Vista semanal
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                abrirNuevoCatering(obtenerFechaISO(new Date()))
+              }
+            >
+              + Nuevo catering
+            </button>
+          </div>
         </div>
 
-        <div className="catering-barra">
+        <div className={vista === "mes" ? "catering-barra" : "catering-barra oculto"}>
           <div className="catering-navegacion">
             <button
               type="button"
@@ -422,12 +493,103 @@ function Catering() {
           <div className="catering-mensaje">{mensaje}</div>
         )}
 
+        {vista === "semana" && (
+          <section className="catering-semana" id="catering-semana-imprimible">
+            <div className="catering-semana-cabecera no-imprimir">
+              <div className="catering-navegacion">
+                <button type="button" onClick={() => cambiarSemana(-1)}>
+                  ← Semana anterior
+                </button>
+                <button
+                  type="button"
+                  className="boton-hoy"
+                  onClick={irSemanaActual}
+                >
+                  Esta semana
+                </button>
+                <button type="button" onClick={() => cambiarSemana(1)}>
+                  Semana siguiente →
+                </button>
+              </div>
+
+              <button type="button" onClick={imprimirSemana}>
+                🖨️ Imprimir semana
+              </button>
+            </div>
+
+            <header className="catering-semana-titulo">
+              <div>
+                <p>PASTISSERIA CUSACHS</p>
+                <h3>Listado semanal de caterings</h3>
+              </div>
+              <strong>
+                {formatearRangoSemana(diasSemanaVisible)}
+              </strong>
+            </header>
+
+            <div className="catering-semana-tabla">
+              <div className="catering-semana-hora-cabecera">Hora</div>
+
+              {diasSemanaVisible.map((dia, indice) => (
+                <div className="catering-semana-dia-cabecera" key={obtenerFechaISO(dia)}>
+                  <strong>{DIAS_SEMANA[indice]}</strong>
+                  <span>{formatearDiaCorto(dia)}</span>
+                </div>
+              ))}
+
+              {crearHorasSemana().map((hora) => (
+                <div className="catering-semana-fila" key={hora}>
+                  <div className="catering-semana-hora">{hora}</div>
+
+                  {diasSemanaVisible.map((dia) => {
+                    const fechaDia = obtenerFechaISO(dia);
+                    const eventos = cateringsSemana.filter(
+                      (catering) =>
+                        catering.fecha === fechaDia &&
+                        obtenerHoraEntera(catering.hora_inicio) === hora,
+                    );
+
+                    return (
+                      <div
+                        className="catering-semana-celda"
+                        key={`${fechaDia}-${hora}`}
+                      >
+                        {eventos.map((evento) => (
+                          <button
+                            type="button"
+                            className={`catering-semana-evento estado-${normalizarEstado(
+                              evento.estado,
+                            )}`}
+                            key={evento.id}
+                            onClick={() => abrirCatering(evento)}
+                          >
+                            <strong>
+                              {cortarHora(evento.hora_inicio) || hora}
+                            </strong>
+                            <span>{evento.titulo}</span>
+                            {Number(evento.numero_personas || 0) > 0 && (
+                              <small>{evento.numero_personas} personas</small>
+                            )}
+                            {evento.tipo_servicio && (
+                              <small>{evento.tipo_servicio}</small>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {cargando ? (
           <div className="catering-cargando">
             Cargando calendario...
           </div>
         ) : (
-          <div className="calendario-contenedor">
+          <div className={vista === "mes" ? "calendario-contenedor" : "calendario-contenedor oculto"}>
             <div className="calendario-semana">
               {DIAS_SEMANA.map((dia) => (
                 <div
@@ -894,6 +1056,48 @@ function mismoDia(fechaA, fechaB) {
 
 function cortarHora(hora) {
   return hora ? String(hora).slice(0, 5) : "";
+}
+
+function obtenerInicioSemana(fecha) {
+  const copia = new Date(fecha);
+  const dia = copia.getDay();
+  const diferencia = dia === 0 ? -6 : 1 - dia;
+
+  copia.setDate(copia.getDate() + diferencia);
+  return obtenerFechaISO(copia);
+}
+
+function crearHorasSemana() {
+  return Array.from({ length: 10 }, (_, indice) =>
+    `${String(indice + 7).padStart(2, "0")}:00`,
+  );
+}
+
+function obtenerHoraEntera(hora) {
+  if (!hora) return "07:00";
+
+  const numeroHora = Number(String(hora).slice(0, 2));
+  const horaSegura = Number.isFinite(numeroHora)
+    ? Math.min(16, Math.max(7, numeroHora))
+    : 7;
+
+  return `${String(horaSegura).padStart(2, "0")}:00`;
+}
+
+function formatearDiaCorto(fecha) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(fecha);
+}
+
+function formatearRangoSemana(dias) {
+  if (!dias.length) return "";
+
+  const inicio = dias[0];
+  const fin = dias[dias.length - 1];
+
+  return `${formatearDiaCorto(inicio)} - ${formatearDiaCorto(fin)} / ${fin.getFullYear()}`;
 }
 
 function normalizarEstado(estado) {

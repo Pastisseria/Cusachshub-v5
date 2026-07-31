@@ -320,20 +320,18 @@ function DocumentoFactura({ factura, lineas }) {
         <p><strong>E-mail:</strong> {factura.email || "—"}</p>
       </div>
 
-      <table className="factura-print-tabla">
+      <table className="factura-print-tabla factura-print-tabla-sin-precios">
         <thead>
           <tr>
-            <th>Concepto</th><th>Cantidad</th><th>Precio</th><th>IVA</th><th>Total</th>
+            <th>Cantidad</th>
+            <th>Descripción</th>
           </tr>
         </thead>
         <tbody>
           {lineas.map((linea) => (
             <tr key={linea.id}>
+              <td>{formatearCantidad(linea.cantidad)}</td>
               <td>{linea.descripcion}</td>
-              <td>{linea.cantidad}</td>
-              <td>{moneda(linea.precio_unitario)}</td>
-              <td>{linea.iva} %</td>
-              <td>{moneda(linea.total)}</td>
             </tr>
           ))}
         </tbody>
@@ -354,6 +352,12 @@ function DocumentoFactura({ factura, lineas }) {
       {factura.observaciones && <p className="factura-print-observaciones">{factura.observaciones}</p>}
     </section>
   );
+}
+
+function formatearCantidad(valor) {
+  return new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 2,
+  }).format(numero(valor));
 }
 
 function normalizar(valor) {

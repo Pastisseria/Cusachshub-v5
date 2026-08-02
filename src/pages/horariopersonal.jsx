@@ -185,6 +185,7 @@ function HorarioPersonal() {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
+  const [diaOrden, setDiaOrden] = useState(0);
 
   const diasSemana = useMemo(
     () =>
@@ -365,6 +366,17 @@ function HorarioPersonal() {
       activo: empleado.activo !== false,
     });
     setMostrarEmpleados(true);
+
+    setTimeout(() => {
+      const formulario = document.getElementById(
+        "formulario-empleado-personal",
+      );
+
+      formulario?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
   }
 
   function limpiarEmpleado() {
@@ -767,6 +779,69 @@ function HorarioPersonal() {
     (empleado) => empleado.activo,
   );
 
+  function prioridadTurno(turno) {
+    const tipo = turno?.tipo_turno || "fiesta";
+
+    if (tipo === "manana") return 1;
+
+    if (tipo === "personalizado") {
+      const horaInicio = turno?.hora_inicio || "";
+
+      if (horaInicio && horaInicio < "13:00") {
+        return 1;
+      }
+
+      return 2;
+    }
+
+    if (tipo === "tarde" || tipo === "tety") return 2;
+    if (tipo === "formacion") return 3;
+    if (tipo === "vacaciones") return 4;
+    if (tipo === "fiesta") return 5;
+
+    return 6;
+  }
+
+  const empleadosOrdenados = useMemo(() => {
+    const diaSeleccionado = diasSemana[diaOrden];
+
+    if (!diaSeleccionado) {
+      return empleadosActivos;
+    }
+
+    return [...empleadosActivos].sort((empleadoA, empleadoB) => {
+      const turnoA = obtenerTurnoCelda(
+        empleadoA.id,
+        diaSeleccionado.fechaISO,
+      );
+
+      const turnoB = obtenerTurnoCelda(
+        empleadoB.id,
+        diaSeleccionado.fechaISO,
+      );
+
+      const diferenciaPrioridad =
+        prioridadTurno(turnoA) - prioridadTurno(turnoB);
+
+      if (diferenciaPrioridad !== 0) {
+        return diferenciaPrioridad;
+      }
+
+      const horaA = turnoA.hora_inicio || "99:99";
+      const horaB = turnoB.hora_inicio || "99:99";
+      const diferenciaHora = horaA.localeCompare(horaB);
+
+      if (diferenciaHora !== 0) {
+        return diferenciaHora;
+      }
+
+      return empleadoA.nombre.localeCompare(
+        empleadoB.nombre,
+        "es",
+      );
+    });
+  }, [empleadosActivos, horarios, diasSemana, diaOrden]);
+
   const totalHorasSemana = empleadosActivos.reduce(
     (total, empleado) =>
       total + horasEmpleadoSemana(empleado.id),
@@ -848,6 +923,7 @@ function HorarioPersonal() {
           </div>
 
           <form
+            id="formulario-empleado-personal"
             className="rejilla-formulario"
             onSubmit={guardarEmpleado}
           >
@@ -1322,6 +1398,32 @@ function HorarioPersonal() {
         </button>
       </div>
 
+      <div className="horario-orden no-imprimir">
+        <label>
+          Ordenar trabajadores según:
+          <select
+            value={diaOrden}
+            onChange={(evento) =>
+              setDiaOrden(Number(evento.target.value))
+            }
+          >
+            {diasSemana.map((dia, indice) => (
+              <option key={dia.fechaISO} value={indice}>
+                {dia.nombre} {formatearFecha(dia.fecha)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="horario-orden-leyenda">
+          <span>🌅 Mañana arriba</span>
+          <span>🌇 Tarde después</span>
+          <span>🎓 Formación</span>
+          <span>🏖 Vacaciones</span>
+          <span>❌ Fiesta al final</span>
+        </div>
+      </div>
+
       {cargando ? (
         <div className="estado-vacio">
           <p>Cargando horario...</p>
@@ -1349,7 +1451,7 @@ function HorarioPersonal() {
             </thead>
 
             <tbody>
-              {empleadosActivos.map((empleado) => (
+              {empleadosOrdenados.map((empleado) => (
                 <tr key={empleado.id}>
                   <td className="horario-empleado">
                     <strong>{empleado.nombre}</strong>

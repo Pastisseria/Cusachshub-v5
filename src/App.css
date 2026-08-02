@@ -3394,3 +3394,386 @@ comparador-page {
     margin: 8mm;
   }
 }
+/* =========================================================
+   HORARIO DE PERSONAL
+   ========================================================= */
+
+.horario-personal-page {
+  max-width: 100%;
+}
+
+.horario-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+  margin-bottom: 24px;
+}
+
+.horario-cabecera h1 {
+  margin: 0;
+  color: var(--texto-principal);
+  font-size: clamp(34px, 5vw, 50px);
+}
+
+.horario-cabecera-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.horario-panel-secundario {
+  margin-bottom: 25px;
+  padding: 24px;
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+  background: var(--fondo-suave);
+}
+
+.horario-lista-empleados {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 13px;
+  margin-top: 22px;
+}
+
+.horario-empleado-tarjeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 16px;
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.horario-empleado-tarjeta.inactivo {
+  opacity: 0.55;
+}
+
+.horario-empleado-tarjeta strong,
+.horario-empleado-tarjeta span {
+  display: block;
+}
+
+.horario-empleado-tarjeta span {
+  margin-top: 4px;
+  color: var(--texto-secundario);
+  font-size: 14px;
+}
+
+.horario-empleado-tarjeta .acciones {
+  margin: 0;
+}
+
+.horario-empleado-tarjeta button {
+  min-height: 38px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+
+.horario-navegacion {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+  padding: 17px;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.horario-periodo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.horario-periodo strong {
+  color: var(--color-principal-oscuro);
+  font-size: 19px;
+}
+
+.horario-periodo button {
+  min-height: 38px;
+  padding: 7px 13px;
+}
+
+.horario-resumen {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.horario-resumen article {
+  padding: 18px;
+  border: 1px solid var(--borde);
+  border-radius: 15px;
+  background: #ffffff;
+}
+
+.horario-resumen span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--texto-secundario);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.horario-resumen strong {
+  color: var(--color-principal-oscuro);
+  font-size: 21px;
+}
+
+.horario-tabla-contenedor {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--borde);
+  border-radius: 17px;
+  background: #ffffff;
+}
+
+.horario-tabla {
+  width: 100%;
+  min-width: 1500px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.horario-tabla th,
+.horario-tabla td {
+  min-width: 165px;
+  padding: 10px;
+  border-right: 1px solid #e5dfe8;
+  border-bottom: 1px solid #e5dfe8;
+  vertical-align: top;
+}
+
+.horario-tabla th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--color-principal-claro);
+  color: var(--color-principal-oscuro);
+  text-align: center;
+}
+
+.horario-tabla th span,
+.horario-tabla th small {
+  display: block;
+}
+
+.horario-tabla th small {
+  margin-top: 5px;
+  color: #70577c;
+}
+
+.horario-columna-empleado,
+.horario-empleado {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  min-width: 180px !important;
+  background: #ffffff;
+}
+
+.horario-tabla thead .horario-columna-empleado {
+  z-index: 6;
+  background: var(--color-principal-claro);
+}
+
+.horario-empleado strong,
+.horario-empleado small {
+  display: block;
+}
+
+.horario-empleado small {
+  margin-top: 5px;
+  color: var(--texto-secundario);
+}
+
+.horario-columna-total,
+.horario-total-empleado {
+  min-width: 100px !important;
+  text-align: center;
+}
+
+.horario-total-empleado {
+  background: #f8f3fa;
+  color: var(--color-principal-oscuro);
+  vertical-align: middle !important;
+}
+
+.horario-celda {
+  transition: background 0.15s ease;
+}
+
+.horario-celda select {
+  min-height: 38px;
+  margin: 0;
+  padding: 0 9px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.horario-horas {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.horario-horas input {
+  min-width: 0;
+  min-height: 35px;
+  margin: 0;
+  padding: 0 5px;
+  font-size: 12px;
+}
+
+.horario-horas-total {
+  display: block;
+  margin-top: 7px;
+  color: #4f4354;
+  font-weight: 800;
+  text-align: center;
+}
+
+.turno-manana {
+  background: #fff6d7;
+}
+
+.turno-tarde {
+  background: #e8efff;
+}
+
+.turno-tety {
+  background: #e9f7eb;
+}
+
+.turno-personalizado {
+  background: #f4eafa;
+}
+
+.turno-fiesta {
+  background: #f1f1f3;
+}
+
+.turno-vacaciones {
+  background: #e6f7f5;
+}
+
+.turno-formacion {
+  background: #fff0df;
+}
+
+.horario-fila-cobertura td {
+  background: #f7f1fa;
+  color: var(--color-principal-oscuro);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.horario-fila-cobertura td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  text-align: left;
+}
+
+@media (max-width: 1100px) {
+  .horario-cabecera {
+    flex-direction: column;
+  }
+
+  .horario-cabecera-acciones {
+    justify-content: flex-start;
+  }
+
+  .horario-resumen {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+
+  .horario-navegacion {
+    grid-template-columns: 1fr;
+  }
+
+  .horario-periodo {
+    order: -1;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 700px) {
+  .horario-panel-secundario {
+    padding: 16px;
+  }
+
+  .horario-cabecera-acciones,
+  .horario-cabecera-acciones button {
+    width: 100%;
+  }
+
+  .horario-resumen {
+    grid-template-columns: 1fr;
+  }
+
+  .horario-navegacion button {
+    width: 100%;
+  }
+
+  .horario-empleado-tarjeta {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media print {
+  .horario-personal-page {
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .horario-tabla-contenedor {
+    overflow: visible !important;
+    border: 0 !important;
+  }
+
+  .horario-tabla {
+    min-width: 0 !important;
+    font-size: 8px !important;
+  }
+
+  .horario-tabla th,
+  .horario-tabla td {
+    position: static !important;
+    min-width: 0 !important;
+    padding: 4px !important;
+  }
+
+  .horario-celda select {
+    padding: 0 !important;
+    border: 0 !important;
+    font-size: 8px !important;
+  }
+
+  .horario-horas input {
+    padding: 0 !important;
+    font-size: 7px !important;
+  }
+
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+}

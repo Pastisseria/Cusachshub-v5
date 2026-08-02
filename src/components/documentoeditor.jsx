@@ -774,7 +774,15 @@ function DocumentoEditor({
       const { data, error: supabaseError } =
         await supabase
           .from("presupuesto_lineas")
-          .select("*")
+          .select(`
+            *,
+            productos (
+              id,
+              nombre,
+              nombre_ca,
+              nombre_en
+            )
+          `)
           .eq("presupuesto_id", documento.id)
           .order("created_at");
 
@@ -873,7 +881,15 @@ function DocumentoEditor({
       const { data, error: supabaseError } =
         await supabase
           .from("presupuesto_lineas")
-          .select("*")
+          .select(`
+            *,
+            productos (
+              id,
+              nombre,
+              nombre_ca,
+              nombre_en
+            )
+          `)
           .eq("presupuesto_id", documento.id)
           .order("created_at");
 
@@ -935,7 +951,15 @@ function DocumentoEditor({
       if (!lineasFactura.length) {
         const { data, error } = await supabase
           .from("presupuesto_lineas")
-          .select("*")
+          .select(`
+            *,
+            productos (
+              id,
+              nombre,
+              nombre_ca,
+              nombre_en
+            )
+          `)
           .eq("presupuesto_id", documento.id)
           .order("created_at");
         if (error) throw error;
@@ -2477,21 +2501,21 @@ function obtenerDescripcionTraducida(linea, idioma, productos) {
     linea?.descripcion || "",
   ).trim();
 
-  let producto = productos.find(
-    (elemento) =>
-      linea?.producto_id &&
-      String(elemento.id) === String(linea.producto_id),
-  );
+  let producto = linea?.productos || null;
 
-  // Compatibilidad con presupuestos antiguos que no guardaron producto_id.
-  // Busca el producto por cualquiera de sus nombres disponibles.
-  if (!producto && descripcionActual) {
-    const descripcionNormalizada = normalizarTextoProducto(
-      descripcionActual,
+  if (!producto && linea?.producto_id) {
+    producto = productos.find(
+      (elemento) =>
+        String(elemento.id) === String(linea.producto_id),
     );
+  }
+
+  if (!producto && descripcionActual) {
+    const descripcionNormalizada =
+      normalizarTextoProducto(descripcionActual);
 
     producto = productos.find((elemento) => {
-      const nombresProducto = [
+      const nombres = [
         elemento.nombre,
         elemento.nombre_ca,
         elemento.nombre_en,
@@ -2501,9 +2525,7 @@ function obtenerDescripcionTraducida(linea, idioma, productos) {
           normalizarTextoProducto(nombre),
         );
 
-      return nombresProducto.includes(
-        descripcionNormalizada,
-      );
+      return nombres.includes(descripcionNormalizada);
     });
   }
 

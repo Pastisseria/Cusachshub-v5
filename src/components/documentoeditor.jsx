@@ -2473,16 +2473,57 @@ function obtenerNombreProducto(producto, idioma = "es") {
 }
 
 function obtenerDescripcionTraducida(linea, idioma, productos) {
-  const producto = productos.find(
+  const descripcionActual = String(
+    linea?.descripcion || "",
+  ).trim();
+
+  let producto = productos.find(
     (elemento) =>
+      linea?.producto_id &&
       String(elemento.id) === String(linea.producto_id),
   );
 
-  if (!producto) {
-    return linea.descripcion || "";
+  // Compatibilidad con presupuestos antiguos que no guardaron producto_id.
+  // Busca el producto por cualquiera de sus nombres disponibles.
+  if (!producto && descripcionActual) {
+    const descripcionNormalizada = normalizarTextoProducto(
+      descripcionActual,
+    );
+
+    producto = productos.find((elemento) => {
+      const nombresProducto = [
+        elemento.nombre,
+        elemento.nombre_ca,
+        elemento.nombre_en,
+      ]
+        .filter(Boolean)
+        .map((nombre) =>
+          normalizarTextoProducto(nombre),
+        );
+
+      return nombresProducto.includes(
+        descripcionNormalizada,
+      );
+    });
   }
 
-  return obtenerNombreProducto(producto, idioma) || linea.descripcion || "";
+  if (!producto) {
+    return descripcionActual;
+  }
+
+  return (
+    obtenerNombreProducto(producto, idioma) ||
+    descripcionActual
+  );
+}
+
+function normalizarTextoProducto(valor) {
+  return String(valor || "")
+    .trim()
+    .toLocaleLowerCase("es-ES")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
 }
 
 function obtenerNombreVisitador(visitador) {

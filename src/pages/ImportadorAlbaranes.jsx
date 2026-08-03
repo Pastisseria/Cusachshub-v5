@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import { supabase } from "../supabase.js";
 
 import {
@@ -7,6 +13,48 @@ import {
 } from "../ai/parserAlbaranes.js";
 
 import { leerDocumento } from "../services/lectordocumentos.js";
+
+function crearIdTemporal() {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random()}`;
+}
+
+function nuevaLinea(datos = {}) {
+  return {
+    temporalId:
+      datos.temporalId || crearIdTemporal(),
+
+    codigo: datos.codigo || "",
+    descripcion: datos.descripcion || "",
+    cantidad:
+      datos.cantidad === undefined
+        ? 1
+        : datos.cantidad,
+
+    unidad: datos.unidad || "unidad",
+
+    precio_unitario:
+      datos.precio_unitario === undefined
+        ? ""
+        : datos.precio_unitario,
+
+    iva:
+      datos.iva === undefined
+        ? 10
+        : datos.iva,
+
+    total_linea:
+      datos.total_linea === undefined
+        ? 0
+        : datos.total_linea,
+  };
+}
 
 const RESULTADO_VACIO = {
   numero_albaran: "",
@@ -20,23 +68,90 @@ const RESULTADO_VACIO = {
   texto_original: "",
 };
 
-function ImportadorAlbaranes() {
-  const [texto, setTexto] = useState("");
-  const [proveedores, setProveedores] = useState([]);
-  const [resultado, setResultado] = useState(RESULTADO_VACIO);
+function numero(valor) {
+  if (
+    valor === null ||
+    valor === undefined ||
+    valor === ""
+  ) {
+    return 0;
+  }
 
-  const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
+  const resultado = Number(
+    String(valor)
+      .trim()
+      .replace(/[€\s]/g, "")
+      .replace(",", "."),
+  );
 
-  const [procesandoArchivo, setProcesandoArchivo] = useState(false);
+  return Number.isFinite(resultado)
+    ? resultado
+    : 0;
+}
 
-  const [progresoOCR, setProgresoOCR] = useState({
-    estado: "",
-    progreso: 0,
+function redondear(valor) {
+  return Number(numero(valor).toFixed(2));
+}
+
+function normalizarTexto(valor = "") {
+  return String(valor)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function formatearEuros(valor) {
+  return numero(valor).toLocaleString("es-ES", {
+    style: "currency",
+    currency: "EUR",
   });
+}
 
-  const [error, setError] = useState("");
-  const [mensaje, setMensaje] = useState("");
+function obtenerNombreProveedor(proveedor) {
+  return (
+    proveedor?.nombre ||
+    proveedor?.nombre_comercial ||
+    proveedor?.razon_social ||
+    "Proveedor sin nombre"
+  );
+}
+
+function ImportadorAlbaranes() {
+  const inputArchivoRef = useRef(null);
+
+  const [proveedores, setProveedores] =
+    useState([]);
+
+  const [resultado, setResultado] =
+    useState(RESULTADO_VACIO);
+
+  const [archivoActual, setArchivoActual] =
+    useState(null);
+
+  const [arrastrando, setArrastrando] =
+    useState(false);
+
+  const [cargando, setCargando] =
+    useState(true);
+
+  const [procesando, setProcesando] =
+    useState(false);
+
+  const [guardando, setGuardando] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [mensaje, setMensaje] =
+    useState("");
+
+  const [progresoOCR, setProgresoOCR] =
+    useState({
+      estado: "",
+      progreso: 0,
+    });
 
   useEffect(() => {
     cargarProveedores();
@@ -47,39 +162,108 @@ function ImportadorAlbaranes() {
     setError("");
 
     try {
-      const { data, error: errorSupabase } = await supabase
-        .from("proveedores")
-        .select("*")
-        .order("nombre", { ascending: true });
+      const { data, error: errorProveedores } =
+        await supabase
+          .from("proveedores")
+          .select("*")
+          .order("nombre", {
+            ascending: true,
+          });
 
-      if (errorSupabase) {
-        throw errorSupabase;
+      if (errorProveedores) {
+        throw errorProveedores;
       }
 
       setProveedores(data || []);
     } catch (errorCarga) {
-      console.error("Error cargando proveedores:", errorCarga);
+      console.error(
+        "Error cargando proveedores:",
+        errorCarga,
+      );
 
       setError(
         errorCarga.message ||
-          "No se pudieron cargar los proveedores."
+          "No se han podido cargar los proveedores.",
       );
     } finally {
       setCargando(false);
     }
   }
 
-  async function leerArchivo(evento) {
-    const archivo = evento.target.files?.[0];
+  function buscarProveedorAutomaticamente(
+    analisis,
+    textoDocumento,
+  ) {
+    const textoNormalizado =
+      normalizarTexto(textoDocumento);
 
+    const nombreAnalizado =
+      normalizarTexto(
+        analisis.proveedor_nombre || "",
+      );
+
+    let proveedorEncontrado = null;
+
+    if (nombreAnalizado) {
+      proveedorEncontrado =
+        proveedores.find((proveedor) => {
+          const nombre =
+            normalizarTexto(
+              obtenerNombreProveedor(proveedor),
+            );
+
+          return (
+            nombre.includes(nombreAnalizado) ||
+            nombreAnalizado.includes(nombre)
+          );
+        });
+    }
+
+    if (!proveedorEncontrado) {
+      proveedorEncontrado =
+        proveedores.find((proveedor) => {
+          const nombre =
+            normalizarTexto(
+              obtenerNombreProveedor(proveedor),
+            );
+
+          return (
+            nombre.length >= 4 &&
+            textoNormalizado.includes(nombre)
+          );
+        });
+    }
+
+    if (!proveedorEncontrado) {
+      proveedorEncontrado =
+        proveedores.find((proveedor) => {
+          const cif =
+            normalizarTexto(
+              proveedor.nif_cif ||
+                proveedor.cif ||
+                proveedor.nif ||
+                "",
+            );
+
+          return (
+            cif.length >= 6 &&
+            textoNormalizado.includes(cif)
+          );
+        });
+    }
+
+    return proveedorEncontrado || null;
+  }
+
+  async function procesarArchivo(archivo) {
     if (!archivo) return;
 
     setError("");
     setMensaje("");
-    setTexto("");
-    setResultado(RESULTADO_VACIO);
+    setProcesando(true);
+    setArchivoActual(archivo);
 
-    setProcesandoArchivo(true);
+    setResultado(RESULTADO_VACIO);
 
     setProgresoOCR({
       estado: "Preparando documento",
@@ -87,72 +271,105 @@ function ImportadorAlbaranes() {
     });
 
     try {
-      const textoExtraido = await leerDocumento(
-        archivo,
-        setProgresoOCR
-      );
+      const textoExtraido =
+        await leerDocumento(
+          archivo,
+          setProgresoOCR,
+        );
 
-      setTexto(textoExtraido);
+      if (!textoExtraido?.trim()) {
+        throw new Error(
+          "No se ha detectado texto en el documento.",
+        );
+      }
 
-      const analisis = analizarAlbaran(textoExtraido);
+      const analisis =
+        analizarAlbaran(textoExtraido);
+
+      const proveedorDetectado =
+        buscarProveedorAutomaticamente(
+          analisis,
+          textoExtraido,
+        );
+
+      const lineasDetectadas =
+        Array.isArray(analisis.lineas)
+          ? analisis.lineas.map((linea) =>
+              nuevaLinea(linea),
+            )
+          : [];
 
       setResultado({
         ...RESULTADO_VACIO,
         ...analisis,
+
+        proveedor_id:
+          proveedorDetectado?.id || "",
+
+        proveedor_nombre:
+          proveedorDetectado
+            ? obtenerNombreProveedor(
+                proveedorDetectado,
+              )
+            : analisis.proveedor_nombre || "",
+
+        lineas: lineasDetectadas,
         texto_original: textoExtraido,
       });
 
-      setMensaje(
-        "Documento leído correctamente. Revisa las líneas antes de guardar el albarán."
-      );
+      if (lineasDetectadas.length > 0) {
+        setMensaje(
+          `Albarán leído correctamente. Se han detectado ${lineasDetectadas.length} productos.`,
+        );
+      } else {
+        setMensaje(
+          "El documento se ha leído, pero no se han reconocido productos. Puedes añadirlos manualmente.",
+        );
+      }
     } catch (errorLectura) {
-      console.error("Error leyendo el documento:", errorLectura);
+      console.error(
+        "Error leyendo albarán:",
+        errorLectura,
+      );
 
       setError(
         errorLectura.message ||
-          "No se ha podido leer el documento."
+          "No se ha podido leer el albarán.",
       );
+
+      setArchivoActual(null);
     } finally {
-      setProcesandoArchivo(false);
+      setProcesando(false);
 
       setProgresoOCR((anterior) => ({
-        ...anterior,
-        progreso: anterior.progreso || 100,
+        estado:
+          anterior.estado ||
+          "Documento procesado",
+
+        progreso: 100,
       }));
     }
   }
 
-  function analizarTextoManual() {
-    setError("");
-    setMensaje("");
+  function seleccionarArchivo(evento) {
+    const archivo =
+      evento.target.files?.[0];
 
-    if (!texto.trim()) {
-      setError(
-        "Selecciona un documento o pega el texto del albarán."
-      );
-      return;
-    }
+    procesarArchivo(archivo);
+  }
 
-    try {
-      const analisis = analizarAlbaran(texto);
+  function soltarArchivo(evento) {
+    evento.preventDefault();
+    setArrastrando(false);
 
-      setResultado({
-        ...RESULTADO_VACIO,
-        ...analisis,
-        texto_original: texto,
-      });
+    const archivo =
+      evento.dataTransfer.files?.[0];
 
-      setMensaje(
-        "Texto analizado. Revisa los datos antes de guardar."
-      );
-    } catch (errorAnalisis) {
-      console.error("Error analizando albarán:", errorAnalisis);
+    procesarArchivo(archivo);
+  }
 
-      setError(
-        errorAnalisis.message ||
-          "No se ha podido analizar el texto del albarán."
-      );
-    }
+  function abrirSelectorArchivo() {
+    inputArchivoRef.current?.click();
   }
 
   function actualizarCampo(campo, valor) {
@@ -162,17 +379,68 @@ function ImportadorAlbaranes() {
     }));
   }
 
-  function actualizarLinea(indice, campo, valor) {
+  function seleccionarProveedor(valor) {
+    const proveedorSeleccionado =
+      proveedores.find(
+        (proveedor) =>
+          String(proveedor.id) ===
+          String(valor),
+      );
+
     setResultado((anterior) => ({
       ...anterior,
 
-      lineas: anterior.lineas.map((linea, posicion) =>
-        posicion === indice
-          ? {
-              ...linea,
-              [campo]: valor,
-            }
-          : linea
+      proveedor_id: valor,
+
+      proveedor_nombre:
+        proveedorSeleccionado
+          ? obtenerNombreProveedor(
+              proveedorSeleccionado,
+            )
+          : "",
+    }));
+  }
+
+  function actualizarLinea(
+    temporalId,
+    campo,
+    valor,
+  ) {
+    setResultado((anterior) => ({
+      ...anterior,
+
+      lineas: anterior.lineas.map(
+        (linea) => {
+          if (
+            linea.temporalId !==
+            temporalId
+          ) {
+            return linea;
+          }
+
+          const lineaActualizada = {
+            ...linea,
+            [campo]: valor,
+          };
+
+          if (
+            campo === "cantidad" ||
+            campo === "precio_unitario"
+          ) {
+            lineaActualizada.total_linea =
+              redondear(
+                numero(
+                  lineaActualizada.cantidad,
+                ) *
+                  numero(
+                    lineaActualizada
+                      .precio_unitario,
+                  ),
+              );
+          }
+
+          return lineaActualizada;
+        },
       ),
     }));
   }
@@ -183,31 +451,26 @@ function ImportadorAlbaranes() {
 
       lineas: [
         ...anterior.lineas,
-        {
-          descripcion: "",
-          cantidad: 1,
-          unidad: "unidad",
-          precio_unitario: 0,
-          iva: 10,
-          total_linea: 0,
-        },
+        nuevaLinea(),
       ],
     }));
   }
 
-  function eliminarLinea(indice) {
+  function eliminarLinea(temporalId) {
     setResultado((anterior) => ({
       ...anterior,
 
       lineas: anterior.lineas.filter(
-        (_, posicion) => posicion !== indice
+        (linea) =>
+          linea.temporalId !==
+          temporalId,
       ),
     }));
   }
 
   function limpiarImportador() {
-    setTexto("");
     setResultado(RESULTADO_VACIO);
+    setArchivoActual(null);
     setError("");
     setMensaje("");
 
@@ -216,49 +479,75 @@ function ImportadorAlbaranes() {
       progreso: 0,
     });
 
-    const inputArchivo = document.getElementById(
-      "archivo-albaran"
-    );
-
-    if (inputArchivo) {
-      inputArchivo.value = "";
+    if (inputArchivoRef.current) {
+      inputArchivoRef.current.value = "";
     }
   }
 
-  const totalesCalculados = useMemo(() => {
-    return recalcularAlbaran(resultado.lineas);
-  }, [resultado.lineas]);
+  const totalesCalculados =
+    useMemo(() => {
+      return recalcularAlbaran(
+        resultado.lineas,
+      );
+    }, [resultado.lineas]);
+
+  async function comprobarDuplicado() {
+    if (
+      !resultado.proveedor_id ||
+      !resultado.numero_albaran?.trim()
+    ) {
+      return false;
+    }
+
+    const { data, error: errorConsulta } =
+      await supabase
+        .from("importaciones_albaran")
+        .select("id")
+        .eq(
+          "proveedor_id",
+          resultado.proveedor_id,
+        )
+        .eq(
+          "numero_albaran",
+          resultado.numero_albaran.trim(),
+        )
+        .limit(1);
+
+    if (errorConsulta) {
+      throw errorConsulta;
+    }
+
+    return Boolean(data?.length);
+  }
 
   async function guardarAlbaran() {
     setError("");
     setMensaje("");
 
     if (!resultado.proveedor_id) {
-      setError("Selecciona el proveedor del albarán.");
-      return;
-    }
-
-    if (!resultado.fecha_albaran) {
-      setError("Indica la fecha del albarán.");
-      return;
-    }
-
-    if (resultado.lineas.length === 0) {
       setError(
-        "El albarán no contiene ninguna línea de producto."
+        "Selecciona el proveedor del albarán.",
       );
       return;
     }
 
-    const lineasValidas = resultado.lineas.filter(
-      (linea) =>
-        linea.descripcion?.trim() &&
-        Number(linea.cantidad || 0) > 0
-    );
+    if (!resultado.fecha_albaran) {
+      setError(
+        "Indica la fecha del albarán.",
+      );
+      return;
+    }
+
+    const lineasValidas =
+      resultado.lineas.filter(
+        (linea) =>
+          linea.descripcion?.trim() &&
+          numero(linea.cantidad) > 0,
+      );
 
     if (lineasValidas.length === 0) {
       setError(
-        "Completa al menos una línea con descripción y cantidad."
+        "El albarán debe tener al menos un producto.",
       );
       return;
     }
@@ -266,43 +555,81 @@ function ImportadorAlbaranes() {
     setGuardando(true);
 
     try {
-      const proveedorSeleccionado = proveedores.find(
-        (proveedor) =>
-          String(proveedor.id) ===
-          String(resultado.proveedor_id)
-      );
+      const duplicado =
+        await comprobarDuplicado();
+
+      if (duplicado) {
+        throw new Error(
+          "Este albarán ya está importado. Revisa el proveedor y el número de albarán.",
+        );
+      }
+
+      const proveedorSeleccionado =
+        proveedores.find(
+          (proveedor) =>
+            String(proveedor.id) ===
+            String(
+              resultado.proveedor_id,
+            ),
+        );
+
+      const lineasParaGuardar =
+        lineasValidas.map((linea) => {
+          const cantidad =
+            numero(linea.cantidad);
+
+          const precioUnitario =
+            numero(
+              linea.precio_unitario,
+            );
+
+          const totalLinea =
+            redondear(
+              cantidad * precioUnitario,
+            );
+
+          return {
+            codigo:
+              linea.codigo?.trim() || "",
+
+            descripcion:
+              linea.descripcion?.trim() ||
+              "",
+
+            cantidad,
+            unidad:
+              linea.unidad?.trim() ||
+              "unidad",
+
+            precio_unitario:
+              precioUnitario,
+
+            iva: numero(linea.iva),
+
+            total_linea: totalLinea,
+          };
+        });
 
       const payload = {
-        proveedor_id: resultado.proveedor_id || null,
+        proveedor_id:
+          resultado.proveedor_id,
 
         proveedor_nombre:
-          proveedorSeleccionado?.nombre ||
-          proveedorSeleccionado?.nombre_comercial ||
-          resultado.proveedor_nombre ||
-          null,
+          proveedorSeleccionado
+            ? obtenerNombreProveedor(
+                proveedorSeleccionado,
+              )
+            : resultado.proveedor_nombre ||
+              null,
 
         numero_albaran:
-          resultado.numero_albaran?.trim() || null,
+          resultado.numero_albaran
+            ?.trim() || null,
 
         fecha_albaran:
-          resultado.fecha_albaran || null,
+          resultado.fecha_albaran,
 
-        lineas: lineasValidas.map((linea) => ({
-          descripcion: linea.descripcion?.trim() || "",
-          cantidad: Number(linea.cantidad || 0),
-          unidad: linea.unidad?.trim() || "unidad",
-          precio_unitario: Number(
-            linea.precio_unitario || 0
-          ),
-          iva: Number(linea.iva || 0),
-
-          total_linea: Number(
-            (
-              Number(linea.cantidad || 0) *
-              Number(linea.precio_unitario || 0)
-            ).toFixed(2)
-          ),
-        })),
+        lineas: lineasParaGuardar,
 
         base_imponible:
           totalesCalculados.base_imponible,
@@ -314,31 +641,46 @@ function ImportadorAlbaranes() {
           totalesCalculados.total,
 
         texto_original:
-          texto || resultado.texto_original || null,
+          resultado.texto_original ||
+          null,
 
-        estado: "pendiente_revision",
+        estado: "importado",
       };
 
-      const { error: errorGuardado } = await supabase
+      const {
+        data: albaranGuardado,
+        error: errorGuardado,
+      } = await supabase
         .from("importaciones_albaran")
-        .insert(payload);
+        .insert(payload)
+        .select()
+        .single();
 
       if (errorGuardado) {
         throw errorGuardado;
       }
 
       setMensaje(
-        "Albarán guardado correctamente como pendiente de revisión."
+        `Albarán ${
+          resultado.numero_albaran ||
+          albaranGuardado?.id ||
+          ""
+        } importado correctamente.`,
       );
+
+      setResultado((anterior) => ({
+        ...anterior,
+        estado: "importado",
+      }));
     } catch (errorGuardado) {
       console.error(
-        "Error guardando el albarán:",
-        errorGuardado
+        "Error guardando albarán:",
+        errorGuardado,
       );
 
       setError(
         errorGuardado.message ||
-          "No se ha podido guardar el albarán."
+          "No se ha podido importar el albarán.",
       );
     } finally {
       setGuardando(false);
@@ -348,26 +690,47 @@ function ImportadorAlbaranes() {
   if (cargando) {
     return (
       <section className="panel">
-        <p>Cargando importador de albaranes...</p>
+        <p>
+          Cargando lector de albaranes...
+        </p>
       </section>
     );
   }
 
+  const documentoLeido =
+    Boolean(resultado.texto_original) ||
+    resultado.lineas.length > 0;
+
   return (
-    <section className="panel importador-panel">
+    <section className="panel importador-emails">
       <div className="cabecera-seccion">
         <div>
-          <p className="etiqueta">COMPRAS</p>
+          <p className="etiqueta">
+            COMPRAS
+          </p>
 
-          <h1>📄 Importar albaranes</h1>
+          <h1>
+            📄 Leer albaranes
+          </h1>
 
-          <p>
-            Selecciona un PDF o una fotografía del albarán.
-            El sistema intentará leer automáticamente el
-            proveedor, la fecha, los productos, las cantidades
-            y los precios.
+          <p className="texto-secundario">
+            Arrastra un PDF o una fotografía.
+            Los datos aparecerán directamente
+            preparados para importar.
           </p>
         </div>
+
+        {documentoLeido && (
+          <button
+            type="button"
+            onClick={limpiarImportador}
+            disabled={
+              procesando || guardando
+            }
+          >
+            Leer otro albarán
+          </button>
+        )}
       </div>
 
       {error && (
@@ -382,368 +745,484 @@ function ImportadorAlbaranes() {
         </div>
       )}
 
-      <div className="importador-bloque">
-        <h2>1. Seleccionar documento</h2>
-
-        <label>
-          Cargar albarán
+      {!documentoLeido && (
+        <>
           <input
-            id="archivo-albaran"
+            ref={inputArchivoRef}
+            className="email-file-input"
             type="file"
             accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
-            onChange={leerArchivo}
-            disabled={procesandoArchivo}
+            onChange={seleccionarArchivo}
+            disabled={procesando}
           />
-        </label>
 
-        {procesandoArchivo && (
-          <div className="ocr-progreso">
+          <div
+            className={`email-dropzone ${
+              arrastrando
+                ? "email-dropzone--active"
+                : ""
+            }`}
+            role="button"
+            tabIndex="0"
+            onClick={abrirSelectorArchivo}
+            onKeyDown={(evento) => {
+              if (
+                evento.key === "Enter" ||
+                evento.key === " "
+              ) {
+                abrirSelectorArchivo();
+              }
+            }}
+            onDragEnter={(evento) => {
+              evento.preventDefault();
+              setArrastrando(true);
+            }}
+            onDragOver={(evento) => {
+              evento.preventDefault();
+              setArrastrando(true);
+            }}
+            onDragLeave={(evento) => {
+              evento.preventDefault();
+              setArrastrando(false);
+            }}
+            onDrop={soltarArchivo}
+          >
+            <div className="email-dropzone__icon">
+              📄
+            </div>
+
+            <h3>
+              Arrastra aquí el albarán
+            </h3>
+
             <p>
-              <strong>
-                {progresoOCR.estado ||
-                  "Leyendo documento"}
-              </strong>
+              También puedes pulsar para
+              seleccionar el PDF o la foto.
             </p>
 
-            <progress
-              value={progresoOCR.progreso}
-              max="100"
-            />
-
-            <span>
-              {progresoOCR.progreso}%
-            </span>
+            <small>
+              Formatos admitidos: PDF, JPG,
+              PNG y WEBP
+            </small>
           </div>
-        )}
+        </>
+      )}
 
-        <label>
-          Texto detectado
-          <textarea
-            rows="14"
-            value={texto}
-            onChange={(evento) =>
-              setTexto(evento.target.value)
-            }
-            placeholder={
-              "Aquí aparecerá el texto leído del PDF o de la fotografía.\n\nTambién puedes pegar manualmente el texto del albarán."
-            }
-            disabled={procesandoArchivo}
+      {procesando && (
+        <div className="email-import-card">
+          <div className="email-import-card__header">
+            <div>
+              <span className="import-status">
+                Leyendo
+              </span>
+
+              <h3>
+                {archivoActual?.name ||
+                  "Albarán"}
+              </h3>
+
+              <p>
+                {progresoOCR.estado ||
+                  "Leyendo el documento..."}
+              </p>
+            </div>
+
+            <strong>
+              {Math.round(
+                numero(
+                  progresoOCR.progreso,
+                ),
+              )}
+              %
+            </strong>
+          </div>
+
+          <progress
+            value={numero(
+              progresoOCR.progreso,
+            )}
+            max="100"
+            style={{
+              width: "100%",
+              height: "18px",
+            }}
           />
-        </label>
-
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            flexWrap: "wrap",
-          }}
-        >
-          <button
-            type="button"
-            className="boton-principal"
-            onClick={analizarTextoManual}
-            disabled={
-              procesandoArchivo || !texto.trim()
-            }
-          >
-            {procesandoArchivo
-              ? "Leyendo documento..."
-              : "Analizar albarán"}
-          </button>
-
-          <button
-            type="button"
-            onClick={limpiarImportador}
-            disabled={
-              procesandoArchivo || guardando
-            }
-          >
-            Limpiar
-          </button>
         </div>
-      </div>
+      )}
 
-      {(resultado.texto_original ||
-        resultado.lineas.length > 0) && (
-        <div className="importador-bloque">
-          <h2>2. Revisar datos del albarán</h2>
+      {documentoLeido && !procesando && (
+        <div className="email-import-list">
+          <article className="email-import-card">
+            <div className="email-import-card__header">
+              <div>
+                <span className="import-status">
+                  Datos detectados
+                </span>
 
-          <div className="form-grid">
-            <label>
-              Proveedor
-              <select
-                value={resultado.proveedor_id}
-                onChange={(evento) =>
-                  actualizarCampo(
-                    "proveedor_id",
-                    evento.target.value
-                  )
+                <h3>
+                  {archivoActual?.name ||
+                    "Albarán leído"}
+                </h3>
+
+                <p>
+                  Revisa los campos y pulsa
+                  “Importar albarán”.
+                </p>
+              </div>
+
+              <span className="import-status">
+                {
+                  resultado.lineas.length
+                }{" "}
+                productos
+              </span>
+            </div>
+
+            <div className="import-grid">
+              <label className="import-grid__wide">
+                Proveedor
+
+                <select
+                  value={
+                    resultado.proveedor_id
+                  }
+                  onChange={(evento) =>
+                    seleccionarProveedor(
+                      evento.target.value,
+                    )
+                  }
+                >
+                  <option value="">
+                    Seleccionar proveedor
+                  </option>
+
+                  {proveedores.map(
+                    (proveedor) => (
+                      <option
+                        key={proveedor.id}
+                        value={proveedor.id}
+                      >
+                        {obtenerNombreProveedor(
+                          proveedor,
+                        )}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+
+              <label>
+                Número de albarán
+
+                <input
+                  type="text"
+                  value={
+                    resultado.numero_albaran
+                  }
+                  onChange={(evento) =>
+                    actualizarCampo(
+                      "numero_albaran",
+                      evento.target.value,
+                    )
+                  }
+                  placeholder="Número"
+                />
+              </label>
+
+              <label>
+                Fecha
+
+                <input
+                  type="date"
+                  value={
+                    resultado.fecha_albaran
+                  }
+                  onChange={(evento) =>
+                    actualizarCampo(
+                      "fecha_albaran",
+                      evento.target.value,
+                    )
+                  }
+                />
+              </label>
+            </div>
+
+            <div className="import-lines-header">
+              <h4>
+                Productos detectados
+              </h4>
+
+              <button
+                type="button"
+                onClick={añadirLinea}
+                disabled={guardando}
+              >
+                + Añadir producto
+              </button>
+            </div>
+
+            <div className="tabla-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Unidad</th>
+                    <th>Precio</th>
+                    <th>IVA</th>
+                    <th>Total</th>
+                    <th></th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {resultado.lineas.length ===
+                    0 && (
+                    <tr>
+                      <td colSpan="8">
+                        No se han detectado
+                        productos. Pulsa
+                        “Añadir producto”.
+                      </td>
+                    </tr>
+                  )}
+
+                  {resultado.lineas.map(
+                    (linea) => {
+                      const totalLinea =
+                        redondear(
+                          numero(
+                            linea.cantidad,
+                          ) *
+                            numero(
+                              linea.precio_unitario,
+                            ),
+                        );
+
+                      return (
+                        <tr
+                          key={
+                            linea.temporalId
+                          }
+                        >
+                          <td>
+                            <input
+                              type="text"
+                              value={
+                                linea.codigo ||
+                                ""
+                              }
+                              onChange={(
+                                evento,
+                              ) =>
+                                actualizarLinea(
+                                  linea.temporalId,
+                                  "codigo",
+                                  evento.target
+                                    .value,
+                                )
+                              }
+                              placeholder="Código"
+                            />
+                          </td>
+
+                          <td>
+                            <input
+                              type="text"
+                              value={
+                                linea.descripcion ||
+                                ""
+                              }
+                              onChange={(
+                                evento,
+                              ) =>
+                                actualizarLinea(
+                                  linea.temporalId,
+                                  "descripcion",
+                                  evento.target
+                                    .value,
+                                )
+                              }
+                              placeholder="Descripción"
+                            />
+                          </td>
+
+                          <td>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              value={
+                                linea.cantidad
+                              }
+                              onChange={(
+                                evento,
+                              ) =>
+                                actualizarLinea(
+                                  linea.temporalId,
+                                  "cantidad",
+                                  evento.target
+                                    .value,
+                                )
+                              }
+                            />
+                          </td>
+
+                          <td>
+                            <input
+                              type="text"
+                              value={
+                                linea.unidad ||
+                                ""
+                              }
+                              onChange={(
+                                evento,
+                              ) =>
+                                actualizarLinea(
+                                  linea.temporalId,
+                                  "unidad",
+                                  evento.target
+                                    .value,
+                                )
+                              }
+                            />
+                          </td>
+
+                          <td>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              value={
+                                linea.precio_unitario
+                              }
+                              onChange={(
+                                evento,
+                              ) =>
+                                actualizarLinea(
+                                  linea.temporalId,
+                                  "precio_unitario",
+                                  evento.target
+                                    .value,
+                                )
+                              }
+                            />
+                          </td>
+
+                          <td>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={
+                                linea.iva
+                              }
+                              onChange={(
+                                evento,
+                              ) =>
+                                actualizarLinea(
+                                  linea.temporalId,
+                                  "iva",
+                                  evento.target
+                                    .value,
+                                )
+                              }
+                            />
+                          </td>
+
+                          <td>
+                            <strong>
+                              {formatearEuros(
+                                totalLinea,
+                              )}
+                            </strong>
+                          </td>
+
+                          <td>
+                            <button
+                              type="button"
+                              className="boton-peligro"
+                              onClick={() =>
+                                eliminarLinea(
+                                  linea.temporalId,
+                                )
+                              }
+                              disabled={
+                                guardando
+                              }
+                              title="Eliminar producto"
+                            >
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    },
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <details className="email-original">
+              <summary>
+                Ver texto original detectado
+              </summary>
+
+              <pre>
+                {resultado.texto_original}
+              </pre>
+            </details>
+
+            <div className="import-card-footer">
+              <div className="import-total">
+                <span>
+                  Base:{" "}
+                  <strong>
+                    {formatearEuros(
+                      totalesCalculados
+                        .base_imponible,
+                    )}
+                  </strong>
+                </span>
+
+                <span>
+                  IVA:{" "}
+                  <strong>
+                    {formatearEuros(
+                      totalesCalculados
+                        .total_iva,
+                    )}
+                  </strong>
+                </span>
+
+                <span>
+                  Total:{" "}
+                  <strong>
+                    {formatearEuros(
+                      totalesCalculados.total,
+                    )}
+                  </strong>
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className="boton-principal"
+                onClick={guardarAlbaran}
+                disabled={
+                  guardando ||
+                  procesando ||
+                  resultado.lineas.length ===
+                    0
                 }
               >
-                <option value="">
-                  Seleccionar proveedor
-                </option>
-
-                {proveedores.map((proveedor) => (
-                  <option
-                    key={proveedor.id}
-                    value={proveedor.id}
-                  >
-                    {proveedor.nombre ||
-                      proveedor.nombre_comercial ||
-                      "Proveedor sin nombre"}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Número de albarán
-              <input
-                type="text"
-                value={resultado.numero_albaran}
-                onChange={(evento) =>
-                  actualizarCampo(
-                    "numero_albaran",
-                    evento.target.value
-                  )
-                }
-                placeholder="Número del albarán"
-              />
-            </label>
-
-            <label>
-              Fecha del albarán
-              <input
-                type="date"
-                value={resultado.fecha_albaran}
-                onChange={(evento) =>
-                  actualizarCampo(
-                    "fecha_albaran",
-                    evento.target.value
-                  )
-                }
-              />
-            </label>
-          </div>
-
-          <h3>Productos detectados</h3>
-
-          <div className="tabla-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Descripción</th>
-                  <th>Cantidad</th>
-                  <th>Unidad</th>
-                  <th>Precio unitario</th>
-                  <th>IVA</th>
-                  <th>Total línea</th>
-                  <th></th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {resultado.lineas.length === 0 && (
-                  <tr>
-                    <td colSpan="7">
-                      No se han detectado productos.
-                      Puedes añadirlos manualmente.
-                    </td>
-                  </tr>
-                )}
-
-                {resultado.lineas.map(
-                  (linea, indice) => {
-                    const cantidad = Number(
-                      linea.cantidad || 0
-                    );
-
-                    const precioUnitario = Number(
-                      linea.precio_unitario || 0
-                    );
-
-                    const totalLinea =
-                      cantidad * precioUnitario;
-
-                    return (
-                      <tr key={indice}>
-                        <td>
-                          <input
-                            type="text"
-                            value={
-                              linea.descripcion || ""
-                            }
-                            onChange={(evento) =>
-                              actualizarLinea(
-                                indice,
-                                "descripcion",
-                                evento.target.value
-                              )
-                            }
-                            placeholder="Descripción"
-                          />
-                        </td>
-
-                        <td>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.001"
-                            value={
-                              linea.cantidad ?? ""
-                            }
-                            onChange={(evento) =>
-                              actualizarLinea(
-                                indice,
-                                "cantidad",
-                                evento.target.value
-                              )
-                            }
-                          />
-                        </td>
-
-                        <td>
-                          <input
-                            type="text"
-                            value={
-                              linea.unidad ||
-                              "unidad"
-                            }
-                            onChange={(evento) =>
-                              actualizarLinea(
-                                indice,
-                                "unidad",
-                                evento.target.value
-                              )
-                            }
-                          />
-                        </td>
-
-                        <td>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={
-                              linea.precio_unitario ??
-                              ""
-                            }
-                            onChange={(evento) =>
-                              actualizarLinea(
-                                indice,
-                                "precio_unitario",
-                                evento.target.value
-                              )
-                            }
-                          />
-                        </td>
-
-                        <td>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={linea.iva ?? 10}
-                            onChange={(evento) =>
-                              actualizarLinea(
-                                indice,
-                                "iva",
-                                evento.target.value
-                              )
-                            }
-                          />
-                        </td>
-
-                        <td>
-                          {totalLinea.toLocaleString(
-                            "es-ES",
-                            {
-                              style: "currency",
-                              currency: "EUR",
-                            }
-                          )}
-                        </td>
-
-                        <td>
-                          <button
-                            type="button"
-                            className="boton-peligro"
-                            onClick={() =>
-                              eliminarLinea(indice)
-                            }
-                          >
-                            Eliminar
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  }
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <button
-            type="button"
-            onClick={añadirLinea}
-          >
-            + Añadir línea
-          </button>
-
-          <div className="totales-importador">
-            <p>
-              Base imponible:{" "}
-              <strong>
-                {totalesCalculados.base_imponible.toLocaleString(
-                  "es-ES",
-                  {
-                    style: "currency",
-                    currency: "EUR",
-                  }
-                )}
-              </strong>
-            </p>
-
-            <p>
-              IVA:{" "}
-              <strong>
-                {totalesCalculados.total_iva.toLocaleString(
-                  "es-ES",
-                  {
-                    style: "currency",
-                    currency: "EUR",
-                  }
-                )}
-              </strong>
-            </p>
-
-            <p>
-              Total:{" "}
-              <strong>
-                {totalesCalculados.total.toLocaleString(
-                  "es-ES",
-                  {
-                    style: "currency",
-                    currency: "EUR",
-                  }
-                )}
-              </strong>
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="boton-principal"
-            disabled={
-              guardando || procesandoArchivo
-            }
-            onClick={guardarAlbaran}
-          >
-            {guardando
-              ? "Guardando..."
-              : "Guardar albarán para revisión"}
-          </button>
+                {guardando
+                  ? "Importando..."
+                  : "✅ Importar albarán"}
+              </button>
+            </div>
+          </article>
         </div>
       )}
     </section>

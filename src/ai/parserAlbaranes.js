@@ -1,61 +1,56 @@
-export function prepararRevisionAlbaran(datos = {}) {
-  return {
-    proveedor: datos.proveedor || "",
-    numero: datos.numero || "",
-    fecha: datos.fecha || "",
-    lineas: Array.isArray(datos.lineas) ? datos.lineas : [],
-    subtotal: Number(datos.subtotal || 0),
-    iva: Number(datos.iva || 0),
-    total: Number(datos.total || 0),
-    confirmacionNecesaria: true,
-    advertencias: [
-      "Revisa tots els camps abans de desar.",
-      "No s'ha modificat el catàleg, les compres ni l'estoc.",
-    ],
-  };
-}
-
 function numero(valor) {
   if (valor === null || valor === undefined || valor === "") return 0;
 
   let limpio = String(valor)
     .trim()
     .replace(/[€\s]/g, "")
-    .replace(/\.(?=\d{3}(?:\D|$))/g, "")
-    .replace(",", ".");
+    .replace(/[^0-9,.-]/g, "");
+
+  const tieneComa = limpio.includes(",");
+  const tienePunto = limpio.includes(".");
+
+  if (tieneComa && tienePunto) {
+    if (limpio.lastIndexOf(",") > limpio.lastIndexOf(".")) {
+      limpio = limpio.replace(/\./g, "").replace(",", ".");
+    } else {
+      limpio = limpio.replace(/,/g, "");
+    }
+  } else if (tieneComa) {
+    limpio = limpio.replace(",", ".");
+  }
 
   const resultado = Number(limpio);
   return Number.isFinite(resultado) ? resultado : 0;
 }
 
 function redondear(valor) {
-  return Number(Number(valor || 0).toFixed(2));
+  return Number(numero(valor).toFixed(2));
 }
 
-function limpiarTexto(texto = "") {
-  return String(texto)
-    .replace(/\r/g, "")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+function normalizarEspacios(texto = "") {
+  return String(texto).replace(/\s+/g, " ").trim();
+}
+
+function normalizarFecha(anio, mes, dia) {
+  const year = Number(anio) < 100 ? 2000 + Number(anio) : Number(anio);
+  const month = String(Number(mes)).padStart(2, "0");
+  const day = String(Number(dia)).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function extraerFecha(texto) {
   const patrones = [
-    /fec\.?\s*albar[aá]n\s*[:.-]?\s*(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/i,
-    /fecha\s*(?:del\s*)?albar[aá]n\s*[:.-]?\s*(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/i,
-    /(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/,
+    /(?:fecha|data)(?:\s+(?:albar[aá]n|documento))?\s*[:#-]?\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/i,
+    /\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\b/,
+    /\b(\d{4})-(\d{1,2})-(\d{1,2})\b/,
   ];
 
   for (const patron of patrones) {
     const match = texto.match(patron);
     if (!match) continue;
 
-    const dia = match[1].padStart(2, "0");
-    const mes = match[2].padStart(2, "0");
-    const anyo = match[3].length === 2 ? `20${match[3]}` : match[3];
-
-    return `${anyo}-${mes}-${dia}`;
+    if (match[1]?.length === 4) return normalizarFecha(match[1], match[2], match[3]);
+    return normalizarFecha(match[3], match[2], match[1]);
   }
 
   return "";
@@ -63,233 +58,156 @@ function extraerFecha(texto) {
 
 function extraerNumeroAlbaran(texto) {
   const patrones = [
-    /num\.?\s*albar[aá]n\s*[:#.-]?\s*([A-Z0-9/_-]+)/i,
-    /n[uú]m(?:ero)?\.?\s*(?:de\s*)?albar[aá]n\s*[:#.-]?\s*([A-Z0-9/_-]+)/i,
-    /albar[aá]n\s*[:#.-]?\s*([A-Z0-9/_-]+)/i,
-    /\balb\.?\s*([A-Z0-9/_-]+)/i,
+    /(?:n(?:ú|u|º|°|o)?\.?\s*(?:albar[aá]n|documento)|albar[aá]n\s*(?:n(?:ú|u|º|°|o)?\.?|número)?|delivery\s*note)\s*[:#-]?\s*([A-Z0-9][A-Z0-9\/-]{2,})/i,
+    /(?:documento|doc\.)\s*[:#-]?\s*([A-Z0-9][A-Z0-9\/-]{3,})/i,
   ];
 
   for (const patron of patrones) {
     const match = texto.match(patron);
-    if (match?.[1]) return match[1];
+    if (match?.[1]) return match[1].trim();
   }
 
   return "";
 }
 
-function extraerTotales(texto) {
-  const totalCoincidencias = [
-    ...texto.matchAll(
-      /(?:total\s+albar[aá]n(?:\s+servicio)?|importe\s+total|total)\s*[:€-]?\s*([\d.,]+)/gi
-    ),
-  ];
+function extraerProveedor(texto) {
+  const lineas = String(texto)
+    .split(/\n+/)
+    .map(normalizarEspacios)
+    .filter(Boolean);
 
-  const total =
-    totalCoincidencias.length > 0
-      ? numero(totalCoincidencias.at(-1)[1])
-      : 0;
+  const descartes = /^(albar[aá]n|factura|cliente|fecha|data|cif|nif|tel[eé]fono|direcci[oó]n|p[aá]gina|pedido)/i;
 
-  const baseCoincidencias = [
-    ...texto.matchAll(
-      /(?:base\s+imponible|b\.?\s*imponible|subtotal)\s*[:€-]?\s*([\d.,]+)/gi
-    ),
-  ];
-
-  const ivaCoincidencias = [
-    ...texto.matchAll(
-      /(?:importe\s+iva|imp\.?\s*iva|total\s+iva)\s*[:€-]?\s*([\d.,]+)/gi
-    ),
-  ];
-
-  return {
-    base_imponible:
-      baseCoincidencias.length > 0
-        ? numero(baseCoincidencias.at(-1)[1])
-        : 0,
-    total_iva:
-      ivaCoincidencias.length > 0
-        ? numero(ivaCoincidencias.at(-1)[1])
-        : 0,
-    total,
-  };
+  return (
+    lineas.find((linea) => {
+      if (linea.length < 4 || linea.length > 80 || descartes.test(linea)) return false;
+      const letras = (linea.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+      return letras >= 4;
+    }) || ""
+  );
 }
 
 function esLineaNoProducto(linea) {
-  const texto = linea.toLowerCase();
-
-  return (
-    !linea ||
-    texto.includes("descripcion cant") ||
-    texto.includes("descripción cant") ||
-    texto.includes("base imponible") ||
-    texto.includes("b.imponible") ||
-    texto.includes("total albaran") ||
-    texto.includes("total albarán") ||
-    texto.includes("administracio") ||
-    texto.includes("administración") ||
-    texto.includes("telefono") ||
-    texto.includes("cod.cliente") ||
-    texto.includes("n.i.f") ||
-    texto.includes("doc.electronic") ||
-    /^[-–—_\s]+$/.test(linea)
+  return /^(subtotal|base imponible|iva|total|forma de pago|observaciones|cliente|cif|nif|direcci[oó]n|tel[eé]fono|p[aá]gina|albar[aá]n|fecha|pedido|vencimiento)/i.test(
+    normalizarEspacios(linea),
   );
 }
 
-/*
-  Formato real detectado en los albaranes del usuario:
+function detectarIva(tokens) {
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    const valor = numero(tokens[i]);
+    if ([0, 4, 5, 10, 21].includes(valor)) return valor;
+  }
+  return 10;
+}
 
-  04114 VICHY 0.30L 24B. S.R BANDEJA 2 C 0.384 18.540 37.08 10.00 16106
+function parsearLineaProducto(linea) {
+  const original = normalizarEspacios(linea);
+  if (!original || original.length < 8 || esLineaNoProducto(original)) return null;
 
-  Interpretación:
-  - código inicial: 04114
-  - descripción: VICHY 0.30L 24B. S.R BANDEJA
-  - cantidad: 2
-  - unidad: C
-  - valor intermedio / IBEE: 0.384
-  - precio unitario: 18.540
-  - importe: 37.08
-  - IVA: 10.00
-  - código final OCR: 16106
-*/
-function extraerLineaFormatoProveedor(linea) {
-  const limpia = linea.replace(/\s+/g, " ").trim();
+  const importes = [...original.matchAll(/-?\d{1,6}(?:[.,]\d{1,4})?\s*€?/g)].map((match) => ({
+    texto: match[0],
+    valor: numero(match[0]),
+    indice: match.index,
+  }));
 
-  const match = limpia.match(
-    /^(?:(\d{3,8})\s+)?(.+?)\s+(\d+(?:[.,]\d+)?)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{1,5})\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+(\d{1,2}(?:[.,]\d+)?)\s+(?:\d{4,8})$/
-  );
+  if (importes.length < 2) return null;
 
-  if (!match) return null;
+  const tokens = original.split(" ");
+  const iva = detectarIva(tokens);
+  const totalCandidato = importes[importes.length - 1];
+  const precioCandidato = importes[importes.length - 2];
 
-  const codigo = match[1] || "";
-  const descripcion = match[2].trim();
-  const cantidad = numero(match[3]);
-  const unidad = match[4].trim();
-  const precioUnitario = numero(match[6]);
-  const totalLinea = numero(match[7]);
-  const iva = numero(match[8]);
+  let cantidadCandidato = importes.find((item) => item.valor > 0 && item.valor <= 999);
+  if (!cantidadCandidato) cantidadCandidato = { valor: 1, indice: 0, texto: "1" };
 
-  if (!descripcion || cantidad <= 0 || precioUnitario < 0) {
-    return null;
+  let cantidad = cantidadCandidato.valor || 1;
+  let precioUnitario = precioCandidato.valor;
+  let totalLinea = totalCandidato.valor;
+
+  if (precioUnitario <= 0 || totalLinea <= 0) return null;
+
+  if (Math.abs(cantidad * precioUnitario - totalLinea) > Math.max(0.15, totalLinea * 0.08)) {
+    const posibleCantidad = totalLinea / precioUnitario;
+    if (posibleCantidad > 0 && posibleCantidad <= 999) cantidad = redondear(posibleCantidad);
   }
 
+  const primerNumero = importes[0];
+  const descripcionInicio = primerNumero.indice + primerNumero.texto.length;
+  const descripcionFin = Math.max(descripcionInicio, precioCandidato.indice);
+  let descripcion = normalizarEspacios(original.slice(descripcionInicio, descripcionFin));
+
+  let codigo = normalizarEspacios(original.slice(0, primerNumero.indice));
+  if (!codigo && /^\d{3,}$/.test(primerNumero.texto.replace(/\D/g, ""))) {
+    codigo = primerNumero.texto.replace(/\D/g, "");
+    descripcion = normalizarEspacios(original.slice(descripcionInicio, descripcionFin));
+  }
+
+  if (!descripcion || descripcion.length < 2) {
+    descripcion = normalizarEspacios(original.slice(0, precioCandidato.indice));
+  }
+
+  descripcion = descripcion
+    .replace(/^[-–—.:\s]+/, "")
+    .replace(/\b(?:ud|uds|unidad(?:es)?|kg|g|l|ml|caja|cajas|bandeja|paquete|bolsa)\b\s*$/i, "")
+    .trim();
+
+  if (!descripcion || /^\d+(?:[.,]\d+)?$/.test(descripcion)) return null;
+
+  const unidadMatch = original.match(/\b(kg|g|l|ml|ud|uds|unidad(?:es)?|caja(?:s)?|bandeja(?:s)?|paquete(?:s)?|bolsa(?:s)?)\b/i);
+
   return {
-    codigo,
+    codigo: codigo.slice(0, 40),
     descripcion,
-    cantidad,
-    unidad,
-    precio_unitario: precioUnitario,
+    cantidad: redondear(cantidad),
+    unidad: unidadMatch?.[1]?.toLowerCase() || "unidad",
+    precio_unitario: redondear(precioUnitario),
     iva,
-    total_linea: totalLinea || redondear(cantidad * precioUnitario),
+    total_linea: redondear(totalLinea),
   };
 }
 
-function extraerLineaGenerica(linea) {
-  const limpia = linea.replace(/\s+/g, " ").trim();
-
-  const patrones = [
-    /^(\d+(?:[.,]\d+)?)\s*[|;\t]+\s*(.+?)\s*[|;\t]+\s*([\d.,]+)\s*[|;\t]+\s*([\d.,]+)\s*€?$/,
-    /^(\d+(?:[.,]\d+)?)\s+(.+?)\s+([\d.,]+)\s+([\d.,]+)\s*€?$/,
-  ];
-
-  for (const patron of patrones) {
-    const match = limpia.match(patron);
-    if (!match) continue;
-
-    const cantidad = numero(match[1]);
-    const descripcion = match[2].trim();
-    const precioUnitario = numero(match[3]);
-    const totalLinea = numero(match[4]);
-
-    if (!descripcion || cantidad <= 0) continue;
-
-    return {
-      codigo: "",
-      descripcion,
-      cantidad,
-      unidad: "unidad",
-      precio_unitario: precioUnitario,
-      iva: 10,
-      total_linea: totalLinea || redondear(cantidad * precioUnitario),
-    };
-  }
-
-  return null;
-}
-
-function extraerLineas(texto) {
-  const lineasTexto = limpiarTexto(texto)
-    .split("\n")
-    .map((linea) => linea.trim())
-    .filter(Boolean);
-
-  const resultado = [];
-
-  for (const linea of lineasTexto) {
-    if (esLineaNoProducto(linea)) continue;
-
-    const lineaProveedor = extraerLineaFormatoProveedor(linea);
-
-    if (lineaProveedor) {
-      resultado.push(lineaProveedor);
-      continue;
-    }
-
-    const lineaGenerica = extraerLineaGenerica(linea);
-
-    if (lineaGenerica) {
-      resultado.push(lineaGenerica);
-    }
-  }
-
-  return resultado;
-}
-
-export function analizarAlbaran(texto) {
-  const textoLimpio = limpiarTexto(texto);
-  const lineas = extraerLineas(textoLimpio);
-  const totalesExtraidos = extraerTotales(textoLimpio);
-  const totalesCalculados = recalcularAlbaran(lineas);
-
-  return {
-    numero_albaran: extraerNumeroAlbaran(textoLimpio),
-    fecha_albaran: extraerFecha(textoLimpio),
-    proveedor_id: "",
-    proveedor_nombre: "",
-    lineas,
-    base_imponible:
-      totalesExtraidos.base_imponible || totalesCalculados.base_imponible,
-    total_iva:
-      totalesExtraidos.total_iva || totalesCalculados.total_iva,
-    total: totalesExtraidos.total || totalesCalculados.total,
-    texto_original: textoLimpio,
-  };
+function eliminarDuplicados(lineas) {
+  const vistos = new Set();
+  return lineas.filter((linea) => {
+    const clave = `${linea.codigo}|${linea.descripcion}|${linea.cantidad}|${linea.total_linea}`.toLowerCase();
+    if (vistos.has(clave)) return false;
+    vistos.add(clave);
+    return true;
+  });
 }
 
 export function recalcularAlbaran(lineas = []) {
-  const base = lineas.reduce((acumulado, linea) => {
-    const totalLinea = numero(linea.total_linea);
+  let baseImponible = 0;
+  let totalIva = 0;
 
-    if (totalLinea > 0) {
-      return acumulado + totalLinea;
-    }
+  for (const linea of lineas) {
+    const totalLinea = redondear(numero(linea.cantidad) * numero(linea.precio_unitario));
+    baseImponible += totalLinea;
+    totalIva += totalLinea * (numero(linea.iva) / 100);
+  }
 
-    return (
-      acumulado +
-      numero(linea.cantidad) * numero(linea.precio_unitario)
-    );
-  }, 0);
-
-  const totalIva = lineas.reduce((acumulado, linea) => {
-    const baseLinea =
-      numero(linea.total_linea) ||
-      numero(linea.cantidad) * numero(linea.precio_unitario);
-
-    return acumulado + baseLinea * (numero(linea.iva) / 100);
-  }, 0);
+  baseImponible = redondear(baseImponible);
+  totalIva = redondear(totalIva);
 
   return {
-    base_imponible: redondear(base),
-    total_iva: redondear(totalIva),
-    total: redondear(base + totalIva),
+    base_imponible: baseImponible,
+    total_iva: totalIva,
+    total: redondear(baseImponible + totalIva),
+  };
+}
+
+export function analizarAlbaran(texto = "") {
+  const textoLimpio = String(texto).replace(/\r/g, "").trim();
+  const lineasTexto = textoLimpio.split(/\n+/).map(normalizarEspacios).filter(Boolean);
+  const lineas = eliminarDuplicados(lineasTexto.map(parsearLineaProducto).filter(Boolean));
+  const totales = recalcularAlbaran(lineas);
+
+  return {
+    proveedor_nombre: extraerProveedor(textoLimpio),
+    numero_albaran: extraerNumeroAlbaran(textoLimpio),
+    fecha_albaran: extraerFecha(textoLimpio),
+    lineas,
+    ...totales,
   };
 }

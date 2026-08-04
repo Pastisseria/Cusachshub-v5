@@ -28,6 +28,8 @@ function facturaVacia() {
     numero: "",
     fecha_factura: fechaActual(),
     fecha_vencimiento: "",
+    cliente_id: "",
+    numero_pedido: "",
     nombre_cliente: "",
     cif: "",
     direccion: "",
@@ -61,6 +63,7 @@ function leerLineas(valor) {
 
 function Facturacion() {
   const [facturas, setFacturas] = useState([]);
+  const [clientes, setClientes] = useState([]);
   const [facturaAbierta, setFacturaAbierta] = useState(null);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
@@ -74,13 +77,46 @@ function Facturacion() {
   const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
-    cargarFacturas();
+    cargarDatosIniciales();
   }, []);
 
-  async function cargarFacturas() {
+  async function cargarDatosIniciales() {
     setCargando(true);
     setError("");
 
+    const [resultadoFacturas, resultadoClientes] = await Promise.all([
+      supabase
+        .from("facturas")
+        .select("*")
+        .order("fecha_factura", { ascending: false })
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("clientes")
+        .select("*"),
+    ]);
+
+    if (resultadoFacturas.error) {
+      setError(`Facturas: ${resultadoFacturas.error.message}`);
+      setFacturas([]);
+    } else {
+      setFacturas(resultadoFacturas.data || []);
+    }
+
+    if (resultadoClientes.error) {
+      setError((anterior) =>
+        [anterior, `Clientes: ${resultadoClientes.error.message}`]
+          .filter(Boolean)
+          .join(" | "),
+      );
+      setClientes([]);
+    } else {
+      setClientes(resultadoClientes.data || []);
+    }
+
+    setCargando(false);
+  }
+
+  async function cargarFacturas() {
     const { data, error: consultaError } = await supabase
       .from("facturas")
       .select("*")
@@ -89,12 +125,10 @@ function Facturacion() {
 
     if (consultaError) {
       setError(consultaError.message);
-      setFacturas([]);
-    } else {
-      setFacturas(data || []);
+      return;
     }
 
-    setCargando(false);
+    setFacturas(data || []);
   }
 
   const facturasFiltradas = useMemo(() => {
@@ -105,6 +139,7 @@ function Facturacion() {
         factura.nombre_cliente,
         factura.cif,
         factura.detalle_concepto,
+        factura.numero_pedido,
         factura.email,
       ].join(" "));
 
@@ -147,6 +182,8 @@ function Facturacion() {
       numero: factura.numero || "",
       fecha_factura: factura.fecha_factura || fechaActual(),
       fecha_vencimiento: factura.fecha_vencimiento || "",
+      cliente_id: factura.cliente_id || "",
+      numero_pedido: factura.numero_pedido || "",
       nombre_cliente: factura.nombre_cliente || "",
       cif: factura.cif || "",
       direccion: factura.direccion || "",
@@ -179,6 +216,47 @@ function Facturacion() {
       fecha_pago: "",
     }));
     setMensaje("Copia creada. Pon el número y guarda.");
+  }
+
+  function seleccionarCliente(clienteId) {
+    if (!clienteId) {
+      setFormulario((anterior) => ({
+        ...anterior,
+        cliente_id: "",
+      }));
+      return;
+    }
+
+    const cliente = clientes.find((item) => String(item.id) === String(clienteId));
+    if (!cliente) return;
+
+    setFormulario((anterior) => ({
+      ...anterior,
+      cliente_id: cliente.id,
+      numero_pedido:
+        cliente.numero_pedido ||
+        cliente.numero_orden ||
+        cliente.pedido ||
+        anterior.numero_pedido ||
+        "",
+      nombre_cliente:
+        cliente.nombre ||
+        cliente.razon_social ||
+        cliente.empresa ||
+        cliente.nombre_fiscal ||
+        "",
+      cif: cliente.cif || cliente.nif || cliente.cif_nif || "",
+      direccion:
+        cliente.direccion ||
+        cliente.direccion_fiscal ||
+        cliente.domicilio ||
+        "",
+      codigo_postal: cliente.codigo_postal || cliente.cp || "",
+      poblacion: cliente.poblacion || cliente.localidad || cliente.ciudad || "",
+      provincia: cliente.provincia || "",
+      email: cliente.email || cliente.correo || "",
+      telefono: cliente.telefono || cliente.movil || "",
+    }));
   }
 
   function actualizarCampo(campo, valor) {
@@ -233,6 +311,8 @@ function Facturacion() {
         numero: formulario.numero.trim() || null,
         fecha_factura: formulario.fecha_factura || fechaActual(),
         fecha_vencimiento: formulario.fecha_vencimiento || null,
+        cliente_id: formulario.cliente_id || null,
+        numero_pedido: formulario.numero_pedido.trim() || null,
         nombre_cliente: formulario.nombre_cliente.trim() || null,
         cif: formulario.cif.trim() || null,
         direccion: formulario.direccion.trim() || null,
@@ -343,6 +423,30 @@ function Facturacion() {
             <section className="factura-manual-seccion">
               <h3>Datos generales</h3>
               <div className="factura-manual-grid">
+                <Campo label="Cliente guardado" ancho>
+                  <select
+                    value={formulario.cliente_id}
+                    onChange={(e) => seleccionarCliente(e.target.value)}
+                  >
+                    <option value="">— Escoger cliente —</option>
+                    {clientes.map((cliente) => (
+                      <option key={cliente.id} value={cliente.id}>
+                        {cliente.nombre ||
+                          cliente.razon_social ||
+                          cliente.empresa ||
+                          cliente.nombre_fiscal ||
+                          `Cliente ${cliente.id}`}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <Campo label="Número de pedido">
+                  <input
+                    value={formulario.numero_pedido}
+                    onChange={(e) => actualizarCampo("numero_pedido", e.target.value)}
+                    placeholder="Opcional"
+                  />
+                </Campo>
                 <Campo label="Número"><input value={formulario.numero} onChange={(e) => actualizarCampo("numero", e.target.value)} placeholder="Opcional" /></Campo>
                 <Campo label="Fecha"><input type="date" value={formulario.fecha_factura} onChange={(e) => actualizarCampo("fecha_factura", e.target.value)} /></Campo>
                 <Campo label="Vencimiento"><input type="date" value={formulario.fecha_vencimiento} onChange={(e) => actualizarCampo("fecha_vencimiento", e.target.value)} /></Campo>
@@ -482,7 +586,13 @@ function DocumentoFactura({ factura }) {
       <header className="factura-modelo-cabecera">
         <h1>FACTURA</h1>
         <h2>{factura.nombre_cliente || ""}</h2>
-        <div className="factura-documento-meta"><span><strong>Número:</strong> {factura.numero || "—"}</span><span><strong>Fecha:</strong> {fechaEspañola(factura.fecha_factura)}</span></div>
+        <div className="factura-documento-meta">
+          <span><strong>Número:</strong> {factura.numero || "—"}</span>
+          <span><strong>Fecha:</strong> {fechaEspañola(factura.fecha_factura)}</span>
+          {factura.numero_pedido && (
+            <span><strong>N.º pedido:</strong> {factura.numero_pedido}</span>
+          )}
+        </div>
       </header>
 
       {hayCliente && (

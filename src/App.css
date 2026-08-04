@@ -4595,3 +4595,51 @@ albaran-input-oculto {
   }
 }
 .facturacion-cabecera{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}.factura-manual-modal{width:min(1250px,calc(100vw - 40px));max-height:92vh;overflow-y:auto}.factura-manual-seccion{margin-top:20px;padding:18px;border:1px solid #e8e1ec;border-radius:16px;background:#fff}.factura-manual-seccion h3{display:flex;gap:10px;margin-top:0;color:#4b0055}.factura-manual-seccion h3 small{color:#817886;font-size:13px;font-weight:500}.factura-manual-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.factura-manual-grid label{display:grid;gap:7px;font-weight:700}.factura-manual-ancho{grid-column:span 2}.tabla-factura-manual td:first-child input{min-width:300px}.factura-manual-totales{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:18px;margin-top:18px}.factura-manual-totales>div{min-width:165px;padding:14px;border-radius:12px;background:#f7f2f8}.factura-manual-totales span,.factura-manual-totales strong{display:block}.factura-manual-totales strong{color:#4b0055;font-size:20px}.factura-manual-total-final{background:#4b0055!important}.factura-manual-total-final span,.factura-manual-total-final strong{color:#fff!important}.factura-documento-meta{display:flex;justify-content:flex-end;gap:18px;margin-top:12px}.factura-documento-lineas{margin-top:24px}.factura-documento-lineas table{width:100%;border-collapse:collapse}.factura-documento-lineas th,.factura-documento-lineas td{padding:10px;border-bottom:1px solid #ded6e1;text-align:left}.factura-documento-lineas th{background:#f3edf5;color:#4b0055}.factura-documento-totales{width:min(420px,100%);margin:24px 0 0 auto}.factura-documento-totales>div{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ded6e1}.factura-documento-total{font-size:21px}@media(max-width:900px){.facturacion-cabecera{flex-direction:column}.factura-manual-grid{grid-template-columns:1fr 1fr}.factura-manual-ancho{grid-column:span 2}}@media(max-width:620px){.factura-manual-modal{width:calc(100vw - 18px)}.factura-manual-grid{grid-template-columns:1fr}.factura-manual-ancho{grid-column:span 1}.factura-manual-totales{display:grid;grid-template-columns:1fr}}@media print{body.imprimiendo-factura .no-imprimir,body.imprimiendo-factura .sidebar{display:none!important}body.imprimiendo-factura .contenido{margin:0!important;padding:0!important}body.imprimiendo-factura .factura-vista-completa,body.imprimiendo-factura .documento-factura-imprimir{box-shadow:none!important;border:0!important;width:100%!important;margin:0!important}}
+/* CORREGIR FICHA DE CLIENTE */
+
+.ficha-cliente .ficha-bloque,
+.ficha-cliente .cliente-bloque,
+.ficha-cliente .tarjeta-cliente,
+.ficha-cliente article {
+  background: #ffffff !important;
+  color: #231a26 !important;
+  border: 1px solid #e5dce8 !important;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(71, 0, 82, 0.06);
+}
+
+.ficha-cliente h1,
+.ficha-cliente h2,
+.ficha-cliente h3,
+.ficha-cliente h4,
+.ficha-cliente strong,
+.ficha-cliente dt {
+  color: #3f0048 !important;
+}
+
+.ficha-cliente p,
+.ficha-cliente span,
+.ficha-cliente dd {
+  color: #4f4752 !important;
+}
+
+.ficha-cliente dl {
+  margin: 0;
+}
+
+.ficha-cliente dt,
+.ficha-cliente dd {
+  background: transparent !important;
+}
+
+.ficha-cliente-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+@media (max-width: 1000px) {
+  .ficha-cliente-grid {
+    grid-template-columns: 1fr;
+  }
+}

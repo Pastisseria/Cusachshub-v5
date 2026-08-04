@@ -1,121 +1,53 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase.js";
 
 function numero(valor) {
-  if (
-    valor === null ||
-    valor === undefined ||
-    valor === ""
-  ) {
-    return 0;
-  }
-
-  const resultado = Number(
-    String(valor)
-      .replace(/[€\s]/g, "")
-      .replace(",", "."),
-  );
-
-  return Number.isFinite(resultado)
-    ? resultado
-    : 0;
+  const resultado = Number(String(valor ?? 0).replace(/[€\s]/g, "").replace(",", "."));
+  return Number.isFinite(resultado) ? resultado : 0;
 }
 
 function euros(valor) {
-  return numero(valor).toLocaleString(
-    "es-ES",
-    {
-      style: "currency",
-      currency: "EUR",
-    },
-  );
+  return numero(valor).toLocaleString("es-ES", {
+    style: "currency",
+    currency: "EUR",
+  });
 }
 
-function fechaAlbaran(valor) {
-  if (!valor) {
-    return "Sin fecha";
-  }
-
+function fechaCorta(valor) {
+  if (!valor) return "Sin fecha";
   const texto = String(valor);
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
-    const [año, mes, dia] =
-      texto.split("-");
-
-    return `${dia}/${mes}/${año}`;
+    const [anio, mes, dia] = texto.split("-");
+    return `${dia}/${mes}/${anio}`;
   }
 
   const fecha = new Date(valor);
-
-  if (Number.isNaN(fecha.getTime())) {
-    return texto;
-  }
-
-  return fecha.toLocaleDateString(
-    "es-ES",
-  );
+  return Number.isNaN(fecha.getTime()) ? texto : fecha.toLocaleDateString("es-ES");
 }
 
 function fechaCompleta(valor) {
-  if (!valor) {
-    return "Sin fecha";
-  }
-
+  if (!valor) return "Sin fecha";
   const fecha = new Date(valor);
 
-  if (Number.isNaN(fecha.getTime())) {
-    return String(valor);
-  }
-
-  return fecha.toLocaleString(
-    "es-ES",
-    {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  );
-}
-
-function nombreEstado(estado) {
-  const estados = {
-    importado: "Importado",
-    pendiente_revision:
-      "Pendiente de revisión",
-    revisado: "Revisado",
-    error: "Con error",
-  };
-
-  return (
-    estados[estado] ||
-    estado ||
-    "Importado"
-  );
+  return Number.isNaN(fecha.getTime())
+    ? String(valor)
+    : fecha.toLocaleString("es-ES", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 }
 
 function obtenerLineas(albaran) {
-  if (Array.isArray(albaran?.lineas)) {
-    return albaran.lineas;
-  }
+  if (Array.isArray(albaran?.lineas)) return albaran.lineas;
 
-  if (
-    typeof albaran?.lineas === "string"
-  ) {
+  if (typeof albaran?.lineas === "string") {
     try {
-      const resultado = JSON.parse(
-        albaran.lineas,
-      );
-
-      return Array.isArray(resultado)
-        ? resultado
-        : [];
+      const lineas = JSON.parse(albaran.lineas);
+      return Array.isArray(lineas) ? lineas : [];
     } catch {
       return [];
     }
@@ -124,86 +56,24 @@ function obtenerLineas(albaran) {
   return [];
 }
 
-function obtenerDescripcion(linea) {
-  return (
-    linea?.descripcion ||
-    linea?.producto ||
-    linea?.nombre ||
-    "Sin descripción"
-  );
-}
-
-function normalizarTexto(valor = "") {
-  return String(valor)
-    .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      "",
-    )
-    .toLowerCase()
-    .trim();
+function nombreEstado(estado) {
+  return {
+    importado: "Importado",
+    pendiente_revision: "Pendiente",
+    revisado: "Revisado",
+    error: "Con error",
+  }[estado] || estado || "Importado";
 }
 
 function Albaranes() {
-  const [
-    albaranes,
-    setAlbaranes,
-  ] = useState([]);
-
-  const [
-    albaranSeleccionado,
-    setAlbaranSeleccionado,
-  ] = useState(null);
-
-  const [
-    busqueda,
-    setBusqueda,
-  ] = useState("");
-
-  const [
-    filtroEstado,
-    setFiltroEstado,
-  ] = useState("todos");
-
-  const [
-    filtroProveedor,
-    setFiltroProveedor,
-  ] = useState("todos");
-
-  const [
-    filtroDesde,
-    setFiltroDesde,
-  ] = useState("");
-
-  const [
-    filtroHasta,
-    setFiltroHasta,
-  ] = useState("");
-
-  const [
-    cargando,
-    setCargando,
-  ] = useState(true);
-
-  const [
-    actualizando,
-    setActualizando,
-  ] = useState(false);
-
-  const [
-    eliminando,
-    setEliminando,
-  ] = useState(false);
-
-  const [
-    error,
-    setError,
-  ] = useState("");
-
-  const [
-    mensaje,
-    setMensaje,
-  ] = useState("");
+  const [albaranes, setAlbaranes] = useState([]);
+  const [seleccionado, setSeleccionado] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroProveedor, setFiltroProveedor] = useState("todos");
+  const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+  const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
     cargarAlbaranes();
@@ -212,690 +82,157 @@ function Albaranes() {
   async function cargarAlbaranes() {
     setCargando(true);
     setError("");
-    setMensaje("");
 
     try {
-      const {
-        data,
-        error: errorConsulta,
-      } = await supabase
-        .from(
-          "importaciones_albaran",
-        )
+      const { data, error: errorConsulta } = await supabase
+        .from("importaciones_albaran")
         .select("*")
-        .order("created_at", {
-          ascending: false,
-        });
+        .order("created_at", { ascending: false });
 
-      if (errorConsulta) {
-        throw errorConsulta;
-      }
-
+      if (errorConsulta) throw errorConsulta;
       setAlbaranes(data || []);
     } catch (errorCarga) {
-      console.error(
-        "Error cargando albaranes:",
-        errorCarga,
-      );
-
-      setError(
-        errorCarga.message ||
-          "No se han podido cargar los albaranes guardados.",
-      );
+      setError(errorCarga.message || "No se han podido cargar los albaranes.");
     } finally {
       setCargando(false);
     }
   }
 
-  const proveedores = useMemo(() => {
-    const nombres = albaranes
-      .map(
-        (albaran) =>
-          albaran.proveedor_nombre,
-      )
-      .filter(Boolean);
+  const proveedores = useMemo(
+    () =>
+      [...new Set(albaranes.map((a) => a.proveedor_nombre).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, "es")),
+    [albaranes],
+  );
 
-    return [
-      ...new Set(nombres),
-    ].sort((a, b) =>
-      a.localeCompare(
-        b,
-        "es",
-        {
-          sensitivity: "base",
-        },
-      ),
-    );
-  }, [albaranes]);
+  const filtrados = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase();
 
-  const albaranesFiltrados =
-    useMemo(() => {
-      const textoBusqueda =
-        normalizarTexto(busqueda);
+    return albaranes.filter((albaran) => {
+      const coincideProveedor =
+        filtroProveedor === "todos" ||
+        albaran.proveedor_nombre === filtroProveedor;
 
-      return albaranes.filter(
-        (albaran) => {
-          const estado =
-            albaran.estado ||
-            "importado";
+      const coincideEstado =
+        filtroEstado === "todos" ||
+        (albaran.estado || "importado") === filtroEstado;
 
-          const coincideEstado =
-            filtroEstado ===
-              "todos" ||
-            estado === filtroEstado;
+      const contenido = [
+        albaran.proveedor_nombre,
+        albaran.numero_albaran,
+        albaran.fecha_albaran,
+        albaran.archivo_nombre,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
-          const coincideProveedor =
-            filtroProveedor ===
-              "todos" ||
-            albaran.proveedor_nombre ===
-              filtroProveedor;
+      return coincideProveedor && coincideEstado && (!texto || contenido.includes(texto));
+    });
+  }, [albaranes, busqueda, filtroProveedor, filtroEstado]);
 
-          const fechaDocumento =
-            albaran.fecha_albaran ||
-            "";
-
-          const coincideDesde =
-            !filtroDesde ||
-            fechaDocumento >=
-              filtroDesde;
-
-          const coincideHasta =
-            !filtroHasta ||
-            fechaDocumento <=
-              filtroHasta;
-
-          const lineas =
-            obtenerLineas(
-              albaran,
-            );
-
-          const textoLineas =
-            lineas
-              .map((linea) =>
-                [
-                  linea.codigo,
-                  linea.descripcion,
-                  linea.producto,
-                  linea.nombre,
-                ]
-                  .filter(Boolean)
-                  .join(" "),
-              )
-              .join(" ");
-
-          const contenido =
-            normalizarTexto(
-              [
-                albaran.proveedor_nombre,
-                albaran.numero_albaran,
-                albaran.fecha_albaran,
-                albaran.archivo_nombre,
-                textoLineas,
-              ]
-                .filter(Boolean)
-                .join(" "),
-            );
-
-          const coincideBusqueda =
-            !textoBusqueda ||
-            contenido.includes(
-              textoBusqueda,
-            );
-
-          return (
-            coincideEstado &&
-            coincideProveedor &&
-            coincideDesde &&
-            coincideHasta &&
-            coincideBusqueda
-          );
-        },
-      );
-    }, [
-      albaranes,
-      busqueda,
-      filtroEstado,
-      filtroProveedor,
-      filtroDesde,
-      filtroHasta,
-    ]);
-
-  const resumen = useMemo(() => {
-    const importados =
-      albaranes.filter(
-        (albaran) =>
-          !albaran.estado ||
-          albaran.estado ===
-            "importado",
-      ).length;
-
-    const pendientes =
-      albaranes.filter(
-        (albaran) =>
-          albaran.estado ===
-          "pendiente_revision",
-      ).length;
-
-    const revisados =
-      albaranes.filter(
-        (albaran) =>
-          albaran.estado ===
-          "revisado",
-      ).length;
-
-    const totalImporte =
-      albaranes.reduce(
-        (
-          acumulado,
-          albaran,
-        ) =>
-          acumulado +
-          numero(albaran.total),
-        0,
-      );
-
-    return {
+  const resumen = useMemo(
+    () => ({
       total: albaranes.length,
-      importados,
-      pendientes,
-      revisados,
-      totalImporte,
-    };
-  }, [albaranes]);
+      importados: albaranes.filter((a) => !a.estado || a.estado === "importado").length,
+      pendientes: albaranes.filter((a) => a.estado === "pendiente_revision").length,
+      importe: albaranes.reduce((suma, a) => suma + numero(a.total), 0),
+    }),
+    [albaranes],
+  );
 
-  function limpiarFiltros() {
-    setBusqueda("");
-    setFiltroEstado("todos");
-    setFiltroProveedor("todos");
-    setFiltroDesde("");
-    setFiltroHasta("");
-  }
-
-  async function cambiarEstado(
-    albaran,
-    nuevoEstado,
-  ) {
-    setActualizando(true);
-    setError("");
-    setMensaje("");
-
-    try {
-      const {
-        error:
-          errorActualizacion,
-      } = await supabase
-        .from(
-          "importaciones_albaran",
-        )
-        .update({
-          estado: nuevoEstado,
-        })
-        .eq("id", albaran.id);
-
-      if (errorActualizacion) {
-        throw errorActualizacion;
-      }
-
-      setAlbaranes(
-        (anteriores) =>
-          anteriores.map(
-            (elemento) =>
-              elemento.id ===
-              albaran.id
-                ? {
-                    ...elemento,
-                    estado:
-                      nuevoEstado,
-                  }
-                : elemento,
-          ),
-      );
-
-      setAlbaranSeleccionado(
-        (anterior) =>
-          anterior?.id ===
-          albaran.id
-            ? {
-                ...anterior,
-                estado:
-                  nuevoEstado,
-              }
-            : anterior,
-      );
-
-      setMensaje(
-        "Estado actualizado correctamente.",
-      );
-    } catch (errorCambio) {
-      console.error(
-        "Error cambiando estado:",
-        errorCambio,
-      );
-
-      setError(
-        errorCambio.message ||
-          "No se ha podido cambiar el estado.",
-      );
-    } finally {
-      setActualizando(false);
-    }
-  }
-
-  async function abrirOriginal(
-    albaran,
-  ) {
+  async function abrirOriginal(albaran) {
     setError("");
 
     if (albaran.archivo_url) {
-      window.open(
-        albaran.archivo_url,
-        "_blank",
-        "noopener,noreferrer",
-      );
-
+      window.open(albaran.archivo_url, "_blank", "noopener,noreferrer");
       return;
     }
 
-    if (
-      albaran.archivo_ruta
-    ) {
-      try {
-        const {
-          data,
-          error: errorUrl,
-        } = await supabase.storage
-          .from("albaranes")
-          .createSignedUrl(
-            albaran.archivo_ruta,
-            3600,
-          );
+    if (albaran.archivo_ruta) {
+      const { data, error: errorUrl } = await supabase.storage
+        .from("albaranes")
+        .createSignedUrl(albaran.archivo_ruta, 3600);
 
-        if (errorUrl) {
-          throw errorUrl;
-        }
-
-        if (
-          data?.signedUrl
-        ) {
-          window.open(
-            data.signedUrl,
-            "_blank",
-            "noopener,noreferrer",
-          );
-
-          return;
-        }
-      } catch (
-        errorOriginal
-      ) {
-        console.error(
-          "Error abriendo original:",
-          errorOriginal,
-        );
-
-        setError(
-          errorOriginal.message ||
-            "No se ha podido abrir el archivo original.",
-        );
-
+      if (errorUrl) {
+        setError(errorUrl.message);
         return;
       }
-    }
 
-    setError(
-      "Este albarán no tiene una fotografía o PDF guardado.",
-    );
-  }
-
-  async function eliminarAlbaran(
-    albaran,
-  ) {
-    const confirmar =
-      window.confirm(
-        `¿Quieres eliminar el albarán ${
-          albaran.numero_albaran ||
-          ""
-        } de ${
-          albaran.proveedor_nombre ||
-          "este proveedor"
-        }?`,
-      );
-
-    if (!confirmar) {
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
       return;
     }
 
-    setEliminando(true);
-    setError("");
-    setMensaje("");
+    setError("Este albarán no tiene foto o PDF guardado.");
+  }
 
-    try {
-      const {
-        error:
-          errorEliminacion,
-      } = await supabase
-        .from(
-          "importaciones_albaran",
-        )
-        .delete()
-        .eq("id", albaran.id);
+  async function eliminarAlbaran(albaran) {
+    if (!window.confirm(`¿Eliminar el albarán ${albaran.numero_albaran || ""}?`)) return;
 
-      if (errorEliminacion) {
-        throw errorEliminacion;
-      }
+    const { error: errorEliminar } = await supabase
+      .from("importaciones_albaran")
+      .delete()
+      .eq("id", albaran.id);
 
-      if (
-        albaran.archivo_ruta
-      ) {
-        const {
-          error:
-            errorArchivo,
-        } = await supabase.storage
-          .from("albaranes")
-          .remove([
-            albaran.archivo_ruta,
-          ]);
-
-        if (errorArchivo) {
-          console.warn(
-            "No se pudo borrar el archivo original:",
-            errorArchivo,
-          );
-        }
-      }
-
-      setAlbaranes(
-        (anteriores) =>
-          anteriores.filter(
-            (elemento) =>
-              elemento.id !==
-              albaran.id,
-          ),
-      );
-
-      setAlbaranSeleccionado(
-        null,
-      );
-
-      setMensaje(
-        "Albarán eliminado correctamente.",
-      );
-    } catch (
-      errorBorrado
-    ) {
-      console.error(
-        "Error eliminando albarán:",
-        errorBorrado,
-      );
-
-      setError(
-        errorBorrado.message ||
-          "No se ha podido eliminar el albarán.",
-      );
-    } finally {
-      setEliminando(false);
+    if (errorEliminar) {
+      setError(errorEliminar.message);
+      return;
     }
+
+    setAlbaranes((anteriores) => anteriores.filter((a) => a.id !== albaran.id));
+    setSeleccionado(null);
+    setMensaje("Albarán eliminado.");
   }
 
   if (cargando) {
-    return (
-      <section className="panel">
-        <p>
-          Cargando albaranes
-          guardados...
-        </p>
-      </section>
-    );
+    return <section className="panel"><p>Cargando albaranes guardados...</p></section>;
   }
 
   return (
     <section className="panel albaranes-archivo">
       <div className="cabecera-seccion">
         <div>
-          <p className="etiqueta">
-            COMPRAS
-          </p>
-
-          <h1>
-            🗂️ Albaranes guardados
-          </h1>
-
-          <p className="texto-secundario">
-            Consulta los albaranes que
-            ya has importado y revisa
-            su fotografía o PDF
-            original.
-          </p>
+          <p className="etiqueta">COMPRAS</p>
+          <h1>🗂️ Albaranes guardados</h1>
+          <p className="texto-secundario">Consulta qué albaranes ya has subido.</p>
         </div>
 
-        <button
-          type="button"
-          onClick={
-            cargarAlbaranes
-          }
-          disabled={cargando}
-        >
-          🔄 Actualizar
-        </button>
+        <button type="button" onClick={cargarAlbaranes}>🔄 Actualizar</button>
       </div>
 
-      {error && (
-        <div className="mensaje-error">
-          {error}
-        </div>
-      )}
-
-      {mensaje && (
-        <div className="mensaje-exito">
-          {mensaje}
-        </div>
-      )}
+      {error && <div className="mensaje-error">{error}</div>}
+      {mensaje && <div className="mensaje-exito">{mensaje}</div>}
 
       <div className="albaranes-resumen">
-        <article>
-          <span>
-            Total guardados
-          </span>
-
-          <strong>
-            {resumen.total}
-          </strong>
-        </article>
-
-        <article>
-          <span>
-            Importados
-          </span>
-
-          <strong>
-            {
-              resumen.importados
-            }
-          </strong>
-        </article>
-
-        <article>
-          <span>
-            Pendientes
-          </span>
-
-          <strong>
-            {
-              resumen.pendientes
-            }
-          </strong>
-        </article>
-
-        <article>
-          <span>
-            Importe acumulado
-          </span>
-
-          <strong>
-            {euros(
-              resumen.totalImporte,
-            )}
-          </strong>
-        </article>
+        <article><span>Total guardados</span><strong>{resumen.total}</strong></article>
+        <article><span>Importados</span><strong>{resumen.importados}</strong></article>
+        <article><span>Pendientes</span><strong>{resumen.pendientes}</strong></article>
+        <article><span>Importe acumulado</span><strong>{euros(resumen.importe)}</strong></article>
       </div>
 
       <div className="albaranes-filtros">
-        <label>
-          Buscar
+        <input
+          type="search"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Proveedor o número..."
+        />
 
-          <input
-            type="search"
-            value={busqueda}
-            onChange={(
-              evento,
-            ) =>
-              setBusqueda(
-                evento.target
-                  .value,
-              )
-            }
-            placeholder="Proveedor, número, producto..."
-          />
-        </label>
+        <select value={filtroProveedor} onChange={(e) => setFiltroProveedor(e.target.value)}>
+          <option value="todos">Todos los proveedores</option>
+          {proveedores.map((proveedor) => (
+            <option key={proveedor} value={proveedor}>{proveedor}</option>
+          ))}
+        </select>
 
-        <label>
-          Proveedor
-
-          <select
-            value={
-              filtroProveedor
-            }
-            onChange={(
-              evento,
-            ) =>
-              setFiltroProveedor(
-                evento.target
-                  .value,
-              )
-            }
-          >
-            <option value="todos">
-              Todos
-            </option>
-
-            {proveedores.map(
-              (proveedor) => (
-                <option
-                  key={
-                    proveedor
-                  }
-                  value={
-                    proveedor
-                  }
-                >
-                  {proveedor}
-                </option>
-              ),
-            )}
-          </select>
-        </label>
-
-        <label>
-          Estado
-
-          <select
-            value={
-              filtroEstado
-            }
-            onChange={(
-              evento,
-            ) =>
-              setFiltroEstado(
-                evento.target
-                  .value,
-              )
-            }
-          >
-            <option value="todos">
-              Todos
-            </option>
-
-            <option value="importado">
-              Importados
-            </option>
-
-            <option value="pendiente_revision">
-              Pendientes
-            </option>
-
-            <option value="revisado">
-              Revisados
-            </option>
-
-            <option value="error">
-              Con error
-            </option>
-          </select>
-        </label>
-
-        <label>
-          Desde
-
-          <input
-            type="date"
-            value={
-              filtroDesde
-            }
-            onChange={(
-              evento,
-            ) =>
-              setFiltroDesde(
-                evento.target
-                  .value,
-              )
-            }
-          />
-        </label>
-
-        <label>
-          Hasta
-
-          <input
-            type="date"
-            value={
-              filtroHasta
-            }
-            onChange={(
-              evento,
-            ) =>
-              setFiltroHasta(
-                evento.target
-                  .value,
-              )
-            }
-          />
-        </label>
-
-        <div className="albaranes-filtro-acciones">
-          <button
-            type="button"
-            onClick={
-              limpiarFiltros
-            }
-          >
-            Limpiar filtros
-          </button>
-        </div>
+        <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
+          <option value="todos">Todos los estados</option>
+          <option value="importado">Importados</option>
+          <option value="pendiente_revision">Pendientes</option>
+          <option value="revisado">Revisados</option>
+          <option value="error">Con error</option>
+        </select>
       </div>
-
-      <p className="texto-secundario">
-        Mostrando{" "}
-        <strong>
-          {
-            albaranesFiltrados.length
-          }
-        </strong>{" "}
-        de{" "}
-        <strong>
-          {albaranes.length}
-        </strong>{" "}
-        albaranes.
-      </p>
 
       <div className="tabla-responsive">
         <table className="tabla-albaranes">
@@ -903,17 +240,9 @@ function Albaranes() {
             <tr>
               <th>Subido</th>
               <th>Proveedor</th>
-              <th>
-                N.º albarán
-              </th>
-              <th>
-                Fecha albarán
-              </th>
-              <th>
-                Productos
-              </th>
-              <th>Base</th>
-              <th>IVA</th>
+              <th>N.º albarán</th>
+              <th>Fecha</th>
+              <th>Productos</th>
               <th>Total</th>
               <th>Estado</th>
               <th>Original</th>
@@ -922,460 +251,80 @@ function Albaranes() {
           </thead>
 
           <tbody>
-            {albaranesFiltrados.length ===
-              0 && (
-              <tr>
-                <td colSpan="11">
-                  No hay albaranes
-                  que coincidan con
-                  los filtros.
+            {filtrados.length === 0 && (
+              <tr><td colSpan="9">No hay albaranes guardados.</td></tr>
+            )}
+
+            {filtrados.map((albaran) => (
+              <tr key={albaran.id}>
+                <td>{fechaCompleta(albaran.created_at)}</td>
+                <td><strong>{albaran.proveedor_nombre || "Sin proveedor"}</strong></td>
+                <td>{albaran.numero_albaran || "Sin número"}</td>
+                <td>{fechaCorta(albaran.fecha_albaran)}</td>
+                <td>{obtenerLineas(albaran).length}</td>
+                <td><strong>{euros(albaran.total)}</strong></td>
+                <td>{nombreEstado(albaran.estado)}</td>
+                <td>
+                  {albaran.archivo_url || albaran.archivo_ruta ? (
+                    <button type="button" onClick={() => abrirOriginal(albaran)}>👁 Ver</button>
+                  ) : "Sin archivo"}
+                </td>
+                <td>
+                  <button type="button" onClick={() => setSeleccionado(albaran)}>Ver detalle</button>
                 </td>
               </tr>
-            )}
-
-            {albaranesFiltrados.map(
-              (albaran) => {
-                const lineas =
-                  obtenerLineas(
-                    albaran,
-                  );
-
-                const tieneOriginal =
-                  Boolean(
-                    albaran.archivo_url ||
-                      albaran.archivo_ruta,
-                  );
-
-                return (
-                  <tr
-                    key={
-                      albaran.id
-                    }
-                  >
-                    <td>
-                      {fechaCompleta(
-                        albaran.created_at,
-                      )}
-                    </td>
-
-                    <td>
-                      <strong>
-                        {albaran.proveedor_nombre ||
-                          "Sin proveedor"}
-                      </strong>
-                    </td>
-
-                    <td>
-                      {albaran.numero_albaran ||
-                        "Sin número"}
-                    </td>
-
-                    <td>
-                      {fechaAlbaran(
-                        albaran.fecha_albaran,
-                      )}
-                    </td>
-
-                    <td>
-                      {
-                        lineas.length
-                      }
-                    </td>
-
-                    <td>
-                      {euros(
-                        albaran.base_imponible,
-                      )}
-                    </td>
-
-                    <td>
-                      {euros(
-                        albaran.total_iva,
-                      )}
-                    </td>
-
-                    <td>
-                      <strong>
-                        {euros(
-                          albaran.total,
-                        )}
-                      </strong>
-                    </td>
-
-                    <td>
-                      <span
-                        className={`estado-albaran estado-albaran--${
-                          albaran.estado ||
-                          "importado"
-                        }`}
-                      >
-                        {nombreEstado(
-                          albaran.estado,
-                        )}
-                      </span>
-                    </td>
-
-                    <td>
-                      {tieneOriginal ? (
-                        <button
-                          type="button"
-                          className="boton-secundario"
-                          onClick={() =>
-                            abrirOriginal(
-                              albaran,
-                            )
-                          }
-                        >
-                          👁 Ver
-                        </button>
-                      ) : (
-                        <span className="sin-original">
-                          Sin archivo
-                        </span>
-                      )}
-                    </td>
-
-                    <td>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAlbaranSeleccionado(
-                            albaran,
-                          )
-                        }
-                      >
-                        Ver detalle
-                      </button>
-                    </td>
-                  </tr>
-                );
-              },
-            )}
+            ))}
           </tbody>
         </table>
       </div>
 
-      {albaranSeleccionado && (
-        <div
-          className="modal-fondo"
-          onClick={() =>
-            setAlbaranSeleccionado(
-              null,
-            )
-          }
-        >
-          <article
-            className="modal-contenido modal-albaran"
-            onClick={(
-              evento,
-            ) =>
-              evento.stopPropagation()
-            }
-          >
+      {seleccionado && (
+        <div className="modal-fondo" onClick={() => setSeleccionado(null)}>
+          <article className="modal-contenido modal-albaran" onClick={(e) => e.stopPropagation()}>
             <div className="modal-cabecera">
               <div>
-                <p className="etiqueta">
-                  ALBARÁN
-                </p>
-
-                <h2>
-                  {albaranSeleccionado.numero_albaran ||
-                    "Sin número"}
-                </h2>
-
-                <p>
-                  {albaranSeleccionado.proveedor_nombre ||
-                    "Sin proveedor"}
-                </p>
+                <p className="etiqueta">ALBARÁN</p>
+                <h2>{seleccionado.numero_albaran || "Sin número"}</h2>
+                <p>{seleccionado.proveedor_nombre || "Sin proveedor"}</p>
               </div>
-
-              <button
-                type="button"
-                className="boton-cerrar-modal"
-                onClick={() =>
-                  setAlbaranSeleccionado(
-                    null,
-                  )
-                }
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="detalle-albaran-datos">
-              <div>
-                <span>
-                  Fecha albarán
-                </span>
-
-                <strong>
-                  {fechaAlbaran(
-                    albaranSeleccionado.fecha_albaran,
-                  )}
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Fecha de subida
-                </span>
-
-                <strong>
-                  {fechaCompleta(
-                    albaranSeleccionado.created_at,
-                  )}
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Estado
-                </span>
-
-                <select
-                  value={
-                    albaranSeleccionado.estado ||
-                    "importado"
-                  }
-                  disabled={
-                    actualizando
-                  }
-                  onChange={(
-                    evento,
-                  ) =>
-                    cambiarEstado(
-                      albaranSeleccionado,
-                      evento.target
-                        .value,
-                    )
-                  }
-                >
-                  <option value="importado">
-                    Importado
-                  </option>
-
-                  <option value="pendiente_revision">
-                    Pendiente de
-                    revisión
-                  </option>
-
-                  <option value="revisado">
-                    Revisado
-                  </option>
-
-                  <option value="error">
-                    Con error
-                  </option>
-                </select>
-              </div>
+              <button type="button" onClick={() => setSeleccionado(null)}>×</button>
             </div>
 
             <div className="tabla-responsive">
               <table>
                 <thead>
                   <tr>
-                    <th>
-                      Código
-                    </th>
-
-                    <th>
-                      Producto
-                    </th>
-
-                    <th>
-                      Cantidad
-                    </th>
-
-                    <th>
-                      Unidad
-                    </th>
-
-                    <th>
-                      Precio
-                    </th>
-
-                    <th>
-                      IVA
-                    </th>
-
-                    <th>
-                      Total
-                    </th>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Unidad</th>
+                    <th>Precio</th>
+                    <th>IVA</th>
+                    <th>Total</th>
                   </tr>
                 </thead>
-
                 <tbody>
-                  {obtenerLineas(
-                    albaranSeleccionado,
-                  ).length ===
-                    0 && (
-                    <tr>
-                      <td colSpan="7">
-                        Este albarán
-                        no tiene
-                        productos
-                        guardados.
-                      </td>
+                  {obtenerLineas(seleccionado).map((linea, indice) => (
+                    <tr key={`${seleccionado.id}-${indice}`}>
+                      <td>{linea.codigo || "—"}</td>
+                      <td>{linea.descripcion || linea.producto || linea.nombre || "Sin descripción"}</td>
+                      <td>{numero(linea.cantidad)}</td>
+                      <td>{linea.unidad || "unidad"}</td>
+                      <td>{euros(linea.precio_unitario)}</td>
+                      <td>{numero(linea.iva)} %</td>
+                      <td>{euros(linea.total_linea || numero(linea.cantidad) * numero(linea.precio_unitario))}</td>
                     </tr>
-                  )}
-
-                  {obtenerLineas(
-                    albaranSeleccionado,
-                  ).map(
-                    (
-                      linea,
-                      indice,
-                    ) => {
-                      const totalLinea =
-                        numero(
-                          linea.total_linea,
-                        ) ||
-                        numero(
-                          linea.cantidad,
-                        ) *
-                          numero(
-                            linea.precio_unitario,
-                          );
-
-                      return (
-                        <tr
-                          key={`${albaranSeleccionado.id}-${indice}`}
-                        >
-                          <td>
-                            {linea.codigo ||
-                              "—"}
-                          </td>
-
-                          <td>
-                            {obtenerDescripcion(
-                              linea,
-                            )}
-                          </td>
-
-                          <td>
-                            {numero(
-                              linea.cantidad,
-                            )}
-                          </td>
-
-                          <td>
-                            {linea.unidad ||
-                              "unidad"}
-                          </td>
-
-                          <td>
-                            {euros(
-                              linea.precio_unitario,
-                            )}
-                          </td>
-
-                          <td>
-                            {numero(
-                              linea.iva,
-                            )}
-                            %
-                          </td>
-
-                          <td>
-                            <strong>
-                              {euros(
-                                totalLinea,
-                              )}
-                            </strong>
-                          </td>
-                        </tr>
-                      );
-                    },
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="totales-albaran">
-              <span>
-                Base:
-
-                <strong>
-                  {euros(
-                    albaranSeleccionado.base_imponible,
-                  )}
-                </strong>
-              </span>
-
-              <span>
-                IVA:
-
-                <strong>
-                  {euros(
-                    albaranSeleccionado.total_iva,
-                  )}
-                </strong>
-              </span>
-
-              <span>
-                Total:
-
-                <strong>
-                  {euros(
-                    albaranSeleccionado.total,
-                  )}
-                </strong>
-              </span>
-            </div>
-
-            {albaranSeleccionado.archivo_nombre && (
-              <p className="texto-secundario">
-                Archivo:{" "}
-                <strong>
-                  {
-                    albaranSeleccionado.archivo_nombre
-                  }
-                </strong>
-              </p>
-            )}
-
             <div className="modal-acciones">
-              {(albaranSeleccionado.archivo_url ||
-                albaranSeleccionado.archivo_ruta) && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    abrirOriginal(
-                      albaranSeleccionado,
-                    )
-                  }
-                >
-                  👁 Ver original
-                </button>
+              {(seleccionado.archivo_url || seleccionado.archivo_ruta) && (
+                <button type="button" onClick={() => abrirOriginal(seleccionado)}>👁 Ver original</button>
               )}
-
-              <button
-                type="button"
-                className="boton-peligro"
-                disabled={
-                  eliminando
-                }
-                onClick={() =>
-                  eliminarAlbaran(
-                    albaranSeleccionado,
-                  )
-                }
-              >
-                {eliminando
-                  ? "Eliminando..."
-                  : "🗑 Eliminar"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setAlbaranSeleccionado(
-                    null,
-                  )
-                }
-              >
-                Cerrar
-              </button>
+              <button type="button" className="boton-peligro" onClick={() => eliminarAlbaran(seleccionado)}>🗑 Eliminar</button>
+              <button type="button" onClick={() => setSeleccionado(null)}>Cerrar</button>
             </div>
           </article>
         </div>

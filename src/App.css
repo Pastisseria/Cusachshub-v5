@@ -4542,3 +4542,55 @@ albaran-input-oculto {
     width: 100%;
   }
 }
+.albaranes-resumen,
+.presupuestos-estandar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.albaranes-resumen article,
+.presupuesto-estandar-card {
+  padding: 18px;
+  border: 1px solid #e7dfea;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.albaranes-filtros,
+.presupuestos-estandar-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.modal-albaran {
+  width: min(1100px, calc(100vw - 30px));
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.modal-acciones,
+.presupuesto-estandar-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+@media (max-width: 900px) {
+  .albaranes-resumen,
+  .presupuestos-estandar-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .albaranes-resumen,
+  .presupuestos-estandar-grid {
+    grid-template-columns: 1fr;
+  }
+}

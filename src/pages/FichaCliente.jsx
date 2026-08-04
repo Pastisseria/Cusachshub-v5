@@ -46,22 +46,7 @@ function FichaCliente() {
       }
 
       setCliente(data);
-
-      setFormulario({
-        nombre: data.nombre ?? "",
-        empresa: data.empresa ?? "",
-        nif_cif: data.nif_cif ?? "",
-        persona_contacto: data.persona_contacto ?? "",
-        telefono: data.telefono ?? "",
-        email: data.email ?? "",
-        direccion: data.direccion ?? "",
-        codigo_postal: data.codigo_postal ?? "",
-        poblacion: data.poblacion ?? "",
-        provincia: data.provincia ?? "",
-        pais: data.pais ?? "España",
-        observaciones: data.observaciones ?? "",
-        activo: data.activo ?? true,
-      });
+      cargarFormulario(data);
     } catch (err) {
       setCliente(null);
       setError(err.message || "No se ha podido cargar el cliente.");
@@ -70,12 +55,31 @@ function FichaCliente() {
     }
   }
 
+  function cargarFormulario(datos) {
+    setFormulario({
+      nombre: datos.nombre ?? "",
+      empresa: datos.empresa ?? "",
+      nif_cif: datos.nif_cif ?? "",
+      persona_contacto: datos.persona_contacto ?? "",
+      telefono: datos.telefono ?? "",
+      email: datos.email ?? "",
+      direccion: datos.direccion ?? "",
+      codigo_postal: datos.codigo_postal ?? "",
+      poblacion: datos.poblacion ?? "",
+      provincia: datos.provincia ?? "",
+      pais: datos.pais ?? "España",
+      observaciones: datos.observaciones ?? "",
+      activo: datos.activo ?? true,
+    });
+  }
+
   useEffect(() => {
     cargarCliente();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  function cambiarCampo(event) {
-    const { name, value, type, checked } = event.target;
+  function cambiarCampo(evento) {
+    const { name, value, type, checked } = evento.target;
 
     setFormulario((anterior) => ({
       ...anterior,
@@ -90,29 +94,14 @@ function FichaCliente() {
   }
 
   function cancelarEdicion() {
-    setFormulario({
-      nombre: cliente.nombre ?? "",
-      empresa: cliente.empresa ?? "",
-      nif_cif: cliente.nif_cif ?? "",
-      persona_contacto: cliente.persona_contacto ?? "",
-      telefono: cliente.telefono ?? "",
-      email: cliente.email ?? "",
-      direccion: cliente.direccion ?? "",
-      codigo_postal: cliente.codigo_postal ?? "",
-      poblacion: cliente.poblacion ?? "",
-      provincia: cliente.provincia ?? "",
-      pais: cliente.pais ?? "España",
-      observaciones: cliente.observaciones ?? "",
-      activo: cliente.activo ?? true,
-    });
-
+    cargarFormulario(cliente);
     setEditando(false);
     setError("");
     setMensaje("");
   }
 
-  async function guardarCambios(event) {
-    event.preventDefault();
+  async function guardarCambios(evento) {
+    evento.preventDefault();
 
     const nombreLimpio = formulario.nombre.trim();
 
@@ -129,15 +118,18 @@ function FichaCliente() {
       nombre: nombreLimpio,
       empresa: formulario.empresa.trim() || null,
       nif_cif: formulario.nif_cif.trim() || null,
-      persona_contacto: formulario.persona_contacto.trim() || null,
+      persona_contacto:
+        formulario.persona_contacto.trim() || null,
       telefono: formulario.telefono.trim() || null,
       email: formulario.email.trim() || null,
       direccion: formulario.direccion.trim() || null,
-      codigo_postal: formulario.codigo_postal.trim() || null,
+      codigo_postal:
+        formulario.codigo_postal.trim() || null,
       poblacion: formulario.poblacion.trim() || null,
       provincia: formulario.provincia.trim() || null,
       pais: formulario.pais.trim() || "España",
-      observaciones: formulario.observaciones.trim() || null,
+      observaciones:
+        formulario.observaciones.trim() || null,
       activo: formulario.activo,
     };
 
@@ -154,26 +146,13 @@ function FichaCliente() {
       }
 
       setCliente(data);
-      setFormulario({
-        nombre: data.nombre ?? "",
-        empresa: data.empresa ?? "",
-        nif_cif: data.nif_cif ?? "",
-        persona_contacto: data.persona_contacto ?? "",
-        telefono: data.telefono ?? "",
-        email: data.email ?? "",
-        direccion: data.direccion ?? "",
-        codigo_postal: data.codigo_postal ?? "",
-        poblacion: data.poblacion ?? "",
-        provincia: data.provincia ?? "",
-        pais: data.pais ?? "España",
-        observaciones: data.observaciones ?? "",
-        activo: data.activo ?? true,
-      });
-
+      cargarFormulario(data);
       setEditando(false);
       setMensaje("Cliente actualizado correctamente.");
     } catch (err) {
-      setError(err.message || "No se han podido guardar los cambios.");
+      setError(
+        err.message || "No se han podido guardar los cambios.",
+      );
     } finally {
       setGuardando(false);
     }
@@ -181,7 +160,7 @@ function FichaCliente() {
 
   if (cargando) {
     return (
-      <section className="panel">
+      <section className="panel ficha-cliente">
         <p className="mensaje">Cargando ficha del cliente...</p>
       </section>
     );
@@ -189,7 +168,7 @@ function FichaCliente() {
 
   if (!cliente) {
     return (
-      <section className="panel">
+      <section className="panel ficha-cliente">
         <p className="mensaje-error">
           Error: {error || "No se ha encontrado el cliente."}
         </p>
@@ -202,16 +181,8 @@ function FichaCliente() {
   }
 
   return (
-    <section className="panel">
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
-          marginBottom: "28px",
-        }}
-      >
+    <section className="panel ficha-cliente">
+      <div className="ficha-cliente-acciones">
         <button type="button" onClick={() => navigate("/clientes")}>
           ← Volver a clientes
         </button>
@@ -238,16 +209,10 @@ function FichaCliente() {
       {mensaje && <p className="mensaje">{mensaje}</p>}
 
       {editando ? (
-        <form className="formulario" onSubmit={guardarCambios}>
+        <form className="formulario ficha-cliente-form" onSubmit={guardarCambios}>
           <h3>Modificar datos del cliente</h3>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-              gap: "16px",
-            }}
-          >
+          <div className="ficha-cliente-grid">
             <Campo
               etiqueta="Nombre *"
               name="nombre"
@@ -340,61 +305,31 @@ function FichaCliente() {
             />
           </div>
 
-          <label style={{ display: "block", marginTop: "18px" }}>
+          <label className="ficha-cliente-textarea">
             Observaciones
+
             <textarea
               name="observaciones"
               value={formulario.observaciones}
               onChange={cambiarCampo}
               disabled={guardando}
               rows="5"
-              style={{
-                display: "block",
-                width: "100%",
-                boxSizing: "border-box",
-                marginTop: "8px",
-                padding: "14px",
-                borderRadius: "12px",
-                border: "1px solid #4b4453",
-                background: "#151319",
-                color: "white",
-                fontSize: "16px",
-                resize: "vertical",
-              }}
             />
           </label>
 
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginTop: "18px",
-            }}
-          >
+          <label className="ficha-cliente-check">
             <input
               name="activo"
               type="checkbox"
               checked={formulario.activo}
               onChange={cambiarCampo}
               disabled={guardando}
-              style={{
-                width: "22px",
-                height: "22px",
-              }}
             />
 
             Cliente activo
           </label>
 
-          <div
-            style={{
-              display: "flex",
-              gap: "12px",
-              flexWrap: "wrap",
-              marginTop: "24px",
-            }}
-          >
+          <div className="ficha-cliente-botones">
             <button type="submit" disabled={guardando}>
               {guardando ? "Guardando..." : "💾 Guardar cambios"}
             </button>
@@ -410,45 +345,37 @@ function FichaCliente() {
           </div>
         </form>
       ) : (
-        <>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: "18px",
-              marginTop: "24px",
-            }}
-          >
-            <Bloque titulo="Datos generales">
-              <Dato titulo="Nombre" valor={cliente.nombre} />
-              <Dato titulo="Empresa" valor={cliente.empresa} />
-              <Dato titulo="NIF / CIF" valor={cliente.nif_cif} />
-              <Dato
-                titulo="Persona de contacto"
-                valor={cliente.persona_contacto}
-              />
-            </Bloque>
+        <div className="ficha-cliente-grid ficha-cliente-grid--datos">
+          <Bloque titulo="Datos generales">
+            <Dato titulo="Nombre" valor={cliente.nombre} />
+            <Dato titulo="Empresa" valor={cliente.empresa} />
+            <Dato titulo="NIF / CIF" valor={cliente.nif_cif} />
+            <Dato
+              titulo="Persona de contacto"
+              valor={cliente.persona_contacto}
+            />
+          </Bloque>
 
-            <Bloque titulo="Contacto">
-              <Dato titulo="Teléfono" valor={cliente.telefono} />
-              <Dato titulo="Email" valor={cliente.email} />
-            </Bloque>
+          <Bloque titulo="Contacto">
+            <Dato titulo="Teléfono" valor={cliente.telefono} />
+            <Dato titulo="Email" valor={cliente.email} />
+          </Bloque>
 
-            <Bloque titulo="Dirección">
-              <Dato titulo="Dirección" valor={cliente.direccion} />
-              <Dato titulo="Código postal" valor={cliente.codigo_postal} />
-              <Dato titulo="Población" valor={cliente.poblacion} />
-              <Dato titulo="Provincia" valor={cliente.provincia} />
-              <Dato titulo="País" valor={cliente.pais} />
-            </Bloque>
+          <Bloque titulo="Dirección">
+            <Dato titulo="Dirección" valor={cliente.direccion} />
+            <Dato
+              titulo="Código postal"
+              valor={cliente.codigo_postal}
+            />
+            <Dato titulo="Población" valor={cliente.poblacion} />
+            <Dato titulo="Provincia" valor={cliente.provincia} />
+            <Dato titulo="País" valor={cliente.pais} />
+          </Bloque>
 
-            <Bloque titulo="Observaciones">
-              <p style={{ margin: 0 }}>
-                {cliente.observaciones || "Sin observaciones."}
-              </p>
-            </Bloque>
-          </div>
-        </>
+          <Bloque titulo="Observaciones">
+            <p>{cliente.observaciones || "Sin observaciones."}</p>
+          </Bloque>
+        </div>
       )}
     </section>
   );
@@ -464,7 +391,7 @@ function Campo({
   required = false,
 }) {
   return (
-    <label>
+    <label className="ficha-cliente-campo">
       {etiqueta}
 
       <input
@@ -474,19 +401,6 @@ function Campo({
         onChange={onChange}
         disabled={disabled}
         required={required}
-        style={{
-          display: "block",
-          width: "100%",
-          boxSizing: "border-box",
-          marginTop: "8px",
-          minHeight: "48px",
-          padding: "0 14px",
-          borderRadius: "12px",
-          border: "1px solid #4b4453",
-          background: "#151319",
-          color: "white",
-          fontSize: "16px",
-        }}
       />
     </label>
   );
@@ -494,17 +408,10 @@ function Campo({
 
 function Bloque({ titulo, children }) {
   return (
-    <div
-      style={{
-        padding: "22px",
-        border: "1px solid #3e3944",
-        borderRadius: "16px",
-        background: "#151319",
-      }}
-    >
-      <h3 style={{ marginTop: 0 }}>{titulo}</h3>
+    <article className="ficha-cliente-bloque">
+      <h3>{titulo}</h3>
       {children}
-    </div>
+    </article>
   );
 }
 

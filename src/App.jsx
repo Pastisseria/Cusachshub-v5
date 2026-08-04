@@ -27,6 +27,7 @@ import VisitadoresMedicos from "./pages/visitadoresmedicos.jsx";
 import Facturacion from "./pages/facturacion.jsx";
 import ImportadorEmails from "./pages/ImportadorEmails.jsx";
 import ImportadorAlbaranes from "./pages/ImportadorAlbaranes.jsx";
+import Albaranes from "./pages/Albaranes.jsx";
 import ModuloPendiente from "./pages/modulopendiente.jsx";
 
 import "./App.css";
@@ -41,37 +42,78 @@ function App() {
           <Routes>
             <Route
               path="/"
-              element={<Navigate to="/dashboard" replace />}
+              element={
+                <Navigate
+                  to="/dashboard"
+                  replace
+                />
+              }
             />
 
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+              path="/dashboard"
+              element={<Dashboard />}
+            />
 
-            <Route path="/clientes" element={<Clientes />} />
+            <Route
+              path="/clientes"
+              element={<Clientes />}
+            />
 
-            <Route path="/productos" element={<Productos />} />
+            <Route
+              path="/productos"
+              element={<Productos />}
+            />
 
-            <Route path="/presupuestos" element={<Presupuestos />} />
+            <Route
+              path="/presupuestos"
+              element={<Presupuestos />}
+            />
 
-            <Route path="/catering" element={<Catering />} />
+            <Route
+              path="/catering"
+              element={<Catering />}
+            />
 
-            <Route path="/menaje" element={<Menaje />} />
+            <Route
+              path="/menaje"
+              element={<Menaje />}
+            />
 
-            <Route path="/bebidas" element={<Bebidas />} />
+            <Route
+              path="/bebidas"
+              element={<Bebidas />}
+            />
 
-            <Route path="/produccion" element={<Produccion />} />
+            <Route
+              path="/produccion"
+              element={<Produccion />}
+            />
 
-            <Route path="/ingredientes" element={<Ingredientes />} />
+            <Route
+              path="/ingredientes"
+              element={<Ingredientes />}
+            />
 
-            <Route path="/escandallos" element={<Escandallos />} />
+            <Route
+              path="/escandallos"
+              element={<Escandallos />}
+            />
 
-            <Route path="/dietario" element={<DietarioAnual />} />
+            <Route
+              path="/dietario"
+              element={<DietarioAnual />}
+            />
 
             <Route
               path="/horario-personal"
               element={<HorarioPersonal />}
             />
 
-            <Route path="/proveedores" element={<Proveedores />} />
+            <Route
+              path="/proveedores"
+              element={<Proveedores />}
+            />
 
             <Route
               path="/catalogo-proveedores"
@@ -83,14 +125,25 @@ function App() {
               element={<ComparadorPrecios />}
             />
 
-            <Route path="/compras" element={<Compras />} />
+            <Route
+              path="/compras"
+              element={<Compras />}
+            />
+
+            <Route
+              path="/importar-albaranes"
+              element={<ImportadorAlbaranes />}
+            />
+
+            <Route
+              path="/albaranes"
+              element={<Albaranes />}
+            />
 
             <Route
               path="/visitadores"
               element={<VisitadoresMedicos />}
             />
-
-            <Route path="/facturacion" element={<Facturacion />} />
 
             <Route
               path="/importar-emails"
@@ -98,8 +151,8 @@ function App() {
             />
 
             <Route
-              path="/importar-albaranes"
-              element={<ImportadorAlbaranes />}
+              path="/facturacion"
+              element={<Facturacion />}
             />
 
             <Route
@@ -118,7 +171,12 @@ function App() {
 
             <Route
               path="*"
-              element={<Navigate to="/dashboard" replace />}
+              element={
+                <Navigate
+                  to="/dashboard"
+                  replace
+                />
+              }
             />
           </Routes>
         </main>

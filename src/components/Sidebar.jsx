@@ -2,7 +2,9 @@ import { NavLink } from "react-router-dom";
 
 function Sidebar() {
   const claseEnlace = ({ isActive }) =>
-    isActive ? "menu-item active" : "menu-item";
+    isActive
+      ? "menu-item active"
+      : "menu-item";
 
   return (
     <aside className="sidebar">
@@ -149,7 +151,7 @@ function Sidebar() {
           to="/importar-albaranes"
           className={claseEnlace}
         >
-          📄 Importar albaranes
+          📄 Leer albaranes
         </NavLink>
       </div>
 

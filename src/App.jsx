@@ -27,7 +27,7 @@ import VisitadoresMedicos from "./pages/visitadoresmedicos.jsx";
 import Facturacion from "./pages/facturacion.jsx";
 import ImportadorEmails from "./pages/ImportadorEmails.jsx";
 import ImportadorAlbaranes from "./pages/ImportadorAlbaranes.jsx";
-import Albaranes from "./pages/Albaranes.jsx";
+import Albaranes from "./pages/albaranes.jsx";
 import ModuloPendiente from "./pages/modulopendiente.jsx";
 
 import "./App.css";

@@ -32,7 +32,6 @@ import ComparadorPrecios from "./pages/comparadorprecios.jsx";
 import Compras from "./pages/compras.jsx";
 
 import ImportadorAlbaranes from "./pages/ImportadorAlbaranes.jsx";
-import ImportadorAlbaranesV2 from "./pages/ImportadorAlbaranesV2.jsx";
 import Albaranes from "./pages/albaranes.jsx";
 
 import VisitadoresMedicos from "./pages/visitadoresmedicos.jsx";
@@ -164,11 +163,6 @@ function App() {
               element={<ImportadorAlbaranes />}
             />
 
-            {/* LECTOR INTELIGENTE V2 */}
-            <Route
-              path="/importador-albaranes-v2"
-              element={<ImportadorAlbaranesV2 />}
-            />
 
             <Route
               path="/albaranes"

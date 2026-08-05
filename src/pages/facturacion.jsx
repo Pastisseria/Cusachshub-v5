@@ -75,6 +75,9 @@ function Facturacion() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [facturaCobro, setFacturaCobro] = useState(null);
+  const [formaPagoCobro, setFormaPagoCobro] = useState("efectivo");
+  const [guardandoCobro, setGuardandoCobro] = useState(false);
 
   useEffect(() => {
     cargarDatosIniciales();
@@ -397,6 +400,74 @@ function Facturacion() {
     setMensaje("Factura eliminada.");
   }
 
+  function abrirCobro(factura) {
+    if (factura.estado === "pagada") return;
+
+    setFacturaCobro(factura);
+    setFormaPagoCobro(
+      factura.forma_pago === "tarjeta" ? "tarjeta" : "efectivo",
+    );
+    setError("");
+    setMensaje("");
+  }
+
+  function cerrarCobro() {
+    if (guardandoCobro) return;
+    setFacturaCobro(null);
+    setFormaPagoCobro("efectivo");
+  }
+
+  async function confirmarCobro() {
+    if (!facturaCobro) return;
+
+    setGuardandoCobro(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      const cambios = {
+        estado: "pagada",
+        forma_pago: formaPagoCobro,
+        fecha_pago: fechaActual(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data, error: actualizarError } = await supabase
+        .from("facturas")
+        .update(cambios)
+        .eq("id", facturaCobro.id)
+        .select("*")
+        .single();
+
+      if (actualizarError) throw actualizarError;
+
+      setFacturas((anteriores) =>
+        anteriores.map((factura) =>
+          factura.id === data.id ? data : factura,
+        ),
+      );
+
+      setFacturaAbierta((anterior) =>
+        anterior?.id === data.id ? data : anterior,
+      );
+
+      setFacturaCobro(null);
+      setFormaPagoCobro("efectivo");
+      setMensaje(
+        `Factura ${data.numero || ""} marcada como pagada por ${etiquetaPago(
+          data.forma_pago,
+        ).toLowerCase()}.`,
+      );
+    } catch (actualizarError) {
+      setError(
+        actualizarError.message ||
+          "No se ha podido marcar la factura como pagada.",
+      );
+    } finally {
+      setGuardandoCobro(false);
+    }
+  }
+
   function imprimirDocumento() {
     document.body.classList.add("imprimiendo-factura");
     const limpiar = () => document.body.classList.remove("imprimiendo-factura");
@@ -420,6 +491,103 @@ function Facturacion() {
 
       {error && <p className="mensaje-error no-imprimir">Error: {error}</p>}
       {mensaje && <p className="mensaje no-imprimir">{mensaje}</p>}
+
+      {facturaCobro && (
+        <div className="modal-fondo no-imprimir" onClick={cerrarCobro}>
+          <div
+            className="modal-contenido"
+            style={{ maxWidth: "520px" }}
+            onClick={(evento) => evento.stopPropagation()}
+          >
+            <div className="modal-cabecera">
+              <div>
+                <p className="etiqueta">COBRO DE FACTURA</p>
+                <h2>
+                  Marcar factura {facturaCobro.numero || "sin número"} como pagada
+                </h2>
+                <p>
+                  Selecciona cómo se ha cobrado. Solo se permite efectivo o tarjeta.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="boton-cerrar-modal"
+                onClick={cerrarCobro}
+                disabled={guardandoCobro}
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: "14px",
+                marginTop: "20px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setFormaPagoCobro("efectivo")}
+                style={{
+                  padding: "24px 16px",
+                  border:
+                    formaPagoCobro === "efectivo"
+                      ? "3px solid #6f2c91"
+                      : "1px solid #d8d8d8",
+                  background:
+                    formaPagoCobro === "efectivo" ? "#f6effa" : "#ffffff",
+                  borderRadius: "14px",
+                  fontSize: "18px",
+                  fontWeight: 700,
+                }}
+              >
+                💵 Efectivo
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormaPagoCobro("tarjeta")}
+                style={{
+                  padding: "24px 16px",
+                  border:
+                    formaPagoCobro === "tarjeta"
+                      ? "3px solid #6f2c91"
+                      : "1px solid #d8d8d8",
+                  background:
+                    formaPagoCobro === "tarjeta" ? "#f6effa" : "#ffffff",
+                  borderRadius: "14px",
+                  fontSize: "18px",
+                  fontWeight: 700,
+                }}
+              >
+                💳 Tarjeta
+              </button>
+            </div>
+
+            <div className="modal-acciones" style={{ marginTop: "24px" }}>
+              <button
+                type="button"
+                onClick={cerrarCobro}
+                disabled={guardandoCobro}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                className="boton-principal"
+                onClick={confirmarCobro}
+                disabled={guardandoCobro}
+              >
+                {guardandoCobro ? "Guardando..." : "✅ Confirmar pago"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="facturacion-resumen no-imprimir">
         <article><span>Facturado</span><strong>{moneda(resumen.total)}</strong></article>
@@ -584,7 +752,67 @@ function Facturacion() {
                   <td>{etiquetaPago(factura.forma_pago)}</td>
                   <td><span className={`factura-estado ${factura.estado || "pendiente"}`}>{factura.estado || "pendiente"}</span></td>
                   <td><strong>{moneda(factura.total)}</strong></td>
-                  <td><div className="acciones"><button onClick={() => setFacturaAbierta(factura)}>👁 Abrir</button><button onClick={() => editarFactura(factura)}>✏ Editar</button><button onClick={() => duplicarFactura(factura)}>📋 Duplicar</button><button className="boton-peligro" onClick={() => eliminarFactura(factura)}>🗑</button></div></td>
+                  <td>
+                    <div className="acciones">
+                      <button
+                        type="button"
+                        onClick={() => setFacturaAbierta(factura)}
+                      >
+                        👁 Abrir
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => editarFactura(factura)}
+                      >
+                        ✏ Editar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => duplicarFactura(factura)}
+                      >
+                        📋 Duplicar
+                      </button>
+
+                      {factura.estado === "pagada" ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="boton-secundario"
+                          title={`Pagada por ${etiquetaPago(
+                            factura.forma_pago,
+                          )} el ${fechaEspañola(factura.fecha_pago)}`}
+                        >
+                          ✅ Pagada
+                        </button>
+                      ) : factura.estado === "anulada" ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="boton-secundario"
+                        >
+                          ⛔ Anulada
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="boton-principal"
+                          onClick={() => abrirCobro(factura)}
+                        >
+                          💶 Cobrar
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="boton-peligro"
+                        onClick={() => eliminarFactura(factura)}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {!facturasFiltradas.length && <tr><td colSpan="7">No hay facturas.</td></tr>}

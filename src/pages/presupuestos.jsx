@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import DocumentoEditor from "../components/documentoeditor.jsx";
+import DocumentoEditor from "../components/DocumentoEditor.jsx";
 
 function Presupuestos() {
   const navigate = useNavigate();

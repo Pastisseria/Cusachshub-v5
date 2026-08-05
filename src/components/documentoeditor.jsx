@@ -2211,43 +2211,47 @@ function calcularLinea(linea) {
 }
 
 function calcularTotales(lineas, transporte = 0, transporteIva = 10) {
-  const acumulado = lineas.reduce(
-    (resultado, linea) => {
-      const calculo = calcularLinea(linea);
+  let subtotalProductos = 0;
+  let ivaProductos = 0;
 
-      resultado.subtotal = redondear(
-        resultado.subtotal + calculo.subtotal,
-      );
-      resultado.ivaTotal = redondear(
-        resultado.ivaTotal + calculo.importeIva,
-      );
-      resultado.total = redondear(resultado.total + calculo.total);
+  lineas.forEach((linea) => {
+    const calculo = calcularLinea(linea);
 
-      return resultado;
-    },
-    { subtotal: 0, ivaTotal: 0, total: 0 },
-  );
+    subtotalProductos = redondear(
+      subtotalProductos + calculo.subtotal,
+    );
+
+    ivaProductos = redondear(
+      ivaProductos + calculo.importeIva,
+    );
+  });
 
   const baseTransporte = convertirNumero(transporte);
-  const porcentajeIvaTransporte = convertirNumero(transporteIva);
-  const importeIvaTransporte = redondear(
-    baseTransporte * (porcentajeIvaTransporte / 100),
+  const porcentajeTransporte = convertirNumero(transporteIva);
+
+  const ivaDelTransporte = redondear(
+    baseTransporte * (porcentajeTransporte / 100),
   );
 
-  acumulado.subtotal = redondear(acumulado.subtotal + baseTransporte);
-  acumulado.ivaTotal = redondear(
-    acumulado.ivaTotal + importeIvaTransporte,
+  const subtotalFinal = redondear(
+    subtotalProductos + baseTransporte,
   );
-  acumulado.total = redondear(
-    acumulado.subtotal + acumulado.ivaTotal,
+
+  const ivaFinal = redondear(
+    ivaProductos + ivaDelTransporte,
+  );
+
+  const totalFinal = redondear(
+    subtotalFinal + ivaFinal,
   );
 
   return {
-    ...acumulado,
+    subtotal: subtotalFinal,
+    ivaTotal: ivaFinal,
+    total: totalFinal,
+    totalExacto: totalFinal,
     transporte: baseTransporte,
-    transporteIva: importeIvaTransporte,
-    totalExacto: acumulado.total,
-    total: redondearA05(acumulado.total),
+    transporteIva: ivaDelTransporte,
   };
 }
 

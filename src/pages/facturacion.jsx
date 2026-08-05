@@ -215,7 +215,7 @@ function Facturacion() {
       estado: "pendiente",
       fecha_pago: "",
     }));
-    setMensaje("Copia creada. Pon el número y guarda.");
+    setMensaje("Copia creada. El número correlativo se asignará al guardar.");
   }
 
   function seleccionarCliente(clienteId) {
@@ -286,6 +286,22 @@ function Facturacion() {
     });
   }
 
+  async function obtenerSiguienteNumero() {
+    const { data, error: consultaError } = await supabase
+      .from("facturas")
+      .select("numero");
+
+    if (consultaError) throw consultaError;
+
+    const numeros = (data || [])
+      .map((factura) => String(factura.numero ?? "").trim())
+      .filter((valor) => /^\d+$/.test(valor))
+      .map(Number)
+      .filter(Number.isFinite);
+
+    return String(numeros.length ? Math.max(...numeros) + 1 : 1);
+  }
+
   async function guardarFactura(evento) {
     evento.preventDefault();
     setGuardando(true);
@@ -307,8 +323,12 @@ function Facturacion() {
 
       const totales = calcularFactura(lineas, formulario.iva_incluido);
 
+      const numeroCorrelativo = editandoId
+        ? String(formulario.numero || "").trim()
+        : await obtenerSiguienteNumero();
+
       const payload = {
-        numero: formulario.numero.trim() || null,
+        numero: numeroCorrelativo || null,
         fecha_factura: formulario.fecha_factura || fechaActual(),
         fecha_vencimiento: formulario.fecha_vencimiento || null,
         cliente_id: formulario.cliente_id || null,
@@ -447,7 +467,12 @@ function Facturacion() {
                     placeholder="Opcional"
                   />
                 </Campo>
-                <Campo label="Número"><input value={formulario.numero} onChange={(e) => actualizarCampo("numero", e.target.value)} placeholder="Opcional" /></Campo>
+                <Campo label="Número correlativo">
+                  <input
+                    value={editandoId ? formulario.numero : "Se asignará automáticamente"}
+                    readOnly
+                  />
+                </Campo>
                 <Campo label="Fecha"><input type="date" value={formulario.fecha_factura} onChange={(e) => actualizarCampo("fecha_factura", e.target.value)} /></Campo>
                 <Campo label="Vencimiento"><input type="date" value={formulario.fecha_vencimiento} onChange={(e) => actualizarCampo("fecha_vencimiento", e.target.value)} /></Campo>
                 <Campo label="Estado">
@@ -584,7 +609,15 @@ function DocumentoFactura({ factura }) {
   return (
     <article className="documento-factura-imprimir factura-modelo-cliente">
       <header className="factura-modelo-cabecera">
-        <h1>FACTURA</h1>
+        <h1
+          style={{
+            fontSize: "clamp(2rem, 5vw, 3.4rem)",
+            lineHeight: 1.05,
+            marginBottom: "12px",
+          }}
+        >
+          DATOS PARA LA FACTURA
+        </h1>
         <h2>{factura.nombre_cliente || ""}</h2>
         <div className="factura-documento-meta">
           <span><strong>Número:</strong> {factura.numero || "—"}</span>
@@ -597,7 +630,7 @@ function DocumentoFactura({ factura }) {
 
       {hayCliente && (
         <section className="factura-modelo-bloque">
-          <h3>DATOS PARA FACTURA</h3>
+          <h3>DATOS DEL CLIENTE</h3>
           <dl className="factura-modelo-datos">
             {factura.nombre_cliente && <div><dt>Nombre:</dt><dd>{factura.nombre_cliente}</dd></div>}
             {factura.cif && <div><dt>CIF:</dt><dd>{factura.cif}</dd></div>}
@@ -607,6 +640,30 @@ function DocumentoFactura({ factura }) {
           </dl>
         </section>
       )}
+
+      <section className="factura-modelo-bloque">
+        <h3>FORMA DE PAGO</h3>
+        <dl className="factura-modelo-datos">
+          <div>
+            <dt>Forma de pago:</dt>
+            <dd>{etiquetaPago(factura.forma_pago)}</dd>
+          </div>
+          <div>
+            <dt>Fecha de vencimiento:</dt>
+            <dd>{fechaEspañola(factura.fecha_vencimiento)}</dd>
+          </div>
+          <div>
+            <dt>Estado de pago:</dt>
+            <dd>{etiquetaEstado(factura.estado)}</dd>
+          </div>
+          {factura.fecha_pago && (
+            <div>
+              <dt>Fecha de pago:</dt>
+              <dd>{fechaEspañola(factura.fecha_pago)}</dd>
+            </div>
+          )}
+        </dl>
+      </section>
 
       {factura.detalle_concepto && <section className="factura-modelo-bloque"><h3>DETALLE CONCEPTO FACTURA</h3><div className="factura-modelo-concepto">{String(factura.detalle_concepto).split("\n").map((linea, indice) => <p key={indice}>{linea || "\u00A0"}</p>)}</div></section>}
 
@@ -677,6 +734,12 @@ function fechaActual() {
 
 function etiquetaPago(valor) {
   return FORMAS_PAGO.find((forma) => forma.value === valor)?.label || "Transferencia";
+}
+
+function etiquetaEstado(valor) {
+  if (valor === "pagada") return "Pagada";
+  if (valor === "anulada") return "Anulada";
+  return "Pendiente";
 }
 
 export default Facturacion;

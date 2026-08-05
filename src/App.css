@@ -4643,3 +4643,67 @@ albaran-input-oculto {
     grid-template-columns: 1fr;
   }
 }
+.estado-catalogo {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.estado-catalogo--encontrado {
+  background: #e8f7ed;
+  color: #176b36;
+  border: 1px solid #b8e2c5;
+}
+
+.estado-catalogo--precio {
+  background: #fff2df;
+  color: #995400;
+  border: 1px solid #f2cc91;
+}
+
+.estado-catalogo--nuevo {
+  background: #eee8ff;
+  color: #5c3ba5;
+  border: 1px solid #d3c4f4;
+}
+
+.estado-catalogo--posible {
+  background: #fff7d8;
+  color: #786000;
+  border: 1px solid #ebd67c;
+}
+
+.estado-catalogo--revisar {
+  background: #fdeaea;
+  color: #9b2929;
+  border: 1px solid #ecbaba;
+}
+
+.importador-emails table input,
+.importador-emails table select {
+  min-width: 90px;
+}
+
+.importador-emails table td {
+  vertical-align: top;
+}
+
+.importador-emails progress {
+  accent-color: #7651a8;
+}
+
+@media (max-width: 900px) {
+  .import-card-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .import-total {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

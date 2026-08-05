@@ -13,11 +13,7 @@ const TIPOS_DOCUMENTO = [
   "Otro",
 ];
 
-const ESTADOS_DOCUMENTO = [
-  "Borrador",
-  "Enviado",
-  "Aceptado",
-];
+const ESTADOS_DOCUMENTO = ["Borrador", "Enviado", "Aceptado"];
 
 const IDIOMAS_DOCUMENTO = [
   { valor: "es", etiqueta: "Castellano" },
@@ -117,15 +113,9 @@ function DocumentoEditor({
   const [productos, setProductos] = useState([]);
   const [documentos, setDocumentos] = useState([]);
 
-  const [mostrarFormulario, setMostrarFormulario] =
-    useState(false);
-
-  const [documentoAbierto, setDocumentoAbierto] =
-    useState(null);
-
-  const [documentoEditando, setDocumentoEditando] =
-    useState(null);
-
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [documentoAbierto, setDocumentoAbierto] = useState(null);
+  const [documentoEditando, setDocumentoEditando] = useState(null);
   const [lineasAbiertas, setLineasAbiertas] = useState([]);
 
   const [busqueda, setBusqueda] = useState("");
@@ -143,18 +133,17 @@ function DocumentoEditor({
   const [idioma, setIdioma] = useState("es");
 
   const [horaEntrega, setHoraEntrega] = useState("");
-  const [direccionEntrega, setDireccionEntrega] =
-    useState("");
-
+  const [direccionEntrega, setDireccionEntrega] = useState("");
   const [personaContacto, setPersonaContacto] = useState("");
-  const [telefonoContacto, setTelefonoContacto] =
-    useState("");
+  const [telefonoContacto, setTelefonoContacto] = useState("");
 
   const [visitadorNombre, setVisitadorNombre] = useState("");
   const [laboratorio, setLaboratorio] = useState("");
   const [centroMedico, setCentroMedico] = useState("");
 
   const [observaciones, setObservaciones] = useState("");
+  const [transporte, setTransporte] = useState("");
+  const [transporteIva, setTransporteIva] = useState("10");
   const [lineas, setLineas] = useState([nuevaLinea()]);
 
   const [cargando, setCargando] = useState(true);
@@ -226,10 +215,7 @@ function DocumentoEditor({
 
     abrirNuevoDocumento();
 
-    if (datos.cliente?.id) {
-      setClienteId(String(datos.cliente.id));
-    }
-
+    if (datos.cliente?.id) setClienteId(String(datos.cliente.id));
     if (datos.fecha) setFecha(datos.fecha);
     if (datos.hora) setHoraEntrega(datos.hora);
     if (datos.idioma) setIdioma(datos.idioma);
@@ -313,13 +299,7 @@ function DocumentoEditor({
           .select("id, nombre, empresa")
           .eq("activo", true)
           .order("nombre"),
-
-        // Cargamos los visitadores por separado. Usamos select("*") para
-        // que funcione aunque tu tabla tenga campos adicionales.
-        supabase
-          .from("visitadores_medicos")
-          .select("*"),
-
+        supabase.from("visitadores_medicos").select("*"),
         supabase
           .from("productos")
           .select(
@@ -327,25 +307,13 @@ function DocumentoEditor({
           )
           .eq("activo", true)
           .order("nombre"),
-
         consultaDocumentos,
       ]);
 
-      if (respuestaClientes.error) {
-        throw respuestaClientes.error;
-      }
-
-      if (respuestaVisitadores.error) {
-        throw respuestaVisitadores.error;
-      }
-
-      if (respuestaProductos.error) {
-        throw respuestaProductos.error;
-      }
-
-      if (respuestaDocumentos.error) {
-        throw respuestaDocumentos.error;
-      }
+      if (respuestaClientes.error) throw respuestaClientes.error;
+      if (respuestaVisitadores.error) throw respuestaVisitadores.error;
+      if (respuestaProductos.error) throw respuestaProductos.error;
+      if (respuestaDocumentos.error) throw respuestaDocumentos.error;
 
       setClientes(respuestaClientes.data ?? []);
       setVisitadoresMedicos(
@@ -360,10 +328,7 @@ function DocumentoEditor({
       setProductos(respuestaProductos.data ?? []);
       setDocumentos(respuestaDocumentos.data ?? []);
     } catch (err) {
-      setError(
-        err.message ||
-          "No se han podido cargar los documentos.",
-      );
+      setError(err.message || "No se han podido cargar los documentos.");
     } finally {
       setCargando(false);
     }
@@ -373,9 +338,10 @@ function DocumentoEditor({
     cargarDatos();
   }, [tipoDocumentoFijo]);
 
-  const totales = useMemo(() => {
-    return calcularTotales(lineas);
-  }, [lineas]);
+  const totales = useMemo(
+    () => calcularTotales(lineas, transporte, transporteIva),
+    [lineas, transporte, transporteIva],
+  );
 
   const documentosFiltrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
@@ -384,21 +350,11 @@ function DocumentoEditor({
       const coincideBusqueda =
         !texto ||
         documento.numero?.toLowerCase().includes(texto) ||
-        documento.clientes?.nombre
-          ?.toLowerCase()
-          .includes(texto) ||
-        documento.clientes?.empresa
-          ?.toLowerCase()
-          .includes(texto) ||
-        documento.visitador_nombre
-          ?.toLowerCase()
-          .includes(texto) ||
-        documento.laboratorio
-          ?.toLowerCase()
-          .includes(texto) ||
-        documento.centro_medico
-          ?.toLowerCase()
-          .includes(texto);
+        documento.clientes?.nombre?.toLowerCase().includes(texto) ||
+        documento.clientes?.empresa?.toLowerCase().includes(texto) ||
+        documento.visitador_nombre?.toLowerCase().includes(texto) ||
+        documento.laboratorio?.toLowerCase().includes(texto) ||
+        documento.centro_medico?.toLowerCase().includes(texto);
 
       const coincideEstado =
         !filtroEstado || documento.estado === filtroEstado;
@@ -408,19 +364,9 @@ function DocumentoEditor({
         !filtroTipo ||
         documento.tipo_documento === filtroTipo;
 
-      return (
-        coincideBusqueda &&
-        coincideEstado &&
-        coincideTipo
-      );
+      return coincideBusqueda && coincideEstado && coincideTipo;
     });
-  }, [
-    documentos,
-    busqueda,
-    filtroEstado,
-    filtroTipo,
-    tipoDocumentoFijo,
-  ]);
+  }, [documentos, busqueda, filtroEstado, filtroTipo, tipoDocumentoFijo]);
 
   function abrirNuevoDocumento() {
     setDocumentoEditando(null);
@@ -431,30 +377,24 @@ function DocumentoEditor({
     setValidezHasta("");
     setEstado("Borrador");
     setIdioma("es");
-
     setHoraEntrega("");
     setDireccionEntrega("");
     setPersonaContacto("");
     setTelefonoContacto("");
-
     setVisitadorNombre("");
     setLaboratorio("");
     setCentroMedico("");
-
     setObservaciones("");
+    setTransporte("");
+    setTransporteIva("10");
     setLineas([nuevaLinea()]);
-
     setDocumentoAbierto(null);
     setLineasAbiertas([]);
-
     setError("");
     setMensaje("");
     setMostrarFormulario(true);
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function cambiarTipoDocumento(nuevoTipo) {
@@ -484,9 +424,6 @@ function DocumentoEditor({
     setVisitadorNombre(obtenerNombreVisitador(visitador));
     setLaboratorio(obtenerEmpresaVisitador(visitador));
     setCentroMedico(obtenerCentroVisitador(visitador));
-
-    // Algunas instalaciones vinculan cada visitador con un cliente.
-    // Si existe ese campo, conservamos la relación automáticamente.
     setClienteId(visitador.cliente_id ? String(visitador.cliente_id) : "");
   }
 
@@ -499,41 +436,27 @@ function DocumentoEditor({
   function modificarLinea(temporalId, campo, valor) {
     setLineas((anteriores) =>
       anteriores.map((linea) =>
-        linea.temporalId === temporalId
-          ? {
-              ...linea,
-              [campo]: valor,
-            }
-          : linea,
+        linea.temporalId === temporalId ? { ...linea, [campo]: valor } : linea,
       ),
     );
   }
 
   function seleccionarProducto(temporalId, productoId) {
-    const producto = productos.find(
-      (elemento) => elemento.id === productoId,
-    );
+    const producto = productos.find((elemento) => elemento.id === productoId);
 
     setLineas((anteriores) =>
       anteriores.map((linea) => {
-        if (linea.temporalId !== temporalId) {
-          return linea;
-        }
+        if (linea.temporalId !== temporalId) return linea;
 
         if (!producto) {
-          return {
-            ...linea,
-            producto_id: "",
-          };
+          return { ...linea, producto_id: "" };
         }
 
         return {
           ...linea,
           producto_id: producto.id,
           descripcion: obtenerNombreProducto(producto, idioma),
-          precio_unitario: String(
-            producto.precio_venta ?? 0,
-          ),
+          precio_unitario: String(producto.precio_venta ?? 0),
           iva: String(producto.iva ?? 10),
         };
       }),
@@ -541,21 +464,13 @@ function DocumentoEditor({
   }
 
   function añadirLinea(prefijoDescripcion = "") {
-    setLineas((anteriores) => [
-      ...anteriores,
-      nuevaLinea(prefijoDescripcion),
-    ]);
+    setLineas((anteriores) => [...anteriores, nuevaLinea(prefijoDescripcion)]);
   }
 
   function eliminarLinea(temporalId) {
     setLineas((anteriores) => {
-      if (anteriores.length === 1) {
-        return [nuevaLinea()];
-      }
-
-      return anteriores.filter(
-        (linea) => linea.temporalId !== temporalId,
-      );
+      if (anteriores.length === 1) return [nuevaLinea()];
+      return anteriores.filter((linea) => linea.temporalId !== temporalId);
     });
   }
 
@@ -579,14 +494,11 @@ function DocumentoEditor({
 
     const lineasValidas = lineas.filter(
       (linea) =>
-        linea.descripcion.trim() &&
-        convertirNumero(linea.cantidad) > 0,
+        linea.descripcion.trim() && convertirNumero(linea.cantidad) > 0,
     );
 
     if (lineasValidas.length === 0) {
-      setError(
-        "Añade al menos una línea al documento.",
-      );
+      setError("Añade al menos una línea al documento.");
       return;
     }
 
@@ -594,12 +506,14 @@ function DocumentoEditor({
     setError("");
     setMensaje("");
 
-    const totalesCalculados =
-      calcularTotales(lineasValidas);
+    const totalesCalculados = calcularTotales(
+      lineasValidas,
+      transporte,
+      transporteIva,
+    );
 
     const numero =
-      documentoEditando?.numero ||
-      generarNumeroDocumento(tipoDocumento);
+      documentoEditando?.numero || generarNumeroDocumento(tipoDocumento);
 
     const datosDocumento = {
       numero,
@@ -610,12 +524,9 @@ function DocumentoEditor({
       estado,
       idioma,
       hora_entrega: horaEntrega || null,
-      direccion_entrega:
-        direccionEntrega.trim() || null,
-      persona_contacto:
-        personaContacto.trim() || null,
-      telefono_contacto:
-        telefonoContacto.trim() || null,
+      direccion_entrega: direccionEntrega.trim() || null,
+      persona_contacto: personaContacto.trim() || null,
+      telefono_contacto: telefonoContacto.trim() || null,
       visitador_nombre:
         tipoDocumento === "Visitador médico"
           ? visitadorNombre.trim() || null
@@ -629,6 +540,8 @@ function DocumentoEditor({
           ? centroMedico.trim() || null
           : null,
       observaciones: observaciones.trim() || null,
+      transporte: convertirNumero(transporte),
+      transporte_iva: convertirNumero(transporteIva),
       subtotal: totalesCalculados.subtotal,
       iva_total: totalesCalculados.ivaTotal,
       total: totalesCalculados.total,
@@ -643,73 +556,40 @@ function DocumentoEditor({
       let documentoGuardado = null;
 
       if (documentoEditando) {
-        const {
-          data,
-          error: errorDocumento,
-        } = await supabase
+        const { data, error: errorDocumento } = await supabase
           .from("presupuestos")
           .update(datosDocumento)
           .eq("id", documentoEditando.id)
           .select("*")
           .single();
 
-        if (errorDocumento) {
-          throw errorDocumento;
-        }
-
+        if (errorDocumento) throw errorDocumento;
         documentoGuardado = data;
 
-        const { error: errorBorradoLineas } =
-          await supabase
-            .from("presupuesto_lineas")
-            .delete()
-            .eq(
-              "presupuesto_id",
-              documentoEditando.id,
-            );
+        const { error: errorBorradoLineas } = await supabase
+          .from("presupuesto_lineas")
+          .delete()
+          .eq("presupuesto_id", documentoEditando.id);
 
-        if (errorBorradoLineas) {
-          throw errorBorradoLineas;
-        }
+        if (errorBorradoLineas) throw errorBorradoLineas;
       } else {
-        const {
-          data,
-          error: errorDocumento,
-        } = await supabase
+        const { data, error: errorDocumento } = await supabase
           .from("presupuestos")
           .insert(datosDocumento)
           .select("*")
           .single();
 
-        if (errorDocumento) {
-          throw errorDocumento;
-        }
-
+        if (errorDocumento) throw errorDocumento;
         documentoGuardado = data;
       }
 
       const datosLineas = lineasValidas.map((linea) => {
-        const cantidad = convertirNumero(
-          linea.cantidad,
-        );
-
-        const precioUnitario = convertirNumero(
-          linea.precio_unitario,
-        );
-
+        const cantidad = convertirNumero(linea.cantidad);
+        const precioUnitario = convertirNumero(linea.precio_unitario);
         const iva = convertirNumero(linea.iva);
-
-        const subtotal = redondear(
-          cantidad * precioUnitario,
-        );
-
-        const importeIva = redondear(
-          subtotal * (iva / 100),
-        );
-
-        const total = redondear(
-          subtotal + importeIva,
-        );
+        const subtotal = redondear(cantidad * precioUnitario);
+        const importeIva = redondear(subtotal * (iva / 100));
+        const total = redondear(subtotal + importeIva);
 
         return {
           presupuesto_id: documentoGuardado.id,
@@ -735,7 +615,6 @@ function DocumentoEditor({
             .delete()
             .eq("id", documentoGuardado.id);
         }
-
         throw errorLineas;
       }
 
@@ -751,6 +630,8 @@ function DocumentoEditor({
       setVisitadorSeleccionadoId("");
       setLineas([nuevaLinea()]);
       setObservaciones("");
+      setTransporte("");
+      setTransporteIva("10");
 
       await cargarDatos();
     } catch (err) {
@@ -771,101 +652,84 @@ function DocumentoEditor({
     setMensaje("");
 
     try {
-      const { data, error: supabaseError } =
-        await supabase
-          .from("presupuesto_lineas")
-          .select(`
-            *,
-            productos (
-              id,
-              nombre,
-              nombre_ca,
-              nombre_en
-            )
-          `)
-          .eq("presupuesto_id", documento.id)
-          .order("created_at");
+      const { data, error: supabaseError } = await supabase
+        .from("presupuesto_lineas")
+        .select(`
+          *,
+          productos (
+            id,
+            nombre,
+            nombre_ca,
+            nombre_en
+          )
+        `)
+        .eq("presupuesto_id", documento.id)
+        .order("created_at");
 
-      if (supabaseError) {
-        throw supabaseError;
-      }
+      if (supabaseError) throw supabaseError;
 
       setDocumentoEditando(documento);
       setDocumentoAbierto(null);
       setLineasAbiertas([]);
-
       setTipoDocumento(
-        documento.tipo_documento ||
-          tipoDocumentoFijo ||
-          "Catering",
+        documento.tipo_documento || tipoDocumentoFijo || "Catering",
       );
       setClienteId(documento.cliente_id || "");
       setFecha(documento.fecha || fechaActual());
-      setValidezHasta(
-        documento.validez_hasta || "",
-      );
+      setValidezHasta(documento.validez_hasta || "");
       setEstado(documento.estado || "Borrador");
       setIdioma(documento.idioma || "es");
-
       setHoraEntrega(documento.hora_entrega || "");
-      setDireccionEntrega(
-        documento.direccion_entrega || "",
-      );
-      setPersonaContacto(
-        documento.persona_contacto || "",
-      );
-      setTelefonoContacto(
-        documento.telefono_contacto || "",
-      );
+      setDireccionEntrega(documento.direccion_entrega || "");
+      setPersonaContacto(documento.persona_contacto || "");
+      setTelefonoContacto(documento.telefono_contacto || "");
+      setVisitadorNombre(documento.visitador_nombre || "");
 
-      setVisitadorNombre(
-        documento.visitador_nombre || "",
-      );
       const visitadorCoincidente = visitadoresMedicos.find(
         (visitador) =>
           obtenerNombreVisitador(visitador).trim().toLowerCase() ===
           String(documento.visitador_nombre || "").trim().toLowerCase(),
       );
+
       setVisitadorSeleccionadoId(
         visitadorCoincidente ? String(visitadorCoincidente.id) : "",
       );
       setLaboratorio(documento.laboratorio || "");
-      setCentroMedico(
-        documento.centro_medico || "",
+      setCentroMedico(documento.centro_medico || "");
+      setObservaciones(documento.observaciones || "");
+      setTransporte(
+        documento.transporte !== null && documento.transporte !== undefined
+          ? String(documento.transporte)
+          : "",
       );
-      setObservaciones(
-        documento.observaciones || "",
+      setTransporteIva(
+        documento.transporte_iva !== null &&
+          documento.transporte_iva !== undefined
+          ? String(documento.transporte_iva)
+          : "10",
       );
 
       setLineas(
         (data ?? []).length
           ? (data ?? []).map((linea) => ({
               temporalId:
-                typeof crypto !== "undefined" &&
-                crypto.randomUUID
+                typeof crypto !== "undefined" && crypto.randomUUID
                   ? crypto.randomUUID()
                   : `${Date.now()}-${Math.random()}`,
               producto_id: linea.producto_id || "",
               descripcion: linea.descripcion || "",
               cantidad: String(linea.cantidad ?? 1),
-              precio_unitario: String(
-                linea.precio_unitario ?? "",
-              ),
+              precio_unitario: String(linea.precio_unitario ?? ""),
               iva: String(linea.iva ?? 10),
             }))
           : [nuevaLinea()],
       );
 
       setMostrarFormulario(true);
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       setError(
-        err.message ||
-          "No se ha podido cargar el documento para editar.",
+        err.message || "No se ha podido cargar el documento para editar.",
       );
     } finally {
       setAbriendo(false);
@@ -878,38 +742,28 @@ function DocumentoEditor({
     setMensaje("");
 
     try {
-      const { data, error: supabaseError } =
-        await supabase
-          .from("presupuesto_lineas")
-          .select(`
-            *,
-            productos (
-              id,
-              nombre,
-              nombre_ca,
-              nombre_en
-            )
-          `)
-          .eq("presupuesto_id", documento.id)
-          .order("created_at");
+      const { data, error: supabaseError } = await supabase
+        .from("presupuesto_lineas")
+        .select(`
+          *,
+          productos (
+            id,
+            nombre,
+            nombre_ca,
+            nombre_en
+          )
+        `)
+        .eq("presupuesto_id", documento.id)
+        .order("created_at");
 
-      if (supabaseError) {
-        throw supabaseError;
-      }
+      if (supabaseError) throw supabaseError;
 
       setDocumentoAbierto(documento);
       setLineasAbiertas(data ?? []);
       setMostrarFormulario(false);
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
-      setError(
-        err.message ||
-          "No se ha podido abrir el documento.",
-      );
+      setError(err.message || "No se ha podido abrir el documento.");
     } finally {
       setAbriendo(false);
     }
@@ -942,12 +796,14 @@ function DocumentoEditor({
         .maybeSingle();
 
       if (errorExistente) throw errorExistente;
-
       if (existente) {
-        throw new Error(`Este presupuesto ya tiene la factura ${existente.numero}.`);
+        throw new Error(
+          `Este presupuesto ya tiene la factura ${existente.numero}.`,
+        );
       }
 
       let lineasFactura = lineasAbiertas;
+
       if (!lineasFactura.length) {
         const { data, error } = await supabase
           .from("presupuesto_lineas")
@@ -962,6 +818,7 @@ function DocumentoEditor({
           `)
           .eq("presupuesto_id", documento.id)
           .order("created_at");
+
         if (error) throw error;
         lineasFactura = data ?? [];
       }
@@ -977,33 +834,13 @@ function DocumentoEditor({
         [cliente.codigo_postal, cliente.poblacion].filter(Boolean).join(" "),
         cliente.provincia,
         cliente.pais,
-      ].filter(Boolean).join(", ");
+      ]
+        .filter(Boolean)
+        .join(", ");
 
       const concepto = lineasFactura
         .map((linea) => `${linea.cantidad} × ${linea.descripcion}`)
         .join("\n");
-
-      /*
-       * Calculamos los importes desde las líneas para que también funcionen
-       * los presupuestos antiguos que no tengan subtotal o IVA guardados.
-       */
-      const baseCalculada = lineasFactura.reduce(
-        (acumulado, linea) =>
-          acumulado + Number(linea.subtotal || 0),
-        0,
-      );
-
-      const ivaCalculado = lineasFactura.reduce(
-        (acumulado, linea) =>
-          acumulado + Number(linea.importe_iva || 0),
-        0,
-      );
-
-      const totalCalculado = lineasFactura.reduce(
-        (acumulado, linea) =>
-          acumulado + Number(linea.total || 0),
-        0,
-      );
 
       const tiposIva = [
         ...new Set(
@@ -1013,31 +850,20 @@ function DocumentoEditor({
         ),
       ];
 
-      /*
-       * La tabla facturas exige que tipo_iva nunca sea null.
-       * Si todas las líneas tienen el mismo IVA usamos ese porcentaje.
-       * Si hay varios tipos, usamos 10 como tipo general del documento;
-       * el detalle exacto se conserva en factura_lineas.
-       */
       const tipoIvaFactura =
         tiposIva.length === 1
           ? tiposIva[0]
           : Number(documento.tipo_iva || 10);
 
-      const baseImponible =
-        baseCalculada > 0
-          ? baseCalculada
-          : Number(documento.subtotal || 0);
-
-      const importeIva =
-        ivaCalculado > 0
-          ? ivaCalculado
-          : Number(documento.iva_total || 0);
-
-      const totalFactura =
-        totalCalculado > 0
-          ? totalCalculado
-          : Number(documento.total || baseImponible + importeIva);
+      /*
+       * Usamos los totales guardados en el presupuesto porque ya incluyen
+       * el transporte interno. El transporte no se añade como línea visible.
+       */
+      const baseImponible = Number(documento.subtotal || 0);
+      const importeIva = Number(documento.iva_total || 0);
+      const totalFactura = Number(
+        documento.total || baseImponible + importeIva,
+      );
 
       const datosFactura = {
         numero: numeroFactura,
@@ -1094,11 +920,6 @@ function DocumentoEditor({
         throw errorLineas;
       }
 
-      /*
-       * El CHECK de Supabase solo permite:
-       * Borrador, Enviado y Aceptado.
-       * Por eso vinculamos la factura sin cambiar el estado a "Facturado".
-       */
       const cambiosPresupuesto = {
         factura_id: factura.id,
         fecha_facturacion: fechaActual(),
@@ -1117,6 +938,7 @@ function DocumentoEditor({
           ? { ...anterior, ...cambiosPresupuesto }
           : anterior,
       );
+
       setMensaje(`Factura ${numeroFactura} creada correctamente.`);
       await cargarDatos();
 
@@ -1127,19 +949,13 @@ function DocumentoEditor({
       );
     } catch (err) {
       console.error("Error al generar la factura:", err);
-      setError(
-        err?.message ||
-          "No se ha podido generar la factura.",
-      );
+      setError(err?.message || "No se ha podido generar la factura.");
     } finally {
       setFacturando(false);
     }
   }
 
-  async function cambiarIdiomaDocumento(
-    documentoId,
-    nuevoIdioma,
-  ) {
+  async function cambiarIdiomaDocumento(documentoId, nuevoIdioma) {
     setError("");
     setMensaje("");
 
@@ -1154,43 +970,29 @@ function DocumentoEditor({
         .update(datosActualizados)
         .eq("id", documentoId);
 
-      if (supabaseError) {
-        throw supabaseError;
-      }
+      if (supabaseError) throw supabaseError;
 
       setDocumentoAbierto((anterior) =>
         anterior?.id === documentoId
-          ? {
-              ...anterior,
-              ...datosActualizados,
-            }
+          ? { ...anterior, ...datosActualizados }
           : anterior,
       );
 
       setDocumentos((anteriores) =>
         anteriores.map((documento) =>
           documento.id === documentoId
-            ? {
-                ...documento,
-                ...datosActualizados,
-              }
+            ? { ...documento, ...datosActualizados }
             : documento,
         ),
       );
 
       setMensaje("Idioma actualizado correctamente.");
     } catch (err) {
-      setError(
-        err.message ||
-          "No se ha podido modificar el idioma.",
-      );
+      setError(err.message || "No se ha podido modificar el idioma.");
     }
   }
 
-  async function cambiarEstado(
-    documentoId,
-    nuevoEstado,
-  ) {
+  async function cambiarEstado(documentoId, nuevoEstado) {
     setError("");
     setMensaje("");
 
@@ -1205,27 +1007,18 @@ function DocumentoEditor({
         .update(datosActualizados)
         .eq("id", documentoId);
 
-      if (supabaseError) {
-        throw supabaseError;
-      }
+      if (supabaseError) throw supabaseError;
 
       setMensaje("Estado actualizado correctamente.");
-
       setDocumentoAbierto((anterior) =>
         anterior?.id === documentoId
-          ? {
-              ...anterior,
-              ...datosActualizados,
-            }
+          ? { ...anterior, ...datosActualizados }
           : anterior,
       );
 
       await cargarDatos();
     } catch (err) {
-      setError(
-        err.message ||
-          "No se ha podido modificar el estado.",
-      );
+      setError(err.message || "No se ha podido modificar el estado.");
     }
   }
 
@@ -1234,9 +1027,7 @@ function DocumentoEditor({
       `¿Seguro que quieres eliminar el documento ${documento.numero}?`,
     );
 
-    if (!confirmar) {
-      return;
-    }
+    if (!confirmar) return;
 
     setError("");
     setMensaje("");
@@ -1247,18 +1038,14 @@ function DocumentoEditor({
         .delete()
         .eq("presupuesto_id", documento.id);
 
-      if (errorLineas) {
-        throw errorLineas;
-      }
+      if (errorLineas) throw errorLineas;
 
       const { error: errorDocumento } = await supabase
         .from("presupuestos")
         .delete()
         .eq("id", documento.id);
 
-      if (errorDocumento) {
-        throw errorDocumento;
-      }
+      if (errorDocumento) throw errorDocumento;
 
       if (documentoAbierto?.id === documento.id) {
         setDocumentoAbierto(null);
@@ -1268,22 +1055,14 @@ function DocumentoEditor({
       setMensaje("Documento eliminado correctamente.");
       await cargarDatos();
     } catch (err) {
-      setError(
-        err.message ||
-          "No se ha podido eliminar el documento.",
-      );
+      setError(err.message || "No se ha podido eliminar el documento.");
     }
   }
 
-  const esVisitador =
-    tipoDocumento === "Visitador médico";
-
-  const idiomaDocumento =
-    documentoAbierto?.idioma || idioma || "es";
-
+  const esVisitador = tipoDocumento === "Visitador médico";
+  const idiomaDocumento = documentoAbierto?.idioma || idioma || "es";
   const textos =
-    TEXTOS_DOCUMENTO[idiomaDocumento] ||
-    TEXTOS_DOCUMENTO.es;
+    TEXTOS_DOCUMENTO[idiomaDocumento] || TEXTOS_DOCUMENTO.es;
 
   return (
     <section className="panel">
@@ -1295,9 +1074,7 @@ function DocumentoEditor({
 
         <span className="contador">
           {documentosFiltrados.length}{" "}
-          {documentosFiltrados.length === 1
-            ? "documento"
-            : "documentos"}
+          {documentosFiltrados.length === 1 ? "documento" : "documentos"}
         </span>
       </div>
 
@@ -1309,10 +1086,7 @@ function DocumentoEditor({
           marginBottom: "22px",
         }}
       >
-        <button
-          type="button"
-          onClick={abrirNuevoDocumento}
-        >
+        <button type="button" onClick={abrirNuevoDocumento}>
           + Nuevo documento
         </button>
 
@@ -1379,7 +1153,9 @@ function DocumentoEditor({
             <button
               type="button"
               onClick={iniciarDictadoAsistente}
-              disabled={escuchandoVoz || analizandoAsistente || !navegadorAdmiteVoz()}
+              disabled={
+                escuchandoVoz || analizandoAsistente || !navegadorAdmiteVoz()
+              }
             >
               {escuchandoVoz ? "🎙️ Escoltant..." : "🎤 Dictar"}
             </button>
@@ -1429,8 +1205,7 @@ function DocumentoEditor({
               <h3>{propuestaAsistente.titulo}</h3>
 
               <p>
-                <strong>Acció detectada:</strong>{" "}
-                {propuestaAsistente.intencion}
+                <strong>Acció detectada:</strong> {propuestaAsistente.intencion}
               </p>
 
               {propuestaAsistente.datos?.cliente && (
@@ -1507,22 +1282,14 @@ function DocumentoEditor({
         </div>
       )}
 
-      <div
-        className="formulario"
-        style={{
-          marginBottom: "22px",
-          padding: "18px",
-        }}
-      >
+      <div className="formulario" style={{ marginBottom: "22px", padding: "18px" }}>
         <div className="rejilla-presupuesto">
           <label>
             Buscar
             <input
               type="search"
               value={busqueda}
-              onChange={(event) =>
-                setBusqueda(event.target.value)
-              }
+              onChange={(event) => setBusqueda(event.target.value)}
               placeholder="Número, cliente, empresa..."
             />
           </label>
@@ -1531,22 +1298,14 @@ function DocumentoEditor({
             Estado
             <select
               value={filtroEstado}
-              onChange={(event) =>
-                setFiltroEstado(event.target.value)
-              }
+              onChange={(event) => setFiltroEstado(event.target.value)}
             >
               <option value="">Todos los estados</option>
-
-              {ESTADOS_DOCUMENTO.map(
-                (estadoDocumento) => (
-                  <option
-                    key={estadoDocumento}
-                    value={estadoDocumento}
-                  >
-                    {estadoDocumento}
-                  </option>
-                ),
-              )}
+              {ESTADOS_DOCUMENTO.map((estadoDocumento) => (
+                <option key={estadoDocumento} value={estadoDocumento}>
+                  {estadoDocumento}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -1555,14 +1314,9 @@ function DocumentoEditor({
               Tipo
               <select
                 value={filtroTipo}
-                onChange={(event) =>
-                  setFiltroTipo(event.target.value)
-                }
+                onChange={(event) => setFiltroTipo(event.target.value)}
               >
-                <option value="">
-                  Todos los tipos
-                </option>
-
+                <option value="">Todos los tipos</option>
                 {TIPOS_DOCUMENTO.map((tipo) => (
                   <option key={tipo} value={tipo}>
                     {tipo}
@@ -1574,17 +1328,11 @@ function DocumentoEditor({
         </div>
       </div>
 
-      {error && (
-        <p className="mensaje-error">Error: {error}</p>
-      )}
-
+      {error && <p className="mensaje-error">Error: {error}</p>}
       {mensaje && <p className="mensaje">{mensaje}</p>}
 
       {mostrarFormulario && (
-        <form
-          className="formulario"
-          onSubmit={guardarDocumento}
-        >
+        <form className="formulario" onSubmit={guardarDocumento}>
           <h3>
             {documentoEditando
               ? `Editar documento ${documentoEditando.numero}`
@@ -1597,9 +1345,7 @@ function DocumentoEditor({
                 Tipo de documento *
                 <select
                   value={tipoDocumento}
-                  onChange={(event) =>
-                    cambiarTipoDocumento(event.target.value)
-                  }
+                  onChange={(event) => cambiarTipoDocumento(event.target.value)}
                   disabled={guardando}
                   required
                 >
@@ -1617,21 +1363,13 @@ function DocumentoEditor({
                 Visitador médico *
                 <select
                   value={visitadorSeleccionadoId}
-                  onChange={(event) =>
-                    seleccionarVisitador(event.target.value)
-                  }
+                  onChange={(event) => seleccionarVisitador(event.target.value)}
                   disabled={guardando}
                   required
                 >
-                  <option value="">
-                    Selecciona un visitador médico
-                  </option>
-
+                  <option value="">Selecciona un visitador médico</option>
                   {visitadoresMedicos.map((visitador) => (
-                    <option
-                      key={visitador.id}
-                      value={visitador.id}
-                    >
+                    <option key={visitador.id} value={visitador.id}>
                       {obtenerNombreVisitador(visitador)}
                       {obtenerEmpresaVisitador(visitador)
                         ? ` — ${obtenerEmpresaVisitador(visitador)}`
@@ -1645,25 +1383,15 @@ function DocumentoEditor({
                 Cliente *
                 <select
                   value={clienteId}
-                  onChange={(event) =>
-                    setClienteId(event.target.value)
-                  }
+                  onChange={(event) => setClienteId(event.target.value)}
                   disabled={guardando}
                   required
                 >
-                  <option value="">
-                    Selecciona un cliente
-                  </option>
-
+                  <option value="">Selecciona un cliente</option>
                   {clientes.map((cliente) => (
-                    <option
-                      key={cliente.id}
-                      value={cliente.id}
-                    >
+                    <option key={cliente.id} value={cliente.id}>
                       {cliente.nombre}
-                      {cliente.empresa
-                        ? ` — ${cliente.empresa}`
-                        : ""}
+                      {cliente.empresa ? ` — ${cliente.empresa}` : ""}
                     </option>
                   ))}
                 </select>
@@ -1675,9 +1403,7 @@ function DocumentoEditor({
               <input
                 type="date"
                 value={fecha}
-                onChange={(event) =>
-                  setFecha(event.target.value)
-                }
+                onChange={(event) => setFecha(event.target.value)}
                 disabled={guardando}
               />
             </label>
@@ -1687,9 +1413,7 @@ function DocumentoEditor({
               <input
                 type="date"
                 value={validezHasta}
-                onChange={(event) =>
-                  setValidezHasta(event.target.value)
-                }
+                onChange={(event) => setValidezHasta(event.target.value)}
                 disabled={guardando}
               />
             </label>
@@ -1698,21 +1422,14 @@ function DocumentoEditor({
               Estado
               <select
                 value={estado}
-                onChange={(event) =>
-                  setEstado(event.target.value)
-                }
+                onChange={(event) => setEstado(event.target.value)}
                 disabled={guardando}
               >
-                {ESTADOS_DOCUMENTO.map(
-                  (estadoDocumento) => (
-                    <option
-                      key={estadoDocumento}
-                      value={estadoDocumento}
-                    >
-                      {estadoDocumento}
-                    </option>
-                  ),
-                )}
+                {ESTADOS_DOCUMENTO.map((estadoDocumento) => (
+                  <option key={estadoDocumento} value={estadoDocumento}>
+                    {estadoDocumento}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -1720,16 +1437,11 @@ function DocumentoEditor({
               Idioma del presupuesto
               <select
                 value={idioma}
-                onChange={(event) =>
-                  setIdioma(event.target.value)
-                }
+                onChange={(event) => setIdioma(event.target.value)}
                 disabled={guardando}
               >
                 {IDIOMAS_DOCUMENTO.map((opcion) => (
-                  <option
-                    key={opcion.valor}
-                    value={opcion.valor}
-                  >
+                  <option key={opcion.valor} value={opcion.valor}>
                     {opcion.etiqueta}
                   </option>
                 ))}
@@ -1749,11 +1461,7 @@ function DocumentoEditor({
                   <input
                     type="text"
                     value={visitadorNombre}
-                    onChange={(event) =>
-                      setVisitadorNombre(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setVisitadorNombre(event.target.value)}
                     disabled={guardando}
                     required
                   />
@@ -1764,11 +1472,7 @@ function DocumentoEditor({
                   <input
                     type="text"
                     value={laboratorio}
-                    onChange={(event) =>
-                      setLaboratorio(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setLaboratorio(event.target.value)}
                     disabled={guardando}
                   />
                 </label>
@@ -1778,11 +1482,7 @@ function DocumentoEditor({
                   <input
                     type="text"
                     value={centroMedico}
-                    onChange={(event) =>
-                      setCentroMedico(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setCentroMedico(event.target.value)}
                     disabled={guardando}
                   />
                 </label>
@@ -1790,9 +1490,7 @@ function DocumentoEditor({
             </>
           )}
 
-          <h3 style={{ marginTop: "28px" }}>
-            Entrega y contacto
-          </h3>
+          <h3 style={{ marginTop: "28px" }}>Entrega y contacto</h3>
 
           <div className="rejilla-presupuesto">
             <label>
@@ -1800,9 +1498,7 @@ function DocumentoEditor({
               <input
                 type="time"
                 value={horaEntrega}
-                onChange={(event) =>
-                  setHoraEntrega(event.target.value)
-                }
+                onChange={(event) => setHoraEntrega(event.target.value)}
                 disabled={guardando}
               />
             </label>
@@ -1812,11 +1508,7 @@ function DocumentoEditor({
               <input
                 type="text"
                 value={direccionEntrega}
-                onChange={(event) =>
-                  setDireccionEntrega(
-                    event.target.value,
-                  )
-                }
+                onChange={(event) => setDireccionEntrega(event.target.value)}
                 disabled={guardando}
               />
             </label>
@@ -1826,11 +1518,7 @@ function DocumentoEditor({
               <input
                 type="text"
                 value={personaContacto}
-                onChange={(event) =>
-                  setPersonaContacto(
-                    event.target.value,
-                  )
-                }
+                onChange={(event) => setPersonaContacto(event.target.value)}
                 disabled={guardando}
               />
             </label>
@@ -1840,11 +1528,7 @@ function DocumentoEditor({
               <input
                 type="tel"
                 value={telefonoContacto}
-                onChange={(event) =>
-                  setTelefonoContacto(
-                    event.target.value,
-                  )
-                }
+                onChange={(event) => setTelefonoContacto(event.target.value)}
                 disabled={guardando}
               />
             </label>
@@ -1885,17 +1569,14 @@ function DocumentoEditor({
 
             <div className="lineas-presupuesto">
               {lineas.map((linea, indice) => {
-                const calculo =
-                  calcularLinea(linea);
+                const calculo = calcularLinea(linea);
 
                 return (
                   <div
                     className="linea-presupuesto"
                     key={linea.temporalId}
                   >
-                    <div className="numero-linea">
-                      {indice + 1}
-                    </div>
+                    <div className="numero-linea">{indice + 1}</div>
 
                     <label className="campo-producto">
                       Producto
@@ -1909,15 +1590,9 @@ function DocumentoEditor({
                         }
                         disabled={guardando}
                       >
-                        <option value="">
-                          Línea manual / servicio
-                        </option>
-
+                        <option value="">Línea manual / servicio</option>
                         {productos.map((producto) => (
-                          <option
-                            key={producto.id}
-                            value={producto.id}
-                          >
+                          <option key={producto.id} value={producto.id}>
                             {producto.nombre}
                           </option>
                         ))}
@@ -1999,21 +1674,13 @@ function DocumentoEditor({
 
                     <div className="total-linea">
                       <span>Total</span>
-                      <strong>
-                        {formatearEuros(
-                          calculo.total,
-                        )}
-                      </strong>
+                      <strong>{formatearEuros(calculo.total)}</strong>
                     </div>
 
                     <button
                       type="button"
                       className="boton-eliminar-linea"
-                      onClick={() =>
-                        eliminarLinea(
-                          linea.temporalId,
-                        )
-                      }
+                      onClick={() => eliminarLinea(linea.temporalId)}
                       disabled={guardando}
                       title="Eliminar línea"
                     >
@@ -2025,18 +1692,63 @@ function DocumentoEditor({
             </div>
           </div>
 
-          <label
+          <div
             style={{
-              display: "block",
               marginTop: "24px",
+              padding: "18px",
+              border: "1px solid #d8c8df",
+              borderRadius: "12px",
+              background: "#faf7fc",
             }}
           >
+            <h3 style={{ marginTop: 0 }}>🚚 Transporte interno</h3>
+
+            <p
+              style={{
+                marginTop: "4px",
+                marginBottom: "16px",
+                fontSize: "14px",
+              }}
+            >
+              Se suma al total, pero no aparece como línea en el visor ni en el
+              PDF del presupuesto.
+            </p>
+
+            <div className="rejilla-presupuesto">
+              <label>
+                Importe del transporte
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={transporte}
+                  onChange={(event) => setTransporte(event.target.value)}
+                  disabled={guardando}
+                  placeholder="0,00"
+                />
+              </label>
+
+              <label>
+                IVA del transporte
+                <select
+                  value={transporteIva}
+                  onChange={(event) => setTransporteIva(event.target.value)}
+                  disabled={guardando}
+                >
+                  <option value="0">0 %</option>
+                  <option value="4">4 %</option>
+                  <option value="10">10 %</option>
+                  <option value="21">21 %</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <label style={{ display: "block", marginTop: "24px" }}>
             Observaciones
             <textarea
               value={observaciones}
-              onChange={(event) =>
-                setObservaciones(event.target.value)
-              }
+              onChange={(event) => setObservaciones(event.target.value)}
               disabled={guardando}
               rows="4"
               placeholder="Condiciones, horarios, entrega, montaje..."
@@ -2044,25 +1756,26 @@ function DocumentoEditor({
           </label>
 
           <div className="resumen-presupuesto">
+            {convertirNumero(transporte) > 0 && (
+              <p>
+                <span>Transporte interno</span>
+                <strong>{formatearEuros(convertirNumero(transporte))}</strong>
+              </p>
+            )}
+
             <p>
               <span>{textos.baseImponible}</span>
-              <strong>
-                {formatearEuros(totales.subtotal)}
-              </strong>
+              <strong>{formatearEuros(totales.subtotal)}</strong>
             </p>
 
             <p>
               <span>{textos.iva}</span>
-              <strong>
-                {formatearEuros(totales.ivaTotal)}
-              </strong>
+              <strong>{formatearEuros(totales.ivaTotal)}</strong>
             </p>
 
             <p className="total-presupuesto">
               <span>Total documento</span>
-              <strong>
-                {formatearEuros(totales.total)}
-              </strong>
+              <strong>{formatearEuros(totales.total)}</strong>
             </p>
           </div>
 
@@ -2138,10 +1851,7 @@ function DocumentoEditor({
                     disabled={abriendo}
                   >
                     {IDIOMAS_DOCUMENTO.map((opcion) => (
-                      <option
-                        key={opcion.valor}
-                        value={opcion.valor}
-                      >
+                      <option key={opcion.valor} value={opcion.valor}>
                         {opcion.etiqueta}
                       </option>
                     ))}
@@ -2150,9 +1860,7 @@ function DocumentoEditor({
 
                 <button
                   type="button"
-                  onClick={() =>
-                    editarDocumento(documentoAbierto)
-                  }
+                  onClick={() => editarDocumento(documentoAbierto)}
                   disabled={abriendo}
                 >
                   ✏️ Editar
@@ -2200,9 +1908,7 @@ function DocumentoEditor({
 
                 <p>
                   <strong>▣ {textos.validoHasta}</strong>
-                  <span>
-                    {formatearFecha(documentoAbierto.validez_hasta)}
-                  </span>
+                  <span>{formatearFecha(documentoAbierto.validez_hasta)}</span>
                 </p>
 
                 <p>
@@ -2212,9 +1918,7 @@ function DocumentoEditor({
 
                 <p>
                   <strong>⌖ {textos.direccion}</strong>
-                  <span>
-                    {documentoAbierto.direccion_entrega || "—"}
-                  </span>
+                  <span>{documentoAbierto.direccion_entrega || "—"}</span>
                 </p>
               </div>
 
@@ -2223,17 +1927,11 @@ function DocumentoEditor({
                 <select
                   value={documentoAbierto.estado}
                   onChange={(event) =>
-                    cambiarEstado(
-                      documentoAbierto.id,
-                      event.target.value,
-                    )
+                    cambiarEstado(documentoAbierto.id, event.target.value)
                   }
                 >
                   {ESTADOS_DOCUMENTO.map((estadoDocumento) => (
-                    <option
-                      key={estadoDocumento}
-                      value={estadoDocumento}
-                    >
+                    <option key={estadoDocumento} value={estadoDocumento}>
                       {estadoDocumento}
                     </option>
                   ))}
@@ -2241,8 +1939,7 @@ function DocumentoEditor({
               </label>
             </section>
 
-            {documentoAbierto.tipo_documento ===
-              "Visitador médico" && (
+            {documentoAbierto.tipo_documento === "Visitador médico" && (
               <section className="presupuesto-print-bloque-extra">
                 <p>
                   <strong>{textos.nombre}</strong>{" "}
@@ -2266,10 +1963,7 @@ function DocumentoEditor({
               </div>
 
               {lineasAbiertas.map((linea) => (
-                <div
-                  className="presupuesto-print-fila"
-                  key={linea.id}
-                >
+                <div className="presupuesto-print-fila" key={linea.id}>
                   <strong>{linea.cantidad}</strong>
                   <span>
                     {obtenerDescripcionTraducida(
@@ -2286,8 +1980,7 @@ function DocumentoEditor({
               <div className="presupuesto-print-observaciones">
                 <h3>◌ {textos.observaciones}</h3>
                 <p>
-                  {documentoAbierto.observaciones ||
-                    textos.textoDefecto}
+                  {documentoAbierto.observaciones || textos.textoDefecto}
                 </p>
               </div>
 
@@ -2298,23 +1991,17 @@ function DocumentoEditor({
 
                 <p>
                   <span>Base imponible</span>
-                  <strong>
-                    {formatearEuros(documentoAbierto.subtotal)}
-                  </strong>
+                  <strong>{formatearEuros(documentoAbierto.subtotal)}</strong>
                 </p>
 
                 <p>
                   <span>IVA</span>
-                  <strong>
-                    {formatearEuros(documentoAbierto.iva_total)}
-                  </strong>
+                  <strong>{formatearEuros(documentoAbierto.iva_total)}</strong>
                 </p>
 
                 <p className="presupuesto-print-total-final">
                   <span>{textos.total}</span>
-                  <strong>
-                    {formatearEuros(documentoAbierto.total)}
-                  </strong>
+                  <strong>{formatearEuros(documentoAbierto.total)}</strong>
                 </p>
               </div>
             </section>
@@ -2332,23 +2019,12 @@ function DocumentoEditor({
               type="button"
               onClick={() => {
                 const limpiarImpresion = () => {
-                  document.body.classList.remove(
-                    "imprimiendo-documento",
-                  );
-                  window.removeEventListener(
-                    "afterprint",
-                    limpiarImpresion,
-                  );
+                  document.body.classList.remove("imprimiendo-documento");
+                  window.removeEventListener("afterprint", limpiarImpresion);
                 };
 
-                document.body.classList.add(
-                  "imprimiendo-documento",
-                );
-
-                window.addEventListener(
-                  "afterprint",
-                  limpiarImpresion,
-                );
+                document.body.classList.add("imprimiendo-documento");
+                window.addEventListener("afterprint", limpiarImpresion);
 
                 window.requestAnimationFrame(() => {
                   window.requestAnimationFrame(() => {
@@ -2363,10 +2039,7 @@ function DocumentoEditor({
             <button
               type="button"
               onClick={() => generarFactura(documentoAbierto)}
-              disabled={
-                facturando ||
-                Boolean(documentoAbierto.factura_id)
-              }
+              disabled={facturando || Boolean(documentoAbierto.factura_id)}
             >
               {documentoAbierto.factura_id
                 ? "✅ Facturado"
@@ -2378,165 +2051,113 @@ function DocumentoEditor({
         </div>
       )}
 
-      {cargando && (
-        <p className="mensaje">
-          Cargando documentos...
-        </p>
+      {cargando && <p className="mensaje">Cargando documentos...</p>}
+
+      {!cargando && documentosFiltrados.length === 0 && (
+        <div className="estado-vacio">
+          <h3>No hay documentos guardados</h3>
+          <p>Pulsa “Nuevo documento” para crear el primero.</p>
+        </div>
       )}
 
-      {!cargando &&
-        documentosFiltrados.length === 0 && (
-          <div className="estado-vacio">
-            <h3>No hay documentos guardados</h3>
-            <p>
-              Pulsa “Nuevo documento” para crear el
-              primero.
-            </p>
-          </div>
-        )}
+      {!cargando && documentosFiltrados.length > 0 && (
+        <div className="lista-clientes">
+          {documentosFiltrados.map((documento) => (
+            <article className="cliente" key={documento.id}>
+              <div className="avatar">{icono}</div>
 
-      {!cargando &&
-        documentosFiltrados.length > 0 && (
-          <div className="lista-clientes">
-            {documentosFiltrados.map((documento) => (
-              <article
-                className="cliente"
-                key={documento.id}
-              >
-                <div className="avatar">{icono}</div>
+              <div className="cliente-info">
+                <h3>{documento.numero}</h3>
 
-                <div className="cliente-info">
-                  <h3>{documento.numero}</h3>
+                <p>
+                  {documento.tipo_documento === "Visitador médico"
+                    ? documento.visitador_nombre || "Visitador no disponible"
+                    : documento.clientes?.nombre || "Cliente no disponible"}
+                </p>
 
-                  <p>
-                    {documento.tipo_documento === "Visitador médico"
-                      ? documento.visitador_nombre || "Visitador no disponible"
-                      : documento.clientes?.nombre || "Cliente no disponible"}
-                  </p>
+                <p>
+                  Tipo:{" "}
+                  <strong>{documento.tipo_documento || "Catering"}</strong>
+                </p>
 
-                  <p>
-                    Tipo:{" "}
-                    <strong>
-                      {documento.tipo_documento ||
-                        "Catering"}
-                    </strong>
-                  </p>
+                <p>
+                  Fecha: {formatearFecha(documento.fecha)} · Estado:{" "}
+                  <strong>{documento.estado}</strong>
+                </p>
 
-                  <p>
-                    Fecha:{" "}
-                    {formatearFecha(documento.fecha)} ·
-                    Estado:{" "}
-                    <strong>{documento.estado}</strong>
-                  </p>
+                {documento.hora_entrega && (
+                  <p>Entrega: {documento.hora_entrega}</p>
+                )}
 
-                  {documento.hora_entrega && (
-                    <p>
-                      Entrega: {documento.hora_entrega}
-                    </p>
-                  )}
+                <p>
+                  Total: <strong>{formatearEuros(documento.total)}</strong>
+                </p>
 
-                  <p>
-                    Total:{" "}
-                    <strong>
-                      {formatearEuros(documento.total)}
-                    </strong>
-                  </p>
+                <div className="acciones">
+                  <button
+                    type="button"
+                    className="boton-ficha"
+                    onClick={() => abrirDocumento(documento)}
+                    disabled={abriendo}
+                  >
+                    👁️ Abrir
+                  </button>
 
-                  <div className="acciones">
-                    <button
-                      type="button"
-                      className="boton-ficha"
-                      onClick={() =>
-                        abrirDocumento(documento)
-                      }
-                      disabled={abriendo}
-                    >
-                      👁️ Abrir
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => editarDocumento(documento)}
+                    disabled={abriendo}
+                  >
+                    ✏️ Editar
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        editarDocumento(documento)
-                      }
-                      disabled={abriendo}
-                    >
-                      ✏️ Editar
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        eliminarDocumento(documento)
-                      }
-                    >
-                      🗑️ Eliminar
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => eliminarDocumento(documento)}
+                  >
+                    🗑️ Eliminar
+                  </button>
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 
 function obtenerNombreProducto(producto, idioma = "es") {
   if (!producto) return "";
-
-  if (idioma === "ca") {
-    return producto.nombre_ca || producto.nombre || "";
-  }
-
-  if (idioma === "en") {
-    return producto.nombre_en || producto.nombre || "";
-  }
-
+  if (idioma === "ca") return producto.nombre_ca || producto.nombre || "";
+  if (idioma === "en") return producto.nombre_en || producto.nombre || "";
   return producto.nombre || "";
 }
 
 function obtenerDescripcionTraducida(linea, idioma, productos) {
-  const descripcionActual = String(
-    linea?.descripcion || "",
-  ).trim();
-
+  const descripcionActual = String(linea?.descripcion || "").trim();
   let producto = linea?.productos || null;
 
   if (!producto && linea?.producto_id) {
     producto = productos.find(
-      (elemento) =>
-        String(elemento.id) === String(linea.producto_id),
+      (elemento) => String(elemento.id) === String(linea.producto_id),
     );
   }
 
   if (!producto && descripcionActual) {
-    const descripcionNormalizada =
-      normalizarTextoProducto(descripcionActual);
+    const descripcionNormalizada = normalizarTextoProducto(descripcionActual);
 
     producto = productos.find((elemento) => {
-      const nombres = [
-        elemento.nombre,
-        elemento.nombre_ca,
-        elemento.nombre_en,
-      ]
+      const nombres = [elemento.nombre, elemento.nombre_ca, elemento.nombre_en]
         .filter(Boolean)
-        .map((nombre) =>
-          normalizarTextoProducto(nombre),
-        );
+        .map((nombre) => normalizarTextoProducto(nombre));
 
       return nombres.includes(descripcionNormalizada);
     });
   }
 
-  if (!producto) {
-    return descripcionActual;
-  }
-
-  return (
-    obtenerNombreProducto(producto, idioma) ||
-    descripcionActual
-  );
+  if (!producto) return descripcionActual;
+  return obtenerNombreProducto(producto, idioma) || descripcionActual;
 }
 
 function normalizarTextoProducto(valor) {
@@ -2580,54 +2201,51 @@ function obtenerCentroVisitador(visitador) {
 
 function calcularLinea(linea) {
   const cantidad = convertirNumero(linea.cantidad);
-  const precio = convertirNumero(
-    linea.precio_unitario,
-  );
+  const precio = convertirNumero(linea.precio_unitario);
   const iva = convertirNumero(linea.iva);
-
   const subtotal = redondear(cantidad * precio);
-  const importeIva = redondear(
-    subtotal * (iva / 100),
-  );
+  const importeIva = redondear(subtotal * (iva / 100));
   const total = redondear(subtotal + importeIva);
 
-  return {
-    subtotal,
-    importeIva,
-    total,
-  };
+  return { subtotal, importeIva, total };
 }
 
-function calcularTotales(lineas) {
+function calcularTotales(lineas, transporte = 0, transporteIva = 10) {
   const acumulado = lineas.reduce(
-    (acumulado, linea) => {
+    (resultado, linea) => {
       const calculo = calcularLinea(linea);
 
-      acumulado.subtotal = redondear(
-        acumulado.subtotal + calculo.subtotal,
+      resultado.subtotal = redondear(
+        resultado.subtotal + calculo.subtotal,
       );
-
-      acumulado.ivaTotal = redondear(
-        acumulado.ivaTotal + calculo.importeIva,
+      resultado.ivaTotal = redondear(
+        resultado.ivaTotal + calculo.importeIva,
       );
+      resultado.total = redondear(resultado.total + calculo.total);
 
-      acumulado.total = redondear(
-        acumulado.total + calculo.total,
-      );
-
-      return acumulado;
+      return resultado;
     },
-    {
-      subtotal: 0,
-      ivaTotal: 0,
-      total: 0,
-    },
+    { subtotal: 0, ivaTotal: 0, total: 0 },
   );
 
-  // Redondeamos únicamente el total final al múltiplo de 0,50 € más cercano.
-  // La base y el IVA conservan los céntimos exactos.
+  const baseTransporte = convertirNumero(transporte);
+  const porcentajeIvaTransporte = convertirNumero(transporteIva);
+  const importeIvaTransporte = redondear(
+    baseTransporte * (porcentajeIvaTransporte / 100),
+  );
+
+  acumulado.subtotal = redondear(acumulado.subtotal + baseTransporte);
+  acumulado.ivaTotal = redondear(
+    acumulado.ivaTotal + importeIvaTransporte,
+  );
+  acumulado.total = redondear(
+    acumulado.subtotal + acumulado.ivaTotal,
+  );
+
   return {
     ...acumulado,
+    transporte: baseTransporte,
+    transporteIva: importeIvaTransporte,
     totalExacto: acumulado.total,
     total: redondearA05(acumulado.total),
   };
@@ -2638,19 +2256,12 @@ function redondearA05(numero) {
 }
 
 function convertirNumero(valor) {
-  const numero = Number(
-    String(valor ?? "0").replace(",", "."),
-  );
-
+  const numero = Number(String(valor ?? "0").replace(",", "."));
   return Number.isFinite(numero) ? numero : 0;
 }
 
 function redondear(numero) {
-  return (
-    Math.round(
-      (numero + Number.EPSILON) * 100,
-    ) / 100
-  );
+  return Math.round((numero + Number.EPSILON) * 100) / 100;
 }
 
 function fechaActual() {
@@ -2659,29 +2270,12 @@ function fechaActual() {
 
 function generarNumeroDocumento(tipoDocumento) {
   const ahora = new Date();
-
   const año = ahora.getFullYear();
-  const mes = String(
-    ahora.getMonth() + 1,
-  ).padStart(2, "0");
-
-  const dia = String(ahora.getDate()).padStart(
-    2,
-    "0",
-  );
-
-  const hora = String(ahora.getHours()).padStart(
-    2,
-    "0",
-  );
-
-  const minutos = String(
-    ahora.getMinutes(),
-  ).padStart(2, "0");
-
-  const segundos = String(
-    ahora.getSeconds(),
-  ).padStart(2, "0");
+  const mes = String(ahora.getMonth() + 1).padStart(2, "0");
+  const dia = String(ahora.getDate()).padStart(2, "0");
+  const hora = String(ahora.getHours()).padStart(2, "0");
+  const minutos = String(ahora.getMinutes()).padStart(2, "0");
+  const segundos = String(ahora.getSeconds()).padStart(2, "0");
 
   const prefijos = {
     Catering: "CAT",
@@ -2693,7 +2287,6 @@ function generarNumeroDocumento(tipoDocumento) {
   };
 
   const prefijo = prefijos[tipoDocumento] || "DOC";
-
   return `${prefijo}-${año}${mes}${dia}-${hora}${minutos}${segundos}`;
 }
 
@@ -2706,7 +2299,9 @@ function generarNumeroFactura() {
     ahora.getHours(),
     ahora.getMinutes(),
     ahora.getSeconds(),
-  ].map((valor) => String(valor).padStart(2, "0")).join("");
+  ]
+    .map((valor) => String(valor).padStart(2, "0"))
+    .join("");
 
   return `F-${año}-${marca}`;
 }
@@ -2719,9 +2314,7 @@ function formatearEuros(valor) {
 }
 
 function formatearFecha(fecha) {
-  if (!fecha) {
-    return "—";
-  }
+  if (!fecha) return "—";
 
   return new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",

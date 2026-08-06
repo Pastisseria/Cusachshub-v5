@@ -736,6 +736,100 @@ function DocumentoEditor({
     }
   }
 
+
+  async function duplicarDocumento(documento) {
+    setAbriendo(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      const { data, error: supabaseError } = await supabase
+        .from("presupuesto_lineas")
+        .select(`
+          *,
+          productos (
+            id,
+            nombre,
+            nombre_ca,
+            nombre_en
+          )
+        `)
+        .eq("presupuesto_id", documento.id)
+        .order("created_at");
+
+      if (supabaseError) throw supabaseError;
+
+      setDocumentoEditando(null);
+      setDocumentoAbierto(null);
+      setLineasAbiertas([]);
+
+      setTipoDocumento(
+        documento.tipo_documento || tipoDocumentoFijo || "Catering",
+      );
+      setClienteId(documento.cliente_id || "");
+      setFecha(fechaActual());
+      setValidezHasta("");
+      setEstado("Borrador");
+      setIdioma(documento.idioma || "es");
+      setHoraEntrega(documento.hora_entrega || "");
+      setDireccionEntrega(documento.direccion_entrega || "");
+      setPersonaContacto(documento.persona_contacto || "");
+      setTelefonoContacto(documento.telefono_contacto || "");
+      setVisitadorNombre(documento.visitador_nombre || "");
+
+      const visitadorCoincidente = visitadoresMedicos.find(
+        (visitador) =>
+          obtenerNombreVisitador(visitador).trim().toLowerCase() ===
+          String(documento.visitador_nombre || "").trim().toLowerCase(),
+      );
+
+      setVisitadorSeleccionadoId(
+        visitadorCoincidente ? String(visitadorCoincidente.id) : "",
+      );
+      setLaboratorio(documento.laboratorio || "");
+      setCentroMedico(documento.centro_medico || "");
+      setObservaciones(documento.observaciones || "");
+      setTransporte(
+        documento.transporte !== null && documento.transporte !== undefined
+          ? String(documento.transporte)
+          : "",
+      );
+      setTransporteIva(
+        documento.transporte_iva !== null &&
+          documento.transporte_iva !== undefined
+          ? String(documento.transporte_iva)
+          : "10",
+      );
+
+      setLineas(
+        (data ?? []).length
+          ? (data ?? []).map((linea) => ({
+              temporalId:
+                typeof crypto !== "undefined" && crypto.randomUUID
+                  ? crypto.randomUUID()
+                  : `${Date.now()}-${Math.random()}`,
+              producto_id: linea.producto_id || "",
+              descripcion: linea.descripcion || "",
+              cantidad: String(linea.cantidad ?? 1),
+              precio_unitario: String(linea.precio_unitario ?? ""),
+              iva: String(linea.iva ?? 10),
+            }))
+          : [nuevaLinea()],
+      );
+
+      setMostrarFormulario(true);
+      setMensaje(
+        `Copia de ${documento.numero} preparada. Se guardará como un presupuesto nuevo.`,
+      );
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      setError(err.message || "No se ha podido duplicar el presupuesto.");
+    } finally {
+      setAbriendo(false);
+    }
+  }
+
   async function abrirDocumento(documento) {
     setAbriendo(true);
     setError("");
@@ -1756,12 +1850,15 @@ function DocumentoEditor({
           </label>
 
           <div className="resumen-presupuesto">
-            {convertirNumero(transporte) > 0 && (
-              <p>
-                <span>Transporte interno</span>
-                <strong>{formatearEuros(convertirNumero(transporte))}</strong>
-              </p>
-            )}
+            <p>
+              <span>Base productos</span>
+              <strong>{formatearEuros(totales.baseProductos)}</strong>
+            </p>
+
+            <p>
+              <span>+ Transporte</span>
+              <strong>{formatearEuros(totales.transporte)}</strong>
+            </p>
 
             <p>
               <span>{textos.baseImponible}</span>
@@ -1769,7 +1866,9 @@ function DocumentoEditor({
             </p>
 
             <p>
-              <span>{textos.iva}</span>
+              <span>
+                {textos.iva} {formatearPorcentaje(totales.tipoIva)}
+              </span>
               <strong>{formatearEuros(totales.ivaTotal)}</strong>
             </p>
 
@@ -2061,68 +2160,97 @@ function DocumentoEditor({
       )}
 
       {!cargando && documentosFiltrados.length > 0 && (
-        <div className="lista-clientes">
-          {documentosFiltrados.map((documento) => (
-            <article className="cliente" key={documento.id}>
-              <div className="avatar">{icono}</div>
+        <div className="tabla-responsive no-imprimir">
+          <table className="tabla-facturas">
+            <thead>
+              <tr>
+                <th>Número</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Transporte</th>
+                <th>Total</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
 
-              <div className="cliente-info">
-                <h3>{documento.numero}</h3>
+            <tbody>
+              {documentosFiltrados.map((documento) => (
+                <tr key={documento.id}>
+                  <td>
+                    <strong>{documento.numero || "—"}</strong>
+                  </td>
 
-                <p>
-                  {documento.tipo_documento === "Visitador médico"
-                    ? documento.visitador_nombre || "Visitador no disponible"
-                    : documento.clientes?.nombre || "Cliente no disponible"}
-                </p>
+                  <td>{formatearFecha(documento.fecha)}</td>
 
-                <p>
-                  Tipo:{" "}
-                  <strong>{documento.tipo_documento || "Catering"}</strong>
-                </p>
+                  <td>
+                    {documento.tipo_documento === "Visitador médico"
+                      ? documento.visitador_nombre || "Visitador no disponible"
+                      : documento.clientes?.empresa ||
+                        documento.clientes?.nombre ||
+                        "Cliente no disponible"}
+                  </td>
 
-                <p>
-                  Fecha: {formatearFecha(documento.fecha)} · Estado:{" "}
-                  <strong>{documento.estado}</strong>
-                </p>
+                  <td>{documento.tipo_documento || "Catering"}</td>
 
-                {documento.hora_entrega && (
-                  <p>Entrega: {documento.hora_entrega}</p>
-                )}
+                  <td>
+                    <span className="factura-estado">
+                      {documento.estado || "Borrador"}
+                    </span>
+                  </td>
 
-                <p>
-                  Total: <strong>{formatearEuros(documento.total)}</strong>
-                </p>
+                  <td>
+                    {formatearEuros(documento.transporte || 0)}
+                  </td>
 
-                <div className="acciones">
-                  <button
-                    type="button"
-                    className="boton-ficha"
-                    onClick={() => abrirDocumento(documento)}
-                    disabled={abriendo}
-                  >
-                    👁️ Abrir
-                  </button>
+                  <td>
+                    <strong>{formatearEuros(documento.total)}</strong>
+                  </td>
 
-                  <button
-                    type="button"
-                    onClick={() => editarDocumento(documento)}
-                    disabled={abriendo}
-                  >
-                    ✏️ Editar
-                  </button>
+                  <td>
+                    <div className="acciones">
+                      <button
+                        type="button"
+                        className="boton-ficha"
+                        onClick={() => abrirDocumento(documento)}
+                        disabled={abriendo}
+                      >
+                        👁 Abrir
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => eliminarDocumento(documento)}
-                  >
-                    🗑️ Eliminar
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
+                      <button
+                        type="button"
+                        onClick={() => editarDocumento(documento)}
+                        disabled={abriendo}
+                      >
+                        ✏ Editar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => duplicarDocumento(documento)}
+                        disabled={abriendo}
+                      >
+                        📋 Duplicar
+                      </button>
+
+                      <button
+                        type="button"
+                        className="boton-peligro"
+                        onClick={() => eliminarDocumento(documento)}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
+
     </section>
   );
 }
@@ -2211,47 +2339,36 @@ function calcularLinea(linea) {
 }
 
 function calcularTotales(lineas, transporte = 0, transporteIva = 10) {
-  let subtotalProductos = 0;
-  let ivaProductos = 0;
-
-  lineas.forEach((linea) => {
-    const calculo = calcularLinea(linea);
-
-    subtotalProductos = redondear(
-      subtotalProductos + calculo.subtotal,
-    );
-
-    ivaProductos = redondear(
-      ivaProductos + calculo.importeIva,
-    );
-  });
+  const baseProductos = redondear(
+    lineas.reduce((acumulado, linea) => {
+      const calculo = calcularLinea(linea);
+      return acumulado + calculo.subtotal;
+    }, 0),
+  );
 
   const baseTransporte = convertirNumero(transporte);
-  const porcentajeTransporte = convertirNumero(transporteIva);
+  const tipoIva = convertirNumero(transporteIva) || 10;
 
-  const ivaDelTransporte = redondear(
-    baseTransporte * (porcentajeTransporte / 100),
+  const baseImponible = redondear(
+    baseProductos + baseTransporte,
   );
 
-  const subtotalFinal = redondear(
-    subtotalProductos + baseTransporte,
+  const ivaTotal = redondear(
+    baseImponible * (tipoIva / 100),
   );
 
-  const ivaFinal = redondear(
-    ivaProductos + ivaDelTransporte,
-  );
-
-  const totalFinal = redondear(
-    subtotalFinal + ivaFinal,
+  const total = redondear(
+    baseImponible + ivaTotal,
   );
 
   return {
-    subtotal: subtotalFinal,
-    ivaTotal: ivaFinal,
-    total: totalFinal,
-    totalExacto: totalFinal,
+    baseProductos,
     transporte: baseTransporte,
-    transporteIva: ivaDelTransporte,
+    tipoIva,
+    subtotal: baseImponible,
+    ivaTotal,
+    total,
+    totalExacto: total,
   };
 }
 
@@ -2315,6 +2432,12 @@ function formatearEuros(valor) {
     style: "currency",
     currency: "EUR",
   }).format(Number(valor || 0));
+}
+
+function formatearPorcentaje(valor) {
+  return `(${new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 2,
+  }).format(Number(valor || 0))} %)`;
 }
 
 function formatearFecha(fecha) {

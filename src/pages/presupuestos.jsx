@@ -11,9 +11,8 @@ function Presupuestos() {
           <strong>Facturación</strong>
 
           <span>
-            Cuando tengas terminado el presupuesto, abre
-            Facturación para copiar sus datos y generar el
-            documento imprimible.
+            Cuando tengas terminado el presupuesto, abre Facturación para copiar
+            sus datos y generar el documento imprimible.
           </span>
         </div>
 

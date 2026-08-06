@@ -603,7 +603,31 @@ function Campo({ label, ancho = false, children }) {
 function DocumentoFactura({ factura }) {
   const lineas = leerLineas(factura.lineas);
   const ivaIncluido = factura.iva_incluido === true || factura.iva_incluido === "true";
-  const totales = calcularFactura(lineas, ivaIncluido);
+  const totalesCalculados = calcularFactura(lineas, ivaIncluido);
+
+  const tieneTotalesGuardados =
+    factura.origen === "presupuesto" ||
+    factura.presupuesto_id ||
+    numero(factura.base_imponible) > 0 ||
+    numero(factura.total) > 0;
+
+  const totales = tieneTotalesGuardados
+    ? {
+        base:
+          numero(factura.base_imponible) ||
+          numero(factura.subtotal) ||
+          totalesCalculados.base,
+        iva:
+          numero(factura.importe_iva) ||
+          numero(factura.total_iva) ||
+          numero(factura.iva) ||
+          totalesCalculados.iva,
+        total:
+          numero(factura.total) ||
+          numero(factura.importe) ||
+          totalesCalculados.total,
+      }
+    : totalesCalculados;
   const hayCliente = Boolean(factura.nombre_cliente || factura.cif || factura.direccion || factura.email || factura.telefono);
 
   return (

@@ -618,6 +618,38 @@ function DocumentoEditor({
         throw errorLineas;
       }
 
+      /*
+       * Al insertar las líneas puede existir un trigger de Supabase que
+       * recalcule subtotal y total usando solo presupuesto_lineas.
+       * Ese recálculo no conoce el transporte y puede pisar los importes.
+       * Por eso volvemos a guardar los totales finales después de insertar
+       * todas las líneas.
+       */
+      const totalesFinales = {
+        transporte: convertirNumero(transporte),
+        transporte_iva: convertirNumero(transporteIva),
+        subtotal: totalesCalculados.subtotal,
+        iva_total: totalesCalculados.ivaTotal,
+        total: totalesCalculados.total,
+        updated_at: new Date().toISOString(),
+      };
+
+      const {
+        data: documentoFinal,
+        error: errorTotalesFinales,
+      } = await supabase
+        .from("presupuestos")
+        .update(totalesFinales)
+        .eq("id", documentoGuardado.id)
+        .select("*")
+        .single();
+
+      if (errorTotalesFinales) {
+        throw errorTotalesFinales;
+      }
+
+      documentoGuardado = documentoFinal;
+
       setMensaje(
         documentoEditando
           ? `Documento ${numero} actualizado correctamente.`

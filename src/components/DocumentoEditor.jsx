@@ -150,6 +150,7 @@ function DocumentoEditor({
   const [guardando, setGuardando] = useState(false);
   const [abriendo, setAbriendo] = useState(false);
   const [facturando, setFacturando] = useState(false);
+  const [programandoCatering, setProgramandoCatering] = useState(false);
 
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -1081,6 +1082,83 @@ function DocumentoEditor({
     }
   }
 
+
+  async function programarEnCatering(documento = documentoAbierto) {
+    if (!documento) return;
+
+    setProgramandoCatering(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      const estadoCatering =
+        documento.estado === "Aceptado" ? "Aceptado" : "Pendiente";
+
+      const tituloCatering = [
+        documento.clientes?.empresa || documento.clientes?.nombre,
+        documento.numero,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      const datosCatering = {
+        cliente_id: documento.cliente_id || null,
+        presupuesto_id: documento.id,
+        titulo: tituloCatering || documento.numero || "Catering",
+        fecha: documento.fecha || fechaActual(),
+        hora_inicio: documento.hora_entrega || null,
+        hora_fin: null,
+        direccion: documento.direccion_entrega || null,
+        poblacion: documento.clientes?.poblacion || null,
+        codigo_postal: documento.clientes?.codigo_postal || null,
+        numero_personas: 0,
+        responsable: documento.persona_contacto || null,
+        telefono_contacto: documento.telefono_contacto || null,
+        estado: estadoCatering,
+        tipo_servicio: documento.tipo_documento || "Catering",
+        observaciones: documento.observaciones || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: cateringExistente, error: errorConsulta } = await supabase
+        .from("caterings")
+        .select("id")
+        .eq("presupuesto_id", documento.id)
+        .maybeSingle();
+
+      if (errorConsulta) throw errorConsulta;
+
+      if (cateringExistente) {
+        const { error: errorActualizacion } = await supabase
+          .from("caterings")
+          .update(datosCatering)
+          .eq("id", cateringExistente.id);
+
+        if (errorActualizacion) throw errorActualizacion;
+
+        setMensaje(
+          `Catering actualizado como ${estadoCatering.toLowerCase()}.`,
+        );
+      } else {
+        const { error: errorInsercion } = await supabase
+          .from("caterings")
+          .insert(datosCatering);
+
+        if (errorInsercion) throw errorInsercion;
+
+        setMensaje(
+          `Presupuesto programado en Catering como ${estadoCatering.toLowerCase()}.`,
+        );
+      }
+    } catch (err) {
+      setError(
+        err.message || "No se ha podido programar el presupuesto en Catering.",
+      );
+    } finally {
+      setProgramandoCatering(false);
+    }
+  }
+
   async function cambiarIdiomaDocumento(documentoId, nuevoIdioma) {
     setError("");
     setMensaje("");
@@ -1135,7 +1213,24 @@ function DocumentoEditor({
 
       if (supabaseError) throw supabaseError;
 
-      setMensaje("Estado actualizado correctamente.");
+      const estadoCatering =
+        nuevoEstado === "Aceptado" ? "Aceptado" : "Pendiente";
+
+      const { error: errorCatering } = await supabase
+        .from("caterings")
+        .update({
+          estado: estadoCatering,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("presupuesto_id", documentoId);
+
+      if (errorCatering) throw errorCatering;
+
+      setMensaje(
+        nuevoEstado === "Aceptado"
+          ? "Estado actualizado. El catering ahora aparece como aceptado."
+          : "Estado actualizado. El catering aparece como pendiente.",
+      );
       setDocumentoAbierto((anterior) =>
         anterior?.id === documentoId
           ? { ...anterior, ...datosActualizados }
@@ -2165,6 +2260,18 @@ function DocumentoEditor({
               }}
             >
               🖨️ Guardar presupuesto en PDF
+            </button>
+
+            <button
+              type="button"
+              onClick={() => programarEnCatering(documentoAbierto)}
+              disabled={programandoCatering}
+            >
+              {programandoCatering
+                ? "Programando..."
+                : documentoAbierto.estado === "Aceptado"
+                  ? "📅 Actualizar catering aceptado"
+                  : "📅 Programar en Catering"}
             </button>
 
             <button

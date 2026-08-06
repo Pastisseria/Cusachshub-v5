@@ -483,6 +483,13 @@ function Catering() {
           </span>
         </div>
 
+        <div className="catering-leyenda no-imprimir">
+          <span className="leyenda-estado leyenda-pendiente">Pendiente</span>
+          <span className="leyenda-estado leyenda-aceptado">Aceptado</span>
+          <span className="leyenda-estado leyenda-realizado">Realizado</span>
+          <span className="leyenda-estado leyenda-cancelado">Cancelado</span>
+        </div>
+
         {error && (
           <div className="catering-error">
             <strong>Error:</strong> {error}
@@ -860,8 +867,8 @@ function Catering() {
                     <option value="Pendiente">
                       Pendiente
                     </option>
-                    <option value="Confirmado">
-                      Confirmado
+                    <option value="Aceptado">
+                      Aceptado
                     </option>
                     <option value="Realizado">
                       Realizado
@@ -1284,10 +1291,18 @@ const ESTILOS_CATERING = `
     white-space: nowrap;
   }
 
-  .estado-confirmado {
-    background: #e5f2ff;
-    color: #245f9f;
+  .estado-pendiente {
+    background: #fff2c7;
+    color: #8a5a00;
+    border-left: 4px solid #e1a900;
   }
+
+  .estado-aceptado {
+    background: #dff5e7;
+    color: #176b3a;
+    border-left: 4px solid #2ca85f;
+  }
+
 
   .estado-realizado {
     background: #e5f7ec;
@@ -1305,6 +1320,42 @@ const ESTILOS_CATERING = `
     color: #756d7a;
     font-size: 12px;
     font-weight: 700;
+  }
+
+  .catering-leyenda {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 18px;
+  }
+
+  .leyenda-estado {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 11px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .leyenda-pendiente {
+    background: #fff2c7;
+    color: #8a5a00;
+  }
+
+  .leyenda-aceptado {
+    background: #dff5e7;
+    color: #176b3a;
+  }
+
+  .leyenda-realizado {
+    background: #e5f7ec;
+    color: #236c40;
+  }
+
+  .leyenda-cancelado {
+    background: #fde9ed;
+    color: #a93045;
   }
 
   .catering-modal-fondo {

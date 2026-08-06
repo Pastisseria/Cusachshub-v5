@@ -240,7 +240,7 @@ function CateringModal({
                 disabled={guardando}
               >
                 <option value="Pendiente">Pendiente</option>
-                <option value="Confirmado">Confirmado</option>
+                <option value="Aceptado">Aceptado</option>
                 <option value="Realizado">Realizado</option>
                 <option value="Cancelado">Cancelado</option>
               </select>

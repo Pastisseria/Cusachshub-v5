@@ -17,6 +17,13 @@ function Calendario({
 
   return (
     <div className="calendario">
+      <div className="calendario-leyenda">
+        <span className="leyenda-estado leyenda-pendiente">Pendiente</span>
+        <span className="leyenda-estado leyenda-aceptado">Aceptado</span>
+        <span className="leyenda-estado leyenda-realizado">Realizado</span>
+        <span className="leyenda-estado leyenda-cancelado">Cancelado</span>
+      </div>
+
       <div className="calendario-semana">
         {DIAS_SEMANA.map((dia) => (
           <div key={dia} className="calendario-dia-semana">

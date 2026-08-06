@@ -178,6 +178,29 @@ function Catering() {
     );
   }, [formulario.cliente_id, presupuestos]);
 
+
+  function obtenerClienteEvento(evento) {
+    const cliente = clientes.find(
+      (item) => String(item.id) === String(evento.cliente_id),
+    );
+
+    return (
+      cliente?.empresa ||
+      cliente?.nombre ||
+      evento.titulo ||
+      "Catering"
+    );
+  }
+
+  function obtenerNumeroPresupuesto(evento) {
+    const presupuesto = presupuestos.find(
+      (item) =>
+        String(item.id) === String(evento.presupuesto_id),
+    );
+
+    return presupuesto?.numero || "";
+  }
+
   function cambiarSemana(cantidad) {
     const fecha = new Date(`${fechaSemana}T12:00:00`);
     fecha.setDate(fecha.getDate() + cantidad * 7);
@@ -566,12 +589,48 @@ function Catering() {
                             <strong>
                               {cortarHora(evento.hora_inicio) || hora}
                             </strong>
-                            <span>{evento.titulo}</span>
+                            <span className="catering-semana-cliente">
+                              {obtenerClienteEvento(evento)}
+                            </span>
+
+                            <small className="catering-semana-estado">
+                              Estado: {evento.estado || "Pendiente"}
+                            </small>
+
                             {Number(evento.numero_personas || 0) > 0 && (
-                              <small>{evento.numero_personas} personas</small>
+                              <small>
+                                Personas: {evento.numero_personas}
+                              </small>
                             )}
+
                             {evento.tipo_servicio && (
-                              <small>{evento.tipo_servicio}</small>
+                              <small>
+                                Servicio: {evento.tipo_servicio}
+                              </small>
+                            )}
+
+                            {evento.direccion && (
+                              <small>
+                                Dirección: {evento.direccion}
+                              </small>
+                            )}
+
+                            {evento.responsable && (
+                              <small>
+                                Responsable: {evento.responsable}
+                              </small>
+                            )}
+
+                            {evento.telefono_contacto && (
+                              <small>
+                                Tel.: {evento.telefono_contacto}
+                              </small>
+                            )}
+
+                            {obtenerNumeroPresupuesto(evento) && (
+                              <small>
+                                Presupuesto: {obtenerNumeroPresupuesto(evento)}
+                              </small>
                             )}
                           </button>
                         ))}
@@ -651,6 +710,16 @@ function Catering() {
                           className={`calendario-evento estado-${normalizarEstado(
                             evento.estado,
                           )}`}
+                          title={[
+                            obtenerClienteEvento(evento),
+                            evento.estado || "Pendiente",
+                            obtenerNumeroPresupuesto(evento)
+                              ? `Presupuesto: ${obtenerNumeroPresupuesto(evento)}`
+                              : "",
+                            evento.direccion || "",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                           onClick={(event) => {
                             event.stopPropagation();
                             abrirCatering(evento);
@@ -664,7 +733,7 @@ function Catering() {
                             </strong>
                           )}
 
-                          <span>{evento.titulo}</span>
+                          <span>{obtenerClienteEvento(evento)}</span>
                         </span>
                       ))}
 
@@ -1314,6 +1383,42 @@ const ESTILOS_CATERING = `
     color: #756d7a;
     font-size: 12px;
     font-weight: 700;
+  }
+
+  .catering-semana-evento {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    width: 100%;
+    padding: 8px;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .catering-semana-evento strong {
+    font-size: 13px;
+  }
+
+  .catering-semana-cliente {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .catering-semana-evento small {
+    display: block;
+    width: 100%;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+  }
+
+  .catering-semana-estado {
+    font-weight: 800;
   }
 
   .catering-modal-fondo {

@@ -13,7 +13,7 @@ const TIPOS_DOCUMENTO = [
   "Otro",
 ];
 
-const ESTADOS_DOCUMENTO = ["Borrador", "Enviado", "Aceptado"];
+const ESTADOS_DOCUMENTO = ["Borrador", "Enviado", "Aceptado", "Cancelado"];
 
 const IDIOMAS_DOCUMENTO = [
   { valor: "es", etiqueta: "Castellano" },
@@ -86,6 +86,52 @@ const TEXTOS_DOCUMENTO = {
       "Thank you for choosing Pastisseria Cusachs.\nPlease contact us if you have any questions.",
   },
 };
+
+const ESTILOS_ESTADOS_PRESUPUESTO = `
+  .estado-presupuesto {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 88px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .estado-presupuesto-borrador {
+    background: #fff2c7;
+    color: #8a5a00;
+  }
+
+  .estado-presupuesto-enviado {
+    background: #e5f2ff;
+    color: #245f9f;
+  }
+
+  .estado-presupuesto-aceptado {
+    background: #dff5e7;
+    color: #176b3a;
+  }
+
+  .estado-presupuesto-cancelado {
+    background: #fde9ed;
+    color: #a93045;
+  }
+
+  .boton-aceptar-presupuesto {
+    background: #237a47;
+  }
+
+  .boton-enviar-presupuesto {
+    background: #2769a8;
+  }
+
+  .boton-cancelar-presupuesto {
+    background: #b7354d;
+  }
+`;
 
 function nuevaLinea(prefijoDescripcion = "") {
   return {
@@ -1214,7 +1260,11 @@ function DocumentoEditor({
       if (supabaseError) throw supabaseError;
 
       const estadoCatering =
-        nuevoEstado === "Aceptado" ? "Aceptado" : "Pendiente";
+        nuevoEstado === "Aceptado"
+          ? "Aceptado"
+          : nuevoEstado === "Cancelado"
+            ? "Cancelado"
+            : "Pendiente";
 
       const { error: errorCatering } = await supabase
         .from("caterings")
@@ -1228,8 +1278,12 @@ function DocumentoEditor({
 
       setMensaje(
         nuevoEstado === "Aceptado"
-          ? "Estado actualizado. El catering ahora aparece como aceptado."
-          : "Estado actualizado. El catering aparece como pendiente.",
+          ? "Presupuesto aceptado. El catering vinculado aparece en verde."
+          : nuevoEstado === "Enviado"
+            ? "Presupuesto marcado como enviado."
+            : nuevoEstado === "Cancelado"
+              ? "Presupuesto cancelado. El catering vinculado aparece cancelado."
+              : "Presupuesto devuelto a borrador.",
       );
       setDocumentoAbierto((anterior) =>
         anterior?.id === documentoId
@@ -1287,6 +1341,7 @@ function DocumentoEditor({
 
   return (
     <section className="panel">
+      <style>{ESTILOS_ESTADOS_PRESUPUESTO}</style>
       <div className="titulo-seccion">
         <div>
           <p className="etiqueta">{etiqueta}</p>
@@ -2262,28 +2317,101 @@ function DocumentoEditor({
               🖨️ Guardar presupuesto en PDF
             </button>
 
-            <button
-              type="button"
-              onClick={() => programarEnCatering(documentoAbierto)}
-              disabled={programandoCatering}
-            >
-              {programandoCatering
-                ? "Programando..."
-                : documentoAbierto.estado === "Aceptado"
-                  ? "📅 Actualizar catering aceptado"
-                  : "📅 Programar en Catering"}
-            </button>
+            {documentoAbierto.estado === "Borrador" && (
+              <button
+                type="button"
+                className="boton-enviar-presupuesto"
+                onClick={() =>
+                  cambiarEstado(documentoAbierto.id, "Enviado")
+                }
+              >
+                📤 Marcar como enviado
+              </button>
+            )}
+
+            {documentoAbierto.estado !== "Aceptado" &&
+              documentoAbierto.estado !== "Cancelado" && (
+                <button
+                  type="button"
+                  className="boton-aceptar-presupuesto"
+                  onClick={() =>
+                    cambiarEstado(documentoAbierto.id, "Aceptado")
+                  }
+                >
+                  ✅ Aceptar presupuesto
+                </button>
+              )}
+
+            {documentoAbierto.estado === "Cancelado" && (
+              <button
+                type="button"
+                onClick={() =>
+                  cambiarEstado(documentoAbierto.id, "Borrador")
+                }
+              >
+                ↩️ Reactivar presupuesto
+              </button>
+            )}
+
+            {documentoAbierto.estado !== "Cancelado" && (
+              <button
+                type="button"
+                className="boton-cancelar-presupuesto"
+                onClick={() => {
+                  const confirmar = window.confirm(
+                    "¿Deseas cancelar este presupuesto?",
+                  );
+
+                  if (confirmar) {
+                    cambiarEstado(documentoAbierto.id, "Cancelado");
+                  }
+                }}
+              >
+                ❌ Cancelar presupuesto
+              </button>
+            )}
+
+            {documentoAbierto.estado === "Aceptado" ? (
+              <button
+                type="button"
+                onClick={() => programarEnCatering(documentoAbierto)}
+                disabled={programandoCatering}
+              >
+                {programandoCatering
+                  ? "Programando..."
+                  : "📅 Programar / actualizar Catering"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                title="Primero debes aceptar el presupuesto"
+              >
+                📅 Acepta para programar Catering
+              </button>
+            )}
 
             <button
               type="button"
               onClick={() => generarFactura(documentoAbierto)}
-              disabled={facturando || Boolean(documentoAbierto.factura_id)}
+              disabled={
+                facturando ||
+                Boolean(documentoAbierto.factura_id) ||
+                documentoAbierto.estado !== "Aceptado"
+              }
+              title={
+                documentoAbierto.estado !== "Aceptado"
+                  ? "Primero debes aceptar el presupuesto"
+                  : ""
+              }
             >
               {documentoAbierto.factura_id
                 ? "✅ Facturado"
                 : facturando
                   ? "Generando factura..."
-                  : "🧾 Generar factura"}
+                  : documentoAbierto.estado !== "Aceptado"
+                    ? "🧾 Acepta para facturar"
+                    : "🧾 Generar factura"}
             </button>
           </div>
         </div>
@@ -2334,7 +2462,11 @@ function DocumentoEditor({
                   <td>{documento.tipo_documento || "Catering"}</td>
 
                   <td>
-                    <span className="factura-estado">
+                    <span
+                      className={`estado-presupuesto estado-presupuesto-${normalizarEstadoDocumento(
+                        documento.estado,
+                      )}`}
+                    >
                       {documento.estado || "Borrador"}
                     </span>
                   </td>
@@ -2392,6 +2524,15 @@ function DocumentoEditor({
 
     </section>
   );
+}
+
+function normalizarEstadoDocumento(estado) {
+  return String(estado || "Borrador")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-");
 }
 
 function obtenerNombreProducto(producto, idioma = "es") {

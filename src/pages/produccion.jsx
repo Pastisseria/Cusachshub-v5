@@ -47,12 +47,234 @@ function Produccion() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
 
   useEffect(() => {
-    cargarDatos();
+    inicializarProduccion();
   }, []);
+
+  async function inicializarProduccion() {
+    await sincronizarProduccionAceptada({ silencioso: true });
+    await cargarDatos();
+  }
+
+
+  async function sincronizarProduccionAceptada({ silencioso = false } = {}) {
+    if (!silencioso) {
+      setSincronizando(true);
+      setError("");
+      setMensaje("");
+    }
+
+    try {
+      const [
+        respuestaCateringsAceptados,
+        respuestaProduccionesExistentes,
+      ] = await Promise.all([
+        supabase
+          .from("caterings")
+          .select(`
+            id,
+            presupuesto_id,
+            cliente_id,
+            titulo,
+            fecha,
+            hora_inicio,
+            direccion,
+            poblacion,
+            estado,
+            clientes (
+              id,
+              nombre,
+              empresa
+            )
+          `)
+          .in("estado", ["Aceptado", "Confirmado"])
+          .not("presupuesto_id", "is", null),
+
+        supabase
+          .from("producciones")
+          .select(`
+            id,
+            catering_id,
+            producto_id,
+            producto_nombre,
+            cantidad
+          `),
+      ]);
+
+      if (respuestaCateringsAceptados.error) {
+        throw respuestaCateringsAceptados.error;
+      }
+
+      if (respuestaProduccionesExistentes.error) {
+        throw respuestaProduccionesExistentes.error;
+      }
+
+      const cateringsAceptados =
+        respuestaCateringsAceptados.data || [];
+
+      if (cateringsAceptados.length === 0) {
+        if (!silencioso) {
+          setMensaje("No hay caterings aceptados pendientes de importar.");
+        }
+        return;
+      }
+
+      const presupuestosIds = [
+        ...new Set(
+          cateringsAceptados
+            .map((catering) => catering.presupuesto_id)
+            .filter(Boolean),
+        ),
+      ];
+
+      const { data: lineasPresupuesto, error: errorLineas } =
+        await supabase
+          .from("presupuesto_lineas")
+          .select(`
+            id,
+            presupuesto_id,
+            producto_id,
+            descripcion,
+            cantidad,
+            productos (
+              id,
+              nombre,
+              unidad,
+              unidad_medida,
+              zona_produccion,
+              zona,
+              seccion
+            )
+          `)
+          .in("presupuesto_id", presupuestosIds)
+          .order("created_at", { ascending: true });
+
+      if (errorLineas) {
+        throw errorLineas;
+      }
+
+      const produccionesExistentes =
+        respuestaProduccionesExistentes.data || [];
+
+      const clavesExistentes = new Set(
+        produccionesExistentes.map((linea) =>
+          crearClaveProduccion({
+            catering_id: linea.catering_id,
+            producto_id: linea.producto_id,
+            producto_nombre: linea.producto_nombre,
+            cantidad: linea.cantidad,
+          }),
+        ),
+      );
+
+      const nuevasProducciones = [];
+
+      cateringsAceptados.forEach((catering) => {
+        const lineasDelPresupuesto = (lineasPresupuesto || []).filter(
+          (linea) =>
+            String(linea.presupuesto_id) ===
+            String(catering.presupuesto_id),
+        );
+
+        const clienteNombre =
+          obtenerNombreCliente(catering.clientes) ||
+          catering.titulo ||
+          "Cliente";
+
+        const direccionCompleta = [
+          catering.direccion,
+          catering.poblacion,
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        lineasDelPresupuesto.forEach((linea) => {
+          const producto = linea.productos || null;
+          const productoNombre =
+            producto?.nombre ||
+            linea.descripcion ||
+            "Producto";
+
+          const cantidad = Number(linea.cantidad || 0);
+
+          if (cantidad <= 0) return;
+
+          const clave = crearClaveProduccion({
+            catering_id: catering.id,
+            producto_id: linea.producto_id,
+            producto_nombre: productoNombre,
+            cantidad,
+          });
+
+          if (clavesExistentes.has(clave)) return;
+
+          clavesExistentes.add(clave);
+
+          nuevasProducciones.push({
+            catering_id: catering.id,
+            cliente_id: catering.cliente_id || null,
+            cliente_nombre: clienteNombre,
+            pedido_nombre:
+              catering.titulo || "Catering aceptado",
+            fecha: catering.fecha,
+            zona: determinarZonaProduccion(
+              producto,
+              productoNombre,
+            ),
+            producto_id: linea.producto_id || null,
+            producto_nombre: productoNombre,
+            cantidad,
+            unidad:
+              producto?.unidad ||
+              producto?.unidad_medida ||
+              "unidades",
+            responsable: null,
+            hora_limite: catering.hora_inicio || null,
+            estado: "Pendiente",
+            direccion_entrega: direccionCompleta || null,
+            observaciones: null,
+            updated_at: new Date().toISOString(),
+          });
+        });
+      });
+
+      if (nuevasProducciones.length === 0) {
+        if (!silencioso) {
+          setMensaje(
+            "La producción de los caterings aceptados ya estaba sincronizada.",
+          );
+        }
+        return;
+      }
+
+      const { error: errorInsercion } = await supabase
+        .from("producciones")
+        .insert(nuevasProducciones);
+
+      if (errorInsercion) {
+        throw errorInsercion;
+      }
+
+      if (!silencioso) {
+        setMensaje(
+          `${nuevasProducciones.length} líneas de producción creadas correctamente.`,
+        );
+      }
+    } catch (err) {
+      setError(
+        err.message ||
+          "No se ha podido importar la producción de los caterings aceptados.",
+      );
+    } finally {
+      if (!silencioso) {
+        setSincronizando(false);
+      }
+    }
+  }
 
   async function cargarDatos() {
     setCargando(true);
@@ -84,6 +306,7 @@ function Produccion() {
               direccion,
               poblacion,
               cliente_id,
+              presupuesto_id,
               estado
             `,
           )
@@ -195,7 +418,9 @@ function Produccion() {
 
   const cateringsFecha = useMemo(() => {
     return caterings.filter(
-      (catering) => catering.fecha === formulario.fecha,
+      (catering) =>
+        catering.fecha === formulario.fecha &&
+        ["Aceptado", "Confirmado"].includes(catering.estado),
     );
   }, [caterings, formulario.fecha]);
 
@@ -584,12 +809,28 @@ function Produccion() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => abrirNuevaLinea()}
-          >
-            + Añadir producción
-          </button>
+          <div className="produccion-acciones-cabecera">
+            <button
+              type="button"
+              className="boton-secundario-produccion"
+              onClick={async () => {
+                await sincronizarProduccionAceptada();
+                await cargarDatos();
+              }}
+              disabled={sincronizando}
+            >
+              {sincronizando
+                ? "Sincronizando..."
+                : "🔄 Importar caterings aceptados"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => abrirNuevaLinea()}
+            >
+              + Añadir producción
+            </button>
+          </div>
         </div>
 
         <div className="produccion-fecha-barra">
@@ -1185,6 +1426,83 @@ function Produccion() {
   );
 }
 
+function crearClaveProduccion({
+  catering_id,
+  producto_id,
+  producto_nombre,
+  cantidad,
+}) {
+  return [
+    String(catering_id || ""),
+    String(producto_id || ""),
+    normalizarTextoProduccion(producto_nombre),
+    Number(cantidad || 0).toFixed(4),
+  ].join("|");
+}
+
+function determinarZonaProduccion(producto, nombreProducto = "") {
+  const zonaConfigurada =
+    producto?.zona_produccion ||
+    producto?.zona ||
+    producto?.seccion ||
+    "";
+
+  if (ZONAS.includes(zonaConfigurada)) {
+    return zonaConfigurada;
+  }
+
+  const texto = normalizarTextoProduccion(nombreProducto);
+
+  const palabrasBarra = [
+    "cafe",
+    "agua",
+    "refresco",
+    "cerveza",
+    "vino",
+    "zumo",
+    "bebida",
+    "leche",
+    "infusion",
+    "te ",
+  ];
+
+  if (palabrasBarra.some((palabra) => texto.includes(palabra))) {
+    return "Barra";
+  }
+
+  const palabrasCocina = [
+    "tortilla",
+    "brocheta",
+    "croqueta",
+    "hamburguesa",
+    "quiche",
+    "ensalada",
+    "carne",
+    "pollo",
+    "pescado",
+    "verdura",
+    "arroz",
+    "pasta",
+    "salsa",
+    "caliente",
+  ];
+
+  if (palabrasCocina.some((palabra) => texto.includes(palabra))) {
+    return "Cocina";
+  }
+
+  return "Obrador";
+}
+
+function normalizarTextoProduccion(valor) {
+  return String(valor || "")
+    .trim()
+    .toLocaleLowerCase("es-ES")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
 function obtenerNombreCliente(cliente) {
   if (!cliente) return "";
 
@@ -1281,6 +1599,13 @@ const ESTILOS_PRODUCCION = `
   .produccion-descripcion {
     margin: 7px 0 0;
     color: #756d7a;
+  }
+
+  .produccion-acciones-cabecera {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .produccion-fecha-barra {
@@ -1681,6 +2006,14 @@ const ESTILOS_PRODUCCION = `
     .produccion-pedido-cabecera {
       align-items: stretch;
       flex-direction: column;
+    }
+
+    .produccion-acciones-cabecera {
+      flex-direction: column;
+    }
+
+    .produccion-acciones-cabecera button {
+      width: 100%;
     }
 
     .produccion-resumen {

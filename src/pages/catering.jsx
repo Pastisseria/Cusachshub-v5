@@ -483,13 +483,6 @@ function Catering() {
           </span>
         </div>
 
-        <div className="catering-leyenda no-imprimir">
-          <span className="leyenda-estado leyenda-pendiente">Pendiente</span>
-          <span className="leyenda-estado leyenda-aceptado">Aceptado</span>
-          <span className="leyenda-estado leyenda-realizado">Realizado</span>
-          <span className="leyenda-estado leyenda-cancelado">Cancelado</span>
-        </div>
-
         {error && (
           <div className="catering-error">
             <strong>Error:</strong> {error}
@@ -867,8 +860,8 @@ function Catering() {
                     <option value="Pendiente">
                       Pendiente
                     </option>
-                    <option value="Aceptado">
-                      Aceptado
+                    <option value="Confirmado">
+                      Confirmado
                     </option>
                     <option value="Realizado">
                       Realizado
@@ -1225,8 +1218,9 @@ const ESTILOS_CATERING = `
   }
 
   .calendario-dia {
+    position: relative;
     min-height: 140px;
-    padding: 9px;
+    padding: 42px 9px 9px;
     border: 0;
     border-right: 1px solid #e7e1ea;
     border-bottom: 1px solid #e7e1ea;
@@ -1235,6 +1229,7 @@ const ESTILOS_CATERING = `
     color: #302738;
     text-align: left;
     box-shadow: none;
+    overflow: hidden;
   }
 
   .calendario-dia:hover {
@@ -1252,12 +1247,17 @@ const ESTILOS_CATERING = `
   }
 
   .calendario-numero {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    z-index: 3;
     display: flex;
     width: 29px;
     height: 29px;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
+    background: #ffffff;
     font-weight: 800;
   }
 
@@ -1267,10 +1267,12 @@ const ESTILOS_CATERING = `
   }
 
   .calendario-eventos {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     gap: 5px;
-    margin-top: 6px;
+    margin-top: 0;
   }
 
   .calendario-evento {
@@ -1291,18 +1293,10 @@ const ESTILOS_CATERING = `
     white-space: nowrap;
   }
 
-  .estado-pendiente {
-    background: #fff2c7;
-    color: #8a5a00;
-    border-left: 4px solid #e1a900;
+  .estado-confirmado {
+    background: #e5f2ff;
+    color: #245f9f;
   }
-
-  .estado-aceptado {
-    background: #dff5e7;
-    color: #176b3a;
-    border-left: 4px solid #2ca85f;
-  }
-
 
   .estado-realizado {
     background: #e5f7ec;
@@ -1320,42 +1314,6 @@ const ESTILOS_CATERING = `
     color: #756d7a;
     font-size: 12px;
     font-weight: 700;
-  }
-
-  .catering-leyenda {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin: 0 0 18px;
-  }
-
-  .leyenda-estado {
-    display: inline-flex;
-    align-items: center;
-    padding: 7px 11px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-  }
-
-  .leyenda-pendiente {
-    background: #fff2c7;
-    color: #8a5a00;
-  }
-
-  .leyenda-aceptado {
-    background: #dff5e7;
-    color: #176b3a;
-  }
-
-  .leyenda-realizado {
-    background: #e5f7ec;
-    color: #236c40;
-  }
-
-  .leyenda-cancelado {
-    background: #fde9ed;
-    color: #a93045;
   }
 
   .catering-modal-fondo {

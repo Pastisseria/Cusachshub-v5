@@ -2228,29 +2228,57 @@ function DocumentoEditor({
                   </select>
                 </label>
 
-                <label
+                <div
                   className="no-imprimir"
                   style={{
                     display: "flex",
-                    flexDirection: "column",
-                    gap: "5px",
-                    minWidth: "150px",
-                    fontWeight: 700,
+                    alignItems: "end",
+                    gap: "8px",
+                    flexWrap: "wrap",
                   }}
                 >
-                  Fecha servicio
-                  <input
-                    type="date"
-                    value={documentoAbierto.fecha || ""}
-                    onChange={(event) =>
+                  <label
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "5px",
+                      minWidth: "150px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Fecha servicio
+                    <input
+                      id={`fecha-servicio-${documentoAbierto.id}`}
+                      type="date"
+                      defaultValue={documentoAbierto.fecha || ""}
+                      disabled={abriendo}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const campoFecha = document.getElementById(
+                        `fecha-servicio-${documentoAbierto.id}`,
+                      );
+
+                      const nuevaFecha = campoFecha?.value || "";
+
+                      if (!nuevaFecha) {
+                        setError("Selecciona una fecha válida.");
+                        return;
+                      }
+
                       cambiarFechaDocumento(
                         documentoAbierto.id,
-                        event.target.value,
-                      )
-                    }
+                        nuevaFecha,
+                      );
+                    }}
                     disabled={abriendo}
-                  />
-                </label>
+                  >
+                    ✅ Guardar nueva fecha
+                  </button>
+                </div>
 
                 <button
                   type="button"

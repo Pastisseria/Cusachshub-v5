@@ -2134,30 +2134,14 @@ function obtenerNombreProducto(producto, idioma = "es") {
   return producto.nombre || "";
 }
 
-function obtenerDescripcionTraducida(linea, idioma, productos) {
-  const descripcionActual = String(linea?.descripcion || "").trim();
-  let producto = linea?.productos || null;
-
-  if (!producto && linea?.producto_id) {
-    producto = productos.find(
-      (elemento) => String(elemento.id) === String(linea.producto_id),
-    );
-  }
-
-  if (!producto && descripcionActual) {
-    const descripcionNormalizada = normalizarTextoProducto(descripcionActual);
-
-    producto = productos.find((elemento) => {
-      const nombres = [elemento.nombre, elemento.nombre_ca, elemento.nombre_en]
-        .filter(Boolean)
-        .map((nombre) => normalizarTextoProducto(nombre));
-
-      return nombres.includes(descripcionNormalizada);
-    });
-  }
-
-  if (!producto) return descripcionActual;
-  return obtenerNombreProducto(producto, idioma) || descripcionActual;
+function obtenerDescripcionTraducida(linea) {
+  /*
+   * La descripción guardada en presupuesto_lineas es la que manda.
+   * Así, cualquier cambio manual realizado en el presupuesto se conserva
+   * exactamente igual en el visor y en el PDF, aunque el producto siga
+   * vinculado al catálogo.
+   */
+  return String(linea?.descripcion || "").trim();
 }
 
 function normalizarTextoProducto(valor) {

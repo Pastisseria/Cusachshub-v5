@@ -1771,18 +1771,6 @@ function DocumentoEditor({
 
           <div className="resumen-presupuesto">
             <p>
-              <span>Base productos</span>
-              <strong>{formatearEuros(totales.baseProductos)}</strong>
-            </p>
-
-            {convertirNumero(transporte) > 0 && (
-              <p>
-                <span>+ Transporte</span>
-                <strong>{formatearEuros(totales.transporte)}</strong>
-              </p>
-            )}
-
-            <p>
               <span>{textos.baseImponible}</span>
               <strong>{formatearEuros(totales.baseImponible)}</strong>
             </p>
@@ -2009,23 +1997,7 @@ function DocumentoEditor({
                 </span>
 
                 <p>
-                  <span>Base productos</span>
-                  <strong>
-                    {formatearEuros(totalesDocumentoAbierto?.baseProductos)}
-                  </strong>
-                </p>
-
-                {convertirNumero(documentoAbierto.transporte) > 0 && (
-                  <p>
-                    <span>+ Transporte</span>
-                    <strong>
-                      {formatearEuros(totalesDocumentoAbierto?.transporte)}
-                    </strong>
-                  </p>
-                )}
-
-                <p>
-                  <span>Base imponible</span>
+                  <span>{textos.baseImponible}</span>
                   <strong>
                     {formatearEuros(totalesDocumentoAbierto?.baseImponible)}
                   </strong>
@@ -2033,7 +2005,7 @@ function DocumentoEditor({
 
                 <p>
                   <span>
-                    IVA ({totalesDocumentoAbierto?.porcentajeIva || 10} %)
+                    {textos.iva} ({totalesDocumentoAbierto?.porcentajeIva || 10} %)
                   </span>
                   <strong>
                     {formatearEuros(totalesDocumentoAbierto?.ivaTotal)}

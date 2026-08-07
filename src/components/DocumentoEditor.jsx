@@ -343,6 +343,16 @@ function DocumentoEditor({
     [lineas, transporte, transporteIva],
   );
 
+  const totalesDocumentoAbierto = useMemo(() => {
+    if (!documentoAbierto) return null;
+
+    return calcularTotales(
+      lineasAbiertas,
+      documentoAbierto.transporte || 0,
+      documentoAbierto.transporte_iva || 10,
+    );
+  }, [documentoAbierto, lineasAbiertas]);
+
   const documentosFiltrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
 
@@ -856,14 +866,18 @@ function DocumentoEditor({
           : Number(documento.tipo_iva || 10);
 
       /*
-       * Usamos los totales guardados en el presupuesto porque ya incluyen
-       * el transporte interno. El transporte no se añade como línea visible.
+       * Recalculamos siempre desde las líneas + transporte para evitar
+       * arrastrar totales antiguos guardados sin el transporte en la base.
        */
-      const baseImponible = Number(documento.subtotal || 0);
-      const importeIva = Number(documento.iva_total || 0);
-      const totalFactura = Number(
-        documento.total || baseImponible + importeIva,
+      const totalesFactura = calcularTotales(
+        lineasFactura,
+        documento.transporte || 0,
+        documento.transporte_iva || 10,
       );
+
+      const baseImponible = totalesFactura.baseImponible;
+      const importeIva = totalesFactura.ivaTotal;
+      const totalFactura = totalesFactura.total;
 
       const datosFactura = {
         numero: numeroFactura,
@@ -1756,20 +1770,25 @@ function DocumentoEditor({
           </label>
 
           <div className="resumen-presupuesto">
+            <p>
+              <span>Base productos</span>
+              <strong>{formatearEuros(totales.baseProductos)}</strong>
+            </p>
+
             {convertirNumero(transporte) > 0 && (
               <p>
-                <span>Transporte interno</span>
-                <strong>{formatearEuros(convertirNumero(transporte))}</strong>
+                <span>+ Transporte</span>
+                <strong>{formatearEuros(totales.transporte)}</strong>
               </p>
             )}
 
             <p>
               <span>{textos.baseImponible}</span>
-              <strong>{formatearEuros(totales.subtotal)}</strong>
+              <strong>{formatearEuros(totales.baseImponible)}</strong>
             </p>
 
             <p>
-              <span>{textos.iva}</span>
+              <span>{textos.iva} ({totales.porcentajeIva} %)</span>
               <strong>{formatearEuros(totales.ivaTotal)}</strong>
             </p>
 
@@ -1990,18 +2009,42 @@ function DocumentoEditor({
                 </span>
 
                 <p>
+                  <span>Base productos</span>
+                  <strong>
+                    {formatearEuros(totalesDocumentoAbierto?.baseProductos)}
+                  </strong>
+                </p>
+
+                {convertirNumero(documentoAbierto.transporte) > 0 && (
+                  <p>
+                    <span>+ Transporte</span>
+                    <strong>
+                      {formatearEuros(totalesDocumentoAbierto?.transporte)}
+                    </strong>
+                  </p>
+                )}
+
+                <p>
                   <span>Base imponible</span>
-                  <strong>{formatearEuros(documentoAbierto.subtotal)}</strong>
+                  <strong>
+                    {formatearEuros(totalesDocumentoAbierto?.baseImponible)}
+                  </strong>
                 </p>
 
                 <p>
-                  <span>IVA</span>
-                  <strong>{formatearEuros(documentoAbierto.iva_total)}</strong>
+                  <span>
+                    IVA ({totalesDocumentoAbierto?.porcentajeIva || 10} %)
+                  </span>
+                  <strong>
+                    {formatearEuros(totalesDocumentoAbierto?.ivaTotal)}
+                  </strong>
                 </p>
 
                 <p className="presupuesto-print-total-final">
                   <span>{textos.total}</span>
-                  <strong>{formatearEuros(documentoAbierto.total)}</strong>
+                  <strong>
+                    {formatearEuros(totalesDocumentoAbierto?.total)}
+                  </strong>
                 </p>
               </div>
             </section>
@@ -2195,48 +2238,35 @@ function calcularLinea(linea) {
 }
 
 function calcularTotales(lineas, transporte = 0, transporteIva = 10) {
-  const acumulado = lineas.reduce(
-    (resultado, linea) => {
-      const calculo = calcularLinea(linea);
-
-      resultado.subtotal = redondear(
-        resultado.subtotal + calculo.subtotal,
-      );
-      resultado.ivaTotal = redondear(
-        resultado.ivaTotal + calculo.importeIva,
-      );
-      resultado.total = redondear(resultado.total + calculo.total);
-
-      return resultado;
-    },
-    { subtotal: 0, ivaTotal: 0, total: 0 },
+  const baseProductos = redondear(
+    lineas.reduce((total, linea) => {
+      const cantidad = convertirNumero(linea.cantidad);
+      const precio = convertirNumero(linea.precio_unitario);
+      return total + cantidad * precio;
+    }, 0),
   );
 
-  const baseTransporte = convertirNumero(transporte);
-  const porcentajeIvaTransporte = convertirNumero(transporteIva);
-  const importeIvaTransporte = redondear(
-    baseTransporte * (porcentajeIvaTransporte / 100),
-  );
+  const baseTransporte = redondear(convertirNumero(transporte));
+  const baseImponible = redondear(baseProductos + baseTransporte);
 
-  acumulado.subtotal = redondear(acumulado.subtotal + baseTransporte);
-  acumulado.ivaTotal = redondear(
-    acumulado.ivaTotal + importeIvaTransporte,
-  );
-  acumulado.total = redondear(
-    acumulado.subtotal + acumulado.ivaTotal,
-  );
+  const porcentajeIva = convertirNumero(transporteIva) || 10;
+  const ivaTotal = redondear(baseImponible * (porcentajeIva / 100));
+  const total = redondear(baseImponible + ivaTotal);
 
   return {
-    ...acumulado,
+    baseProductos,
     transporte: baseTransporte,
-    transporteIva: importeIvaTransporte,
-    totalExacto: acumulado.total,
-    total: redondearA05(acumulado.total),
+    subtotal: baseImponible,
+    baseImponible,
+    porcentajeIva,
+    ivaTotal,
+    totalExacto: total,
+    total,
   };
 }
 
 function redondearA05(numero) {
-  return Math.round((Number(numero || 0) + Number.EPSILON) * 2) / 2;
+  return redondear(Number(numero || 0));
 }
 
 function convertirNumero(valor) {

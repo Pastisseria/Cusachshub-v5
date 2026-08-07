@@ -27,7 +27,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 5.2,
-    observaciones: "Precio por persona. Mínimo 10 personas.",
+    observaciones: "Mínimo 10 personas.",
     lineas: [
       { descripcion: "Café", cantidad: 1 },
       { descripcion: "Leche", cantidad: 1 },
@@ -42,7 +42,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 6.5,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       { descripcion: "Café", cantidad: 1 },
       { descripcion: "Leche", cantidad: 1 },
@@ -57,7 +57,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 9.5,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       { descripcion: "Café", cantidad: 1 },
       { descripcion: "Leche", cantidad: 1 },
@@ -74,7 +74,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 9,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       {
         descripcion:
@@ -95,7 +95,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 12,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       {
         descripcion:
@@ -122,7 +122,7 @@ const PROPUESTAS_CUSACHS = [
     idioma: "es",
     total: 10,
     observaciones:
-      "Precio por persona. Opción celíaca +2 €/persona. Opción vegetariana/vegana +1 €/persona.",
+      "Opción celíaca +2 €/persona. Opción vegetariana/vegana +1 €/persona.",
     lineas: [
       {
         descripcion:
@@ -149,7 +149,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 22,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       { descripcion: "Bandeja de jamón ibérico con pan de coca", cantidad: 1 },
       {
@@ -171,7 +171,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 18,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       { descripcion: "Bandeja de jamón ibérico con pan de coca", cantidad: 1 },
       { descripcion: "Mini quiche de puerro y roquefort", cantidad: 1 },
@@ -192,7 +192,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 15,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       { descripcion: "Tortilla de patata y cebolla pequeña", cantidad: 1 },
       { descripcion: "Croquetas de jamón y setas", cantidad: 1 },
@@ -215,7 +215,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 18.3,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       {
         descripcion: "Ensalada de edamame, quinoa y verduritas",
@@ -241,7 +241,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 14.5,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       { descripcion: "Tortilla de calabacín grande", cantidad: 1 },
       { descripcion: "Chapatas de jamón con aguacate", cantidad: 1 },
@@ -260,7 +260,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 14.2,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       {
         descripcion: "Ensalada de pasta integral con verduritas",
@@ -280,7 +280,7 @@ const PROPUESTAS_CUSACHS = [
     personas: 10,
     idioma: "es",
     total: 13.5,
-    observaciones: "Precio por persona.",
+    observaciones: "",
     lineas: [
       { descripcion: "Croquetas de jamón", cantidad: 1 },
       {
@@ -1006,15 +1006,82 @@ function PresupuestosEstandar() {
               <strong>Precio a definir</strong>
             )}
 
+            {Array.isArray(plantilla.lineas) &&
+              plantilla.lineas.length > 0 && (
+                <details
+                  style={{
+                    marginTop: "12px",
+                    padding: "10px 12px",
+                    border: "1px solid #e3d7e8",
+                    borderRadius: "10px",
+                    background: "#faf7fc",
+                  }}
+                >
+                  <summary
+                    style={{
+                      cursor: "pointer",
+                      fontWeight: 800,
+                    }}
+                  >
+                    👁️ Ver qué incluye
+                  </summary>
+
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      display: "grid",
+                      gap: "6px",
+                    }}
+                  >
+                    {plantilla.lineas.map((linea, indice) => (
+                      <div
+                        key={`${plantilla.id}-${indice}-${linea.descripcion}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "55px 1fr",
+                          gap: "8px",
+                          alignItems: "start",
+                          fontSize: "14px",
+                        }}
+                      >
+                        <strong>
+                          {numero(linea.cantidad) || 1}
+                        </strong>
+                        <span>{linea.descripcion}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
             {plantilla.observaciones && (
-              <p
+              <div
                 style={{
-                  whiteSpace: "pre-line",
                   marginTop: "10px",
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  background: "#fff",
+                  border: "1px solid #eee",
                 }}
               >
-                {plantilla.observaciones}
-              </p>
+                <strong
+                  style={{
+                    display: "block",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Observaciones
+                </strong>
+
+                <p
+                  style={{
+                    whiteSpace: "pre-line",
+                    margin: 0,
+                  }}
+                >
+                  {plantilla.observaciones}
+                </p>
+              </div>
             )}
 
             <div
@@ -1276,6 +1343,7 @@ function PresupuestosEstandar() {
                       e.target.value,
                   })
                 }
+                placeholder="Escribe aquí las observaciones que quieras mostrar en esta propuesta..."
               />
             </label>
 

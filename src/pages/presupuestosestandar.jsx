@@ -725,8 +725,14 @@ function PresupuestosEstandar() {
           iva: 10,
         },
         ...lineasDetalle.map((linea) => ({
-          descripcion: `Incluye: ${linea.descripcion}`,
-          cantidad: numero(linea.cantidad) || 1,
+          descripcion: linea.descripcion,
+          /*
+           * Cada línea de la propuesta se adapta al número de personas.
+           * Si la plantilla tiene cantidad 1 y escogemos 30 personas,
+           * el presupuesto mostrará 30 unidades.
+           */
+          cantidad:
+            personas * Math.max(1, numero(linea.cantidad) || 1),
           precio_unitario: 0,
           iva: 10,
         })),

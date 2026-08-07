@@ -13,7 +13,7 @@ const TIPOS_DOCUMENTO = [
   "Otro",
 ];
 
-const ESTADOS_DOCUMENTO = ["Borrador", "Enviado", "Aceptado"];
+const ESTADOS_DOCUMENTO = ["Borrador", "Enviado", "Aceptado", "Cancelado"];
 
 const IDIOMAS_DOCUMENTO = [
   { valor: "es", etiqueta: "Castellano" },
@@ -87,6 +87,52 @@ const TEXTOS_DOCUMENTO = {
   },
 };
 
+const ESTILOS_ESTADOS_PRESUPUESTO = `
+  .estado-presupuesto {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 88px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .estado-presupuesto-borrador {
+    background: #fff2c7;
+    color: #8a5a00;
+  }
+
+  .estado-presupuesto-enviado {
+    background: #e5f2ff;
+    color: #245f9f;
+  }
+
+  .estado-presupuesto-aceptado {
+    background: #dff5e7;
+    color: #176b3a;
+  }
+
+  .estado-presupuesto-cancelado {
+    background: #fde9ed;
+    color: #a93045;
+  }
+
+  .boton-aceptar-presupuesto {
+    background: #237a47;
+  }
+
+  .boton-enviar-presupuesto {
+    background: #2769a8;
+  }
+
+  .boton-cancelar-presupuesto {
+    background: #b7354d;
+  }
+`;
+
 function nuevaLinea(prefijoDescripcion = "") {
   return {
     temporalId:
@@ -150,6 +196,7 @@ function DocumentoEditor({
   const [guardando, setGuardando] = useState(false);
   const [abriendo, setAbriendo] = useState(false);
   const [facturando, setFacturando] = useState(false);
+  const [programandoCatering, setProgramandoCatering] = useState(false);
 
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -342,16 +389,6 @@ function DocumentoEditor({
     () => calcularTotales(lineas, transporte, transporteIva),
     [lineas, transporte, transporteIva],
   );
-
-  const totalesDocumentoAbierto = useMemo(() => {
-    if (!documentoAbierto) return null;
-
-    return calcularTotales(
-      lineasAbiertas,
-      documentoAbierto.transporte || 0,
-      documentoAbierto.transporte_iva || 10,
-    );
-  }, [documentoAbierto, lineasAbiertas]);
 
   const documentosFiltrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
@@ -628,6 +665,38 @@ function DocumentoEditor({
         throw errorLineas;
       }
 
+      /*
+       * Al insertar las líneas puede existir un trigger de Supabase que
+       * recalcule subtotal y total usando solo presupuesto_lineas.
+       * Ese recálculo no conoce el transporte y puede pisar los importes.
+       * Por eso volvemos a guardar los totales finales después de insertar
+       * todas las líneas.
+       */
+      const totalesFinales = {
+        transporte: convertirNumero(transporte),
+        transporte_iva: convertirNumero(transporteIva),
+        subtotal: totalesCalculados.subtotal,
+        iva_total: totalesCalculados.ivaTotal,
+        total: totalesCalculados.total,
+        updated_at: new Date().toISOString(),
+      };
+
+      const {
+        data: documentoFinal,
+        error: errorTotalesFinales,
+      } = await supabase
+        .from("presupuestos")
+        .update(totalesFinales)
+        .eq("id", documentoGuardado.id)
+        .select("*")
+        .single();
+
+      if (errorTotalesFinales) {
+        throw errorTotalesFinales;
+      }
+
+      documentoGuardado = documentoFinal;
+
       setMensaje(
         documentoEditando
           ? `Documento ${numero} actualizado correctamente.`
@@ -741,6 +810,100 @@ function DocumentoEditor({
       setError(
         err.message || "No se ha podido cargar el documento para editar.",
       );
+    } finally {
+      setAbriendo(false);
+    }
+  }
+
+
+  async function duplicarDocumento(documento) {
+    setAbriendo(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      const { data, error: supabaseError } = await supabase
+        .from("presupuesto_lineas")
+        .select(`
+          *,
+          productos (
+            id,
+            nombre,
+            nombre_ca,
+            nombre_en
+          )
+        `)
+        .eq("presupuesto_id", documento.id)
+        .order("created_at");
+
+      if (supabaseError) throw supabaseError;
+
+      setDocumentoEditando(null);
+      setDocumentoAbierto(null);
+      setLineasAbiertas([]);
+
+      setTipoDocumento(
+        documento.tipo_documento || tipoDocumentoFijo || "Catering",
+      );
+      setClienteId(documento.cliente_id || "");
+      setFecha(fechaActual());
+      setValidezHasta("");
+      setEstado("Borrador");
+      setIdioma(documento.idioma || "es");
+      setHoraEntrega(documento.hora_entrega || "");
+      setDireccionEntrega(documento.direccion_entrega || "");
+      setPersonaContacto(documento.persona_contacto || "");
+      setTelefonoContacto(documento.telefono_contacto || "");
+      setVisitadorNombre(documento.visitador_nombre || "");
+
+      const visitadorCoincidente = visitadoresMedicos.find(
+        (visitador) =>
+          obtenerNombreVisitador(visitador).trim().toLowerCase() ===
+          String(documento.visitador_nombre || "").trim().toLowerCase(),
+      );
+
+      setVisitadorSeleccionadoId(
+        visitadorCoincidente ? String(visitadorCoincidente.id) : "",
+      );
+      setLaboratorio(documento.laboratorio || "");
+      setCentroMedico(documento.centro_medico || "");
+      setObservaciones(documento.observaciones || "");
+      setTransporte(
+        documento.transporte !== null && documento.transporte !== undefined
+          ? String(documento.transporte)
+          : "",
+      );
+      setTransporteIva(
+        documento.transporte_iva !== null &&
+          documento.transporte_iva !== undefined
+          ? String(documento.transporte_iva)
+          : "10",
+      );
+
+      setLineas(
+        (data ?? []).length
+          ? (data ?? []).map((linea) => ({
+              temporalId:
+                typeof crypto !== "undefined" && crypto.randomUUID
+                  ? crypto.randomUUID()
+                  : `${Date.now()}-${Math.random()}`,
+              producto_id: linea.producto_id || "",
+              descripcion: linea.descripcion || "",
+              cantidad: String(linea.cantidad ?? 1),
+              precio_unitario: String(linea.precio_unitario ?? ""),
+              iva: String(linea.iva ?? 10),
+            }))
+          : [nuevaLinea()],
+      );
+
+      setMostrarFormulario(true);
+      setMensaje(
+        `Copia de ${documento.numero} preparada. Se guardará como un presupuesto nuevo.`,
+      );
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      setError(err.message || "No se ha podido duplicar el presupuesto.");
     } finally {
       setAbriendo(false);
     }
@@ -866,18 +1029,14 @@ function DocumentoEditor({
           : Number(documento.tipo_iva || 10);
 
       /*
-       * Recalculamos siempre desde las líneas + transporte para evitar
-       * arrastrar totales antiguos guardados sin el transporte en la base.
+       * Usamos los totales guardados en el presupuesto porque ya incluyen
+       * el transporte interno. El transporte no se añade como línea visible.
        */
-      const totalesFactura = calcularTotales(
-        lineasFactura,
-        documento.transporte || 0,
-        documento.transporte_iva || 10,
+      const baseImponible = Number(documento.subtotal || 0);
+      const importeIva = Number(documento.iva_total || 0);
+      const totalFactura = Number(
+        documento.total || baseImponible + importeIva,
       );
-
-      const baseImponible = totalesFactura.baseImponible;
-      const importeIva = totalesFactura.ivaTotal;
-      const totalFactura = totalesFactura.total;
 
       const datosFactura = {
         numero: numeroFactura,
@@ -969,6 +1128,170 @@ function DocumentoEditor({
     }
   }
 
+
+  async function programarEnCatering(documento = documentoAbierto) {
+    if (!documento) return;
+
+    if (documento.estado !== "Aceptado") {
+      setError("Primero debes aceptar el presupuesto.");
+      return;
+    }
+
+    setProgramandoCatering(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      const tituloCatering = [
+        documento.clientes?.empresa || documento.clientes?.nombre,
+        documento.numero,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      const datosBaseCatering = {
+        cliente_id: documento.cliente_id || null,
+        presupuesto_id: documento.id,
+        titulo: tituloCatering || documento.numero || "Catering",
+        fecha: documento.fecha || fechaActual(),
+        hora_inicio: documento.hora_entrega || null,
+        hora_fin: null,
+        direccion: documento.direccion_entrega || null,
+        poblacion: documento.clientes?.poblacion || null,
+        codigo_postal: documento.clientes?.codigo_postal || null,
+        numero_personas: 0,
+        responsable: documento.persona_contacto || null,
+        telefono_contacto: documento.telefono_contacto || null,
+        tipo_servicio: documento.tipo_documento || "Catering",
+        observaciones: documento.observaciones || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: cateringExistente, error: errorConsulta } =
+        await supabase
+          .from("caterings")
+          .select("id, estado")
+          .eq("presupuesto_id", documento.id)
+          .maybeSingle();
+
+      if (errorConsulta) throw errorConsulta;
+
+      if (cateringExistente) {
+        /*
+         * Si ya estaba Aceptado/Realizado/Cancelado en Catering,
+         * no lo devolvemos a Pendiente al actualizar fecha o datos.
+         */
+        const { error: errorActualizacion } = await supabase
+          .from("caterings")
+          .update({
+            ...datosBaseCatering,
+            estado: cateringExistente.estado || "Pendiente",
+          })
+          .eq("id", cateringExistente.id);
+
+        if (errorActualizacion) throw errorActualizacion;
+
+        setMensaje(
+          `Catering actualizado correctamente (${cateringExistente.estado || "Pendiente"}).`,
+        );
+      } else {
+        const { error: errorInsercion } = await supabase
+          .from("caterings")
+          .insert({
+            ...datosBaseCatering,
+            estado: "Pendiente",
+          });
+
+        if (errorInsercion) throw errorInsercion;
+
+        setMensaje(
+          "Presupuesto programado en Catering como Pendiente.",
+        );
+      }
+    } catch (err) {
+      setError(
+        err.message ||
+          "No se ha podido programar el presupuesto en Catering.",
+      );
+    } finally {
+      setProgramandoCatering(false);
+    }
+  }
+
+  async function cambiarFechaDocumento(documentoId, nuevaFecha) {
+    if (!nuevaFecha) return;
+
+    setError("");
+    setMensaje("");
+
+    try {
+      const datosActualizados = {
+        fecha: nuevaFecha,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: errorPresupuesto } = await supabase
+        .from("presupuestos")
+        .update(datosActualizados)
+        .eq("id", documentoId);
+
+      if (errorPresupuesto) throw errorPresupuesto;
+
+      const { data: catering, error: errorBuscarCatering } =
+        await supabase
+          .from("caterings")
+          .select("id")
+          .eq("presupuesto_id", documentoId)
+          .maybeSingle();
+
+      if (errorBuscarCatering) throw errorBuscarCatering;
+
+      if (catering?.id) {
+        const { error: errorCatering } = await supabase
+          .from("caterings")
+          .update({
+            fecha: nuevaFecha,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", catering.id);
+
+        if (errorCatering) throw errorCatering;
+
+        const { error: errorProduccion } = await supabase
+          .from("producciones")
+          .update({
+            fecha: nuevaFecha,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("catering_id", catering.id);
+
+        if (errorProduccion) throw errorProduccion;
+      }
+
+      setDocumentoAbierto((anterior) =>
+        anterior?.id === documentoId
+          ? { ...anterior, ...datosActualizados }
+          : anterior,
+      );
+
+      setDocumentos((anteriores) =>
+        anteriores.map((documento) =>
+          documento.id === documentoId
+            ? { ...documento, ...datosActualizados }
+            : documento,
+        ),
+      );
+
+      setMensaje(
+        `Fecha del presupuesto cambiada a ${formatearFecha(nuevaFecha)}.`,
+      );
+    } catch (err) {
+      setError(
+        err.message || "No se ha podido modificar la fecha.",
+      );
+    }
+  }
+
   async function cambiarIdiomaDocumento(documentoId, nuevoIdioma) {
     setError("");
     setMensaje("");
@@ -1023,16 +1346,53 @@ function DocumentoEditor({
 
       if (supabaseError) throw supabaseError;
 
-      setMensaje("Estado actualizado correctamente.");
+      /*
+       * El estado del presupuesto y el estado del Catering son independientes.
+       * Aceptar un presupuesto NO acepta automáticamente el Catering.
+       * Cuando se programa, el Catering nace como Pendiente.
+       * Solo una cancelación del presupuesto cancela el Catering vinculado.
+       */
+      if (nuevoEstado === "Cancelado") {
+        const { error: errorCatering } = await supabase
+          .from("caterings")
+          .update({
+            estado: "Cancelado",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("presupuesto_id", documentoId);
+
+        if (errorCatering) throw errorCatering;
+      }
+
       setDocumentoAbierto((anterior) =>
         anterior?.id === documentoId
           ? { ...anterior, ...datosActualizados }
           : anterior,
       );
 
+      setDocumentos((anteriores) =>
+        anteriores.map((documento) =>
+          documento.id === documentoId
+            ? { ...documento, ...datosActualizados }
+            : documento,
+        ),
+      );
+
+      setMensaje(
+        nuevoEstado === "Aceptado"
+          ? "Presupuesto aceptado. Ya puedes programarlo en Catering."
+          : nuevoEstado === "Enviado"
+            ? "Presupuesto marcado como enviado."
+            : nuevoEstado === "Cancelado"
+              ? "Presupuesto cancelado."
+              : "Presupuesto devuelto a borrador.",
+      );
+
       await cargarDatos();
     } catch (err) {
-      setError(err.message || "No se ha podido modificar el estado.");
+      setError(
+        err.message || "No se ha podido modificar el estado.",
+      );
     }
   }
 
@@ -1080,6 +1440,7 @@ function DocumentoEditor({
 
   return (
     <section className="panel">
+      <style>{ESTILOS_ESTADOS_PRESUPUESTO}</style>
       <div className="titulo-seccion">
         <div>
           <p className="etiqueta">{etiqueta}</p>
@@ -1772,11 +2133,13 @@ function DocumentoEditor({
           <div className="resumen-presupuesto">
             <p>
               <span>{textos.baseImponible}</span>
-              <strong>{formatearEuros(totales.baseImponible)}</strong>
+              <strong>{formatearEuros(totales.subtotal)}</strong>
             </p>
 
             <p>
-              <span>{textos.iva} ({totales.porcentajeIva} %)</span>
+              <span>
+                {textos.iva} {formatearPorcentaje(totales.tipoIva)}
+              </span>
               <strong>{formatearEuros(totales.ivaTotal)}</strong>
             </p>
 
@@ -1863,6 +2226,30 @@ function DocumentoEditor({
                       </option>
                     ))}
                   </select>
+                </label>
+
+                <label
+                  className="no-imprimir"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "5px",
+                    minWidth: "150px",
+                    fontWeight: 700,
+                  }}
+                >
+                  Fecha servicio
+                  <input
+                    type="date"
+                    value={documentoAbierto.fecha || ""}
+                    onChange={(event) =>
+                      cambiarFechaDocumento(
+                        documentoAbierto.id,
+                        event.target.value,
+                      )
+                    }
+                    disabled={abriendo}
+                  />
                 </label>
 
                 <button
@@ -1997,26 +2384,18 @@ function DocumentoEditor({
                 </span>
 
                 <p>
-                  <span>{textos.baseImponible}</span>
-                  <strong>
-                    {formatearEuros(totalesDocumentoAbierto?.baseImponible)}
-                  </strong>
+                  <span>Base imponible</span>
+                  <strong>{formatearEuros(documentoAbierto.subtotal)}</strong>
                 </p>
 
                 <p>
-                  <span>
-                    {textos.iva} ({totalesDocumentoAbierto?.porcentajeIva || 10} %)
-                  </span>
-                  <strong>
-                    {formatearEuros(totalesDocumentoAbierto?.ivaTotal)}
-                  </strong>
+                  <span>IVA</span>
+                  <strong>{formatearEuros(documentoAbierto.iva_total)}</strong>
                 </p>
 
                 <p className="presupuesto-print-total-final">
                   <span>{textos.total}</span>
-                  <strong>
-                    {formatearEuros(totalesDocumentoAbierto?.total)}
-                  </strong>
+                  <strong>{formatearEuros(documentoAbierto.total)}</strong>
                 </p>
               </div>
             </section>
@@ -2051,16 +2430,101 @@ function DocumentoEditor({
               🖨️ Guardar presupuesto en PDF
             </button>
 
+            {documentoAbierto.estado === "Borrador" && (
+              <button
+                type="button"
+                className="boton-enviar-presupuesto"
+                onClick={() =>
+                  cambiarEstado(documentoAbierto.id, "Enviado")
+                }
+              >
+                📤 Marcar como enviado
+              </button>
+            )}
+
+            {documentoAbierto.estado !== "Aceptado" &&
+              documentoAbierto.estado !== "Cancelado" && (
+                <button
+                  type="button"
+                  className="boton-aceptar-presupuesto"
+                  onClick={() =>
+                    cambiarEstado(documentoAbierto.id, "Aceptado")
+                  }
+                >
+                  ✅ Aceptar presupuesto
+                </button>
+              )}
+
+            {documentoAbierto.estado === "Cancelado" && (
+              <button
+                type="button"
+                onClick={() =>
+                  cambiarEstado(documentoAbierto.id, "Borrador")
+                }
+              >
+                ↩️ Reactivar presupuesto
+              </button>
+            )}
+
+            {documentoAbierto.estado !== "Cancelado" && (
+              <button
+                type="button"
+                className="boton-cancelar-presupuesto"
+                onClick={() => {
+                  const confirmar = window.confirm(
+                    "¿Deseas cancelar este presupuesto?",
+                  );
+
+                  if (confirmar) {
+                    cambiarEstado(documentoAbierto.id, "Cancelado");
+                  }
+                }}
+              >
+                ❌ Cancelar presupuesto
+              </button>
+            )}
+
+            {documentoAbierto.estado === "Aceptado" ? (
+              <button
+                type="button"
+                onClick={() => programarEnCatering(documentoAbierto)}
+                disabled={programandoCatering}
+              >
+                {programandoCatering
+                  ? "Programando..."
+                  : "📅 Programar / actualizar Catering (Pendiente)"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                title="Primero debes aceptar el presupuesto"
+              >
+                📅 Acepta para programar Catering
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => generarFactura(documentoAbierto)}
-              disabled={facturando || Boolean(documentoAbierto.factura_id)}
+              disabled={
+                facturando ||
+                Boolean(documentoAbierto.factura_id) ||
+                documentoAbierto.estado !== "Aceptado"
+              }
+              title={
+                documentoAbierto.estado !== "Aceptado"
+                  ? "Primero debes aceptar el presupuesto"
+                  : ""
+              }
             >
               {documentoAbierto.factura_id
                 ? "✅ Facturado"
                 : facturando
                   ? "Generando factura..."
-                  : "🧾 Generar factura"}
+                  : documentoAbierto.estado !== "Aceptado"
+                    ? "🧾 Acepta para facturar"
+                    : "🧾 Generar factura"}
             </button>
           </div>
         </div>
@@ -2076,70 +2540,112 @@ function DocumentoEditor({
       )}
 
       {!cargando && documentosFiltrados.length > 0 && (
-        <div className="lista-clientes">
-          {documentosFiltrados.map((documento) => (
-            <article className="cliente" key={documento.id}>
-              <div className="avatar">{icono}</div>
+        <div className="tabla-responsive no-imprimir">
+          <table className="tabla-facturas">
+            <thead>
+              <tr>
+                <th>Número</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th>Transporte</th>
+                <th>Total</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
 
-              <div className="cliente-info">
-                <h3>{documento.numero}</h3>
+            <tbody>
+              {documentosFiltrados.map((documento) => (
+                <tr key={documento.id}>
+                  <td>
+                    <strong>{documento.numero || "—"}</strong>
+                  </td>
 
-                <p>
-                  {documento.tipo_documento === "Visitador médico"
-                    ? documento.visitador_nombre || "Visitador no disponible"
-                    : documento.clientes?.nombre || "Cliente no disponible"}
-                </p>
+                  <td>{formatearFecha(documento.fecha)}</td>
 
-                <p>
-                  Tipo:{" "}
-                  <strong>{documento.tipo_documento || "Catering"}</strong>
-                </p>
+                  <td>
+                    {documento.tipo_documento === "Visitador médico"
+                      ? documento.visitador_nombre || "Visitador no disponible"
+                      : documento.clientes?.empresa ||
+                        documento.clientes?.nombre ||
+                        "Cliente no disponible"}
+                  </td>
 
-                <p>
-                  Fecha: {formatearFecha(documento.fecha)} · Estado:{" "}
-                  <strong>{documento.estado}</strong>
-                </p>
+                  <td>{documento.tipo_documento || "Catering"}</td>
 
-                {documento.hora_entrega && (
-                  <p>Entrega: {documento.hora_entrega}</p>
-                )}
+                  <td>
+                    <span
+                      className={`estado-presupuesto estado-presupuesto-${normalizarEstadoDocumento(
+                        documento.estado,
+                      )}`}
+                    >
+                      {documento.estado || "Borrador"}
+                    </span>
+                  </td>
 
-                <p>
-                  Total: <strong>{formatearEuros(documento.total)}</strong>
-                </p>
+                  <td>
+                    {formatearEuros(documento.transporte || 0)}
+                  </td>
 
-                <div className="acciones">
-                  <button
-                    type="button"
-                    className="boton-ficha"
-                    onClick={() => abrirDocumento(documento)}
-                    disabled={abriendo}
-                  >
-                    👁️ Abrir
-                  </button>
+                  <td>
+                    <strong>{formatearEuros(documento.total)}</strong>
+                  </td>
 
-                  <button
-                    type="button"
-                    onClick={() => editarDocumento(documento)}
-                    disabled={abriendo}
-                  >
-                    ✏️ Editar
-                  </button>
+                  <td>
+                    <div className="acciones">
+                      <button
+                        type="button"
+                        className="boton-ficha"
+                        onClick={() => abrirDocumento(documento)}
+                        disabled={abriendo}
+                      >
+                        👁 Abrir
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => eliminarDocumento(documento)}
-                  >
-                    🗑️ Eliminar
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
+                      <button
+                        type="button"
+                        onClick={() => editarDocumento(documento)}
+                        disabled={abriendo}
+                      >
+                        ✏ Editar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => duplicarDocumento(documento)}
+                        disabled={abriendo}
+                      >
+                        📋 Duplicar
+                      </button>
+
+                      <button
+                        type="button"
+                        className="boton-peligro"
+                        onClick={() => eliminarDocumento(documento)}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
+
     </section>
   );
+}
+
+function normalizarEstadoDocumento(estado) {
+  return String(estado || "Borrador")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-");
 }
 
 function obtenerNombreProducto(producto, idioma = "es") {
@@ -2149,14 +2655,40 @@ function obtenerNombreProducto(producto, idioma = "es") {
   return producto.nombre || "";
 }
 
-function obtenerDescripcionTraducida(linea) {
+function obtenerDescripcionTraducida(linea, idioma, productos) {
+  const descripcionActual = String(linea?.descripcion || "").trim();
+  let producto = linea?.productos || null;
+
+  if (!producto && linea?.producto_id) {
+    producto = productos.find(
+      (elemento) => String(elemento.id) === String(linea.producto_id),
+    );
+  }
+
+  if (!producto) return descripcionActual;
+
+  const nombresOficiales = [
+    producto.nombre,
+    producto.nombre_ca,
+    producto.nombre_en,
+  ]
+    .filter(Boolean)
+    .map((nombre) => normalizarTextoProducto(nombre));
+
+  const descripcionNormalizada =
+    normalizarTextoProducto(descripcionActual);
+
   /*
-   * La descripción guardada en presupuesto_lineas es la que manda.
-   * Así, cualquier cambio manual realizado en el presupuesto se conserva
-   * exactamente igual en el visor y en el PDF, aunque el producto siga
-   * vinculado al catálogo.
+   * Si el usuario ha cambiado la descripción manualmente, manda el texto
+   * guardado en presupuesto_lineas y NO se sustituye por el catálogo.
+   * Solo traducimos si la descripción sigue siendo uno de los nombres
+   * oficiales del producto.
    */
-  return String(linea?.descripcion || "").trim();
+  if (!nombresOficiales.includes(descripcionNormalizada)) {
+    return descripcionActual;
+  }
+
+  return obtenerNombreProducto(producto, idioma) || descripcionActual;
 }
 
 function normalizarTextoProducto(valor) {
@@ -2211,34 +2743,40 @@ function calcularLinea(linea) {
 
 function calcularTotales(lineas, transporte = 0, transporteIva = 10) {
   const baseProductos = redondear(
-    lineas.reduce((total, linea) => {
-      const cantidad = convertirNumero(linea.cantidad);
-      const precio = convertirNumero(linea.precio_unitario);
-      return total + cantidad * precio;
+    lineas.reduce((acumulado, linea) => {
+      const calculo = calcularLinea(linea);
+      return acumulado + calculo.subtotal;
     }, 0),
   );
 
-  const baseTransporte = redondear(convertirNumero(transporte));
-  const baseImponible = redondear(baseProductos + baseTransporte);
+  const baseTransporte = convertirNumero(transporte);
+  const tipoIva = convertirNumero(transporteIva) || 10;
 
-  const porcentajeIva = convertirNumero(transporteIva) || 10;
-  const ivaTotal = redondear(baseImponible * (porcentajeIva / 100));
-  const total = redondear(baseImponible + ivaTotal);
+  const baseImponible = redondear(
+    baseProductos + baseTransporte,
+  );
+
+  const ivaTotal = redondear(
+    baseImponible * (tipoIva / 100),
+  );
+
+  const total = redondear(
+    baseImponible + ivaTotal,
+  );
 
   return {
     baseProductos,
     transporte: baseTransporte,
+    tipoIva,
     subtotal: baseImponible,
-    baseImponible,
-    porcentajeIva,
     ivaTotal,
-    totalExacto: total,
     total,
+    totalExacto: total,
   };
 }
 
 function redondearA05(numero) {
-  return redondear(Number(numero || 0));
+  return Math.round((Number(numero || 0) + Number.EPSILON) * 2) / 2;
 }
 
 function convertirNumero(valor) {
@@ -2297,6 +2835,12 @@ function formatearEuros(valor) {
     style: "currency",
     currency: "EUR",
   }).format(Number(valor || 0));
+}
+
+function formatearPorcentaje(valor) {
+  return `(${new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 2,
+  }).format(Number(valor || 0))} %)`;
 }
 
 function formatearFecha(fecha) {

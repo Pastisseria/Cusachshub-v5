@@ -2544,6 +2544,7 @@ function obtenerNombreProducto(producto, idioma = "es") {
 
 function obtenerDescripcionTraducida(linea, idioma, productos) {
   const descripcionActual = String(linea?.descripcion || "").trim();
+
   let producto = linea?.productos || null;
 
   if (!producto && linea?.producto_id) {
@@ -2552,11 +2553,49 @@ function obtenerDescripcionTraducida(linea, idioma, productos) {
     );
   }
 
+  /*
+   * Si la descripción guardada en el presupuesto fue modificada manualmente,
+   * esa descripción tiene prioridad y NO se sustituye por el nombre actual
+   * del catálogo de productos.
+   *
+   * Solo traducimos automáticamente cuando la descripción guardada coincide
+   * realmente con uno de los nombres oficiales del producto.
+   */
+  if (producto && descripcionActual) {
+    const descripcionNormalizada = normalizarTextoProducto(descripcionActual);
+
+    const nombresCatalogoNormalizados = [
+      producto.nombre,
+      producto.nombre_ca,
+      producto.nombre_en,
+    ]
+      .filter(Boolean)
+      .map((nombre) => normalizarTextoProducto(nombre));
+
+    const descripcionEsNombreDeCatalogo =
+      nombresCatalogoNormalizados.includes(descripcionNormalizada);
+
+    if (!descripcionEsNombreDeCatalogo) {
+      return descripcionActual;
+    }
+
+    return obtenerNombreProducto(producto, idioma) || descripcionActual;
+  }
+
+  /*
+   * Para líneas antiguas sin producto_id intentamos localizar el producto por
+   * el texto guardado. Si no existe coincidencia, conservamos exactamente el
+   * texto manual.
+   */
   if (!producto && descripcionActual) {
     const descripcionNormalizada = normalizarTextoProducto(descripcionActual);
 
     producto = productos.find((elemento) => {
-      const nombres = [elemento.nombre, elemento.nombre_ca, elemento.nombre_en]
+      const nombres = [
+        elemento.nombre,
+        elemento.nombre_ca,
+        elemento.nombre_en,
+      ]
         .filter(Boolean)
         .map((nombre) => normalizarTextoProducto(nombre));
 

@@ -32,6 +32,7 @@ import ComparadorPrecios from "./pages/comparadorprecios.jsx";
 import Compras from "./pages/compras.jsx";
 
 import ImportadorAlbaranes from "./pages/ImportadorAlbaranes.jsx";
+import ImportadorAlbaranesV3 from "./pages/ImportadorAlbaranesV3.jsx";
 import Albaranes from "./pages/albaranes.jsx";
 
 import VisitadoresMedicos from "./pages/visitadoresmedicos.jsx";
@@ -51,15 +52,11 @@ function App() {
 
         <main className="contenido">
           <Routes>
+
             {/* INICIO */}
             <Route
               path="/"
-              element={
-                <Navigate
-                  to="/dashboard"
-                  replace
-                />
-              }
+              element={<Navigate to="/dashboard" replace />}
             />
 
             <Route
@@ -157,13 +154,19 @@ function App() {
               element={<Compras />}
             />
 
-            {/* LECTOR ANTIGUO */}
+            {/* LECTOR CLÁSICO */}
             <Route
               path="/importar-albaranes"
               element={<ImportadorAlbaranes />}
             />
 
+            {/* LECTOR INTELIGENTE V3 */}
+            <Route
+              path="/importador-albaranes-v3"
+              element={<ImportadorAlbaranesV3 />}
+            />
 
+            {/* HISTORIAL */}
             <Route
               path="/albaranes"
               element={<Albaranes />}
@@ -188,28 +191,20 @@ function App() {
 
             <Route
               path="/estadisticas"
-              element={
-                <ModuloPendiente titulo="Estadísticas" />
-              }
+              element={<ModuloPendiente titulo="Estadísticas" />}
             />
 
             <Route
               path="/configuracion"
-              element={
-                <ModuloPendiente titulo="Configuración" />
-              }
+              element={<ModuloPendiente titulo="Configuración" />}
             />
 
             {/* RUTA NO ENCONTRADA */}
             <Route
               path="*"
-              element={
-                <Navigate
-                  to="/dashboard"
-                  replace
-                />
-              }
+              element={<Navigate to="/dashboard" replace />}
             />
+
           </Routes>
         </main>
       </div>

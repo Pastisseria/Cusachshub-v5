@@ -134,13 +134,6 @@ function Sidebar() {
         </NavLink>
 
         <NavLink
-          to="/importador-albaranes-v2"
-          className={claseEnlace}
-        >
-          🤖 Lector Inteligente V2
-        </NavLink>
-
-        <NavLink
           to="/importador-albaranes-v3"
           className={claseEnlace}
         >

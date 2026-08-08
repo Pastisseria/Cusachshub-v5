@@ -13,7 +13,11 @@ const TIPOS_DOCUMENTO = [
   "Otro",
 ];
 
-const ESTADOS_DOCUMENTO = ["Borrador", "Enviado", "Aceptado", "Cancelado"];
+const ESTADOS_DOCUMENTO = [
+  { valor: "Borrador", etiqueta: "Pendiente" },
+  { valor: "Aceptado", etiqueta: "Aceptado" },
+  { valor: "Cancelado", etiqueta: "Anulado" },
+];
 
 const IDIOMAS_DOCUMENTO = [
   { valor: "es", etiqueta: "Castellano" },
@@ -403,8 +407,14 @@ function DocumentoEditor({
         documento.laboratorio?.toLowerCase().includes(texto) ||
         documento.centro_medico?.toLowerCase().includes(texto);
 
+      const estadoDocumentoNormalizado =
+        documento.estado === "Enviado"
+          ? "Borrador"
+          : documento.estado;
+
       const coincideEstado =
-        !filtroEstado || documento.estado === filtroEstado;
+        !filtroEstado ||
+        estadoDocumentoNormalizado === filtroEstado;
 
       const coincideTipo =
         tipoDocumentoFijo ||
@@ -1129,6 +1139,86 @@ function DocumentoEditor({
   }
 
 
+  async function asegurarCateringPendiente(documento) {
+    if (!documento) return null;
+
+    const tituloCatering = [
+      documento.clientes?.empresa || documento.clientes?.nombre,
+      documento.numero,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    const datosBaseCatering = {
+      cliente_id: documento.cliente_id || null,
+      presupuesto_id: documento.id,
+      titulo: tituloCatering || documento.numero || "Catering",
+      fecha: documento.fecha || fechaActual(),
+      hora_inicio: documento.hora_entrega || null,
+      hora_fin: null,
+      direccion: documento.direccion_entrega || null,
+      poblacion: documento.clientes?.poblacion || null,
+      codigo_postal: documento.clientes?.codigo_postal || null,
+      numero_personas: 0,
+      responsable: documento.persona_contacto || null,
+      telefono_contacto: documento.telefono_contacto || null,
+      tipo_servicio: documento.tipo_documento || "Catering",
+      observaciones: documento.observaciones || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: cateringExistente, error: errorConsulta } =
+      await supabase
+        .from("caterings")
+        .select("id, estado")
+        .eq("presupuesto_id", documento.id)
+        .maybeSingle();
+
+    if (errorConsulta) throw errorConsulta;
+
+    if (cateringExistente) {
+      /*
+       * Si Catering ya fue aceptado, realizado o cancelado,
+       * respetamos ese estado. Solo los nuevos nacen como Pendiente.
+       */
+      const estadoActual = cateringExistente.estado || "Pendiente";
+
+      const { error: errorActualizacion } = await supabase
+        .from("caterings")
+        .update({
+          ...datosBaseCatering,
+          estado: estadoActual,
+        })
+        .eq("id", cateringExistente.id);
+
+      if (errorActualizacion) throw errorActualizacion;
+
+      return {
+        id: cateringExistente.id,
+        estado: estadoActual,
+        creado: false,
+      };
+    }
+
+    const { data: cateringCreado, error: errorInsercion } =
+      await supabase
+        .from("caterings")
+        .insert({
+          ...datosBaseCatering,
+          estado: "Pendiente",
+        })
+        .select("id, estado")
+        .single();
+
+    if (errorInsercion) throw errorInsercion;
+
+    return {
+      id: cateringCreado.id,
+      estado: cateringCreado.estado || "Pendiente",
+      creado: true,
+    };
+  }
+
   async function programarEnCatering(documento = documentoAbierto) {
     if (!documento) return;
 
@@ -1142,72 +1232,13 @@ function DocumentoEditor({
     setMensaje("");
 
     try {
-      const tituloCatering = [
-        documento.clientes?.empresa || documento.clientes?.nombre,
-        documento.numero,
-      ]
-        .filter(Boolean)
-        .join(" · ");
+      const resultado = await asegurarCateringPendiente(documento);
 
-      const datosBaseCatering = {
-        cliente_id: documento.cliente_id || null,
-        presupuesto_id: documento.id,
-        titulo: tituloCatering || documento.numero || "Catering",
-        fecha: documento.fecha || fechaActual(),
-        hora_inicio: documento.hora_entrega || null,
-        hora_fin: null,
-        direccion: documento.direccion_entrega || null,
-        poblacion: documento.clientes?.poblacion || null,
-        codigo_postal: documento.clientes?.codigo_postal || null,
-        numero_personas: 0,
-        responsable: documento.persona_contacto || null,
-        telefono_contacto: documento.telefono_contacto || null,
-        tipo_servicio: documento.tipo_documento || "Catering",
-        observaciones: documento.observaciones || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data: cateringExistente, error: errorConsulta } =
-        await supabase
-          .from("caterings")
-          .select("id, estado")
-          .eq("presupuesto_id", documento.id)
-          .maybeSingle();
-
-      if (errorConsulta) throw errorConsulta;
-
-      if (cateringExistente) {
-        /*
-         * Si ya estaba Aceptado/Realizado/Cancelado en Catering,
-         * no lo devolvemos a Pendiente al actualizar fecha o datos.
-         */
-        const { error: errorActualizacion } = await supabase
-          .from("caterings")
-          .update({
-            ...datosBaseCatering,
-            estado: cateringExistente.estado || "Pendiente",
-          })
-          .eq("id", cateringExistente.id);
-
-        if (errorActualizacion) throw errorActualizacion;
-
-        setMensaje(
-          `Catering actualizado correctamente (${cateringExistente.estado || "Pendiente"}).`,
-        );
-      } else {
-        const { error: errorInsercion } = await supabase
-          .from("caterings")
-          .insert({
-            ...datosBaseCatering,
-            estado: "Pendiente",
-          });
-
-        if (errorInsercion) throw errorInsercion;
-
-        setMensaje(
-          "Presupuesto programado en Catering como Pendiente.",
-        );
-      }
+      setMensaje(
+        resultado?.creado
+          ? "Presupuesto programado en Catering como Pendiente."
+          : `Catering actualizado correctamente (${resultado?.estado || "Pendiente"}).`,
+      );
     } catch (err) {
       setError(
         err.message ||
@@ -1346,12 +1377,19 @@ function DocumentoEditor({
 
       if (supabaseError) throw supabaseError;
 
-      /*
-       * El estado del presupuesto y el estado del Catering son independientes.
-       * Aceptar un presupuesto NO acepta automáticamente el Catering.
-       * Cuando se programa, el Catering nace como Pendiente.
-       * Solo una cancelación del presupuesto cancela el Catering vinculado.
-       */
+      const documentoBase =
+        documentoAbierto?.id === documentoId
+          ? documentoAbierto
+          : documentos.find((documento) => documento.id === documentoId);
+
+      const documentoActualizado = documentoBase
+        ? { ...documentoBase, ...datosActualizados }
+        : null;
+
+      if (nuevoEstado === "Aceptado" && documentoActualizado) {
+        await asegurarCateringPendiente(documentoActualizado);
+      }
+
       if (nuevoEstado === "Cancelado") {
         const { error: errorCatering } = await supabase
           .from("caterings")
@@ -1380,12 +1418,10 @@ function DocumentoEditor({
 
       setMensaje(
         nuevoEstado === "Aceptado"
-          ? "Presupuesto aceptado. Ya puedes programarlo en Catering."
-          : nuevoEstado === "Enviado"
-            ? "Presupuesto marcado como enviado."
-            : nuevoEstado === "Cancelado"
-              ? "Presupuesto cancelado."
-              : "Presupuesto devuelto a borrador.",
+          ? "Presupuesto aceptado. Se ha enviado automáticamente a Catering como Pendiente."
+          : nuevoEstado === "Cancelado"
+            ? "Presupuesto anulado. El Catering vinculado también queda cancelado."
+            : "Presupuesto marcado como Pendiente.",
       );
 
       await cargarDatos();
@@ -1677,8 +1713,11 @@ function DocumentoEditor({
             >
               <option value="">Todos los estados</option>
               {ESTADOS_DOCUMENTO.map((estadoDocumento) => (
-                <option key={estadoDocumento} value={estadoDocumento}>
-                  {estadoDocumento}
+                <option
+                  key={estadoDocumento.valor}
+                  value={estadoDocumento.valor}
+                >
+                  {estadoDocumento.etiqueta}
                 </option>
               ))}
             </select>
@@ -1796,13 +1835,16 @@ function DocumentoEditor({
             <label>
               Estado
               <select
-                value={estado}
+                value={estado === "Enviado" ? "Borrador" : estado}
                 onChange={(event) => setEstado(event.target.value)}
                 disabled={guardando}
               >
                 {ESTADOS_DOCUMENTO.map((estadoDocumento) => (
-                  <option key={estadoDocumento} value={estadoDocumento}>
-                    {estadoDocumento}
+                  <option
+                    key={estadoDocumento.valor}
+                    value={estadoDocumento.valor}
+                  >
+                    {estadoDocumento.etiqueta}
                   </option>
                 ))}
               </select>
@@ -2347,14 +2389,17 @@ function DocumentoEditor({
               <label className="presupuesto-estado no-imprimir">
                 Estado
                 <select
-                  value={documentoAbierto.estado}
+                  value={documentoAbierto.estado === "Enviado" ? "Borrador" : documentoAbierto.estado}
                   onChange={(event) =>
                     cambiarEstado(documentoAbierto.id, event.target.value)
                   }
                 >
                   {ESTADOS_DOCUMENTO.map((estadoDocumento) => (
-                    <option key={estadoDocumento} value={estadoDocumento}>
-                      {estadoDocumento}
+                    <option
+                      key={estadoDocumento.valor}
+                      value={estadoDocumento.valor}
+                    >
+                      {estadoDocumento.etiqueta}
                     </option>
                   ))}
                 </select>
@@ -2458,18 +2503,6 @@ function DocumentoEditor({
               🖨️ Guardar presupuesto en PDF
             </button>
 
-            {documentoAbierto.estado === "Borrador" && (
-              <button
-                type="button"
-                className="boton-enviar-presupuesto"
-                onClick={() =>
-                  cambiarEstado(documentoAbierto.id, "Enviado")
-                }
-              >
-                📤 Marcar como enviado
-              </button>
-            )}
-
             {documentoAbierto.estado !== "Aceptado" &&
               documentoAbierto.estado !== "Cancelado" && (
                 <button
@@ -2483,6 +2516,17 @@ function DocumentoEditor({
                 </button>
               )}
 
+            {documentoAbierto.estado === "Aceptado" && (
+              <button
+                type="button"
+                onClick={() =>
+                  cambiarEstado(documentoAbierto.id, "Borrador")
+                }
+              >
+                🟡 Volver a Pendiente
+              </button>
+            )}
+
             {documentoAbierto.estado === "Cancelado" && (
               <button
                 type="button"
@@ -2490,7 +2534,7 @@ function DocumentoEditor({
                   cambiarEstado(documentoAbierto.id, "Borrador")
                 }
               >
-                ↩️ Reactivar presupuesto
+                ↩️ Reactivar como Pendiente
               </button>
             )}
 
@@ -2500,7 +2544,7 @@ function DocumentoEditor({
                 className="boton-cancelar-presupuesto"
                 onClick={() => {
                   const confirmar = window.confirm(
-                    "¿Deseas cancelar este presupuesto?",
+                    "¿Deseas anular este presupuesto?",
                   );
 
                   if (confirmar) {
@@ -2508,7 +2552,7 @@ function DocumentoEditor({
                   }
                 }}
               >
-                ❌ Cancelar presupuesto
+                ❌ Anular presupuesto
               </button>
             )}
 
@@ -2520,7 +2564,7 @@ function DocumentoEditor({
               >
                 {programandoCatering
                   ? "Programando..."
-                  : "📅 Programar / actualizar Catering (Pendiente)"}
+                  : "📅 Actualizar datos en Catering"}
               </button>
             ) : (
               <button
@@ -2528,7 +2572,7 @@ function DocumentoEditor({
                 disabled
                 title="Primero debes aceptar el presupuesto"
               >
-                📅 Acepta para programar Catering
+                📅 Acepta para enviar a Catering
               </button>
             )}
 
@@ -2667,8 +2711,14 @@ function DocumentoEditor({
   );
 }
 
+function etiquetaEstadoDocumento(estado) {
+  if (estado === "Aceptado") return "Aceptado";
+  if (estado === "Cancelado") return "Anulado";
+  return "Pendiente";
+}
+
 function normalizarEstadoDocumento(estado) {
-  return String(estado || "Borrador")
+  return etiquetaEstadoDocumento(estado)
     .trim()
     .toLowerCase()
     .normalize("NFD")

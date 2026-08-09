@@ -11,17 +11,26 @@ const PRODUCTOS_LABORABLES = [
       "Bretzels",
       "Bacarissa",
       "Tarta de poma",
+      "Croissants",
+      "Ensaimades",
+      "Brioix",
+      "Croissant de xocolata",
+      "Croissants de mantega",
+      "Coca crema",
+      "Coca d'anís",
+      "Cholita",
+      "Xuixo",
     ],
   },
   {
-    titulo: "",
+    titulo: "Bandes",
     productos: [
       "Nius de crema",
       "Banda de fruita",
     ],
   },
   {
-    titulo: "",
+    titulo: "Braços i coques",
     productos: [
       "Bracet de nata",
       "Bracet de crema",
@@ -31,7 +40,7 @@ const PRODUCTOS_LABORABLES = [
     ],
   },
   {
-    titulo: "",
+    titulo: "Altres",
     productos: [
       "Enquesadas",
       "Merengues",
@@ -62,14 +71,14 @@ const PRODUCTOS_LABORABLES = [
     ],
   },
   {
-    titulo: "",
+    titulo: "Salat",
     productos: [
       "Emparedados",
       "Coca de verdures",
     ],
   },
   {
-    titulo: "",
+    titulo: "Pastissos",
     productos: [
       "Sara",
       "Negritos",
@@ -90,10 +99,19 @@ const PRODUCTOS_FIN_SEMANA = [
       "Bretzels",
       "Bacarissa",
       "Tarta de poma",
+      "Croissants",
+      "Ensaimades",
+      "Brioix",
+      "Croissant de xocolata",
+      "Croissants de mantega",
+      "Coca crema",
+      "Coca d'anís",
+      "Cholita",
+      "Xuixo",
     ],
   },
   {
-    titulo: "",
+    titulo: "Bandes",
     productos: [
       "Nius de crema",
       "Banda de fruita",
@@ -115,7 +133,7 @@ const PRODUCTOS_FIN_SEMANA = [
     ],
   },
   {
-    titulo: "",
+    titulo: "Braços",
     productos: [
       "Bracet de nata individual",
       "Bracet de crema individual",
@@ -142,7 +160,7 @@ const PRODUCTOS_FIN_SEMANA = [
     ],
   },
   {
-    titulo: "",
+    titulo: "Pastissos",
     productos: [
       "Sara",
       "Negritos",
@@ -174,7 +192,7 @@ const PRODUCTOS_FIN_SEMANA = [
     ],
   },
   {
-    titulo: "",
+    titulo: "Altres",
     productos: [
       "Tarta Tatin individual",
       "Tarta Tatin",
@@ -195,7 +213,7 @@ function DietarioAnual() {
 
   const [fecha, setFecha] = useState(hoy);
   const [festivo, setFestivo] = useState(false);
-  const [cantidades, setCantidades] = useState({});
+  const [registros, setRegistros] = useState({});
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -203,24 +221,24 @@ function DietarioAnual() {
   const [notas, setNotas] = useState("");
 
   const esFinDeSemana = useMemo(() => {
-    if (!fecha) {
-      return false;
-    }
-
+    if (!fecha) return false;
     const fechaSeleccionada = new Date(`${fecha}T12:00:00`);
     const diaSemana = fechaSeleccionada.getDay();
-
     return diaSemana === 0 || diaSemana === 6;
   }, [fecha]);
 
   const plantillaCompleta = esFinDeSemana || festivo;
-
   const grupos = plantillaCompleta
     ? PRODUCTOS_FIN_SEMANA
     : PRODUCTOS_LABORABLES;
 
+  const productosVisibles = useMemo(
+    () => grupos.flatMap((grupo) => grupo.productos),
+    [grupos],
+  );
+
   useEffect(() => {
-    async function cargarUnidades() {
+    async function cargarDatos() {
       if (!fecha) return;
 
       setCargando(true);
@@ -229,20 +247,28 @@ function DietarioAnual() {
 
       const { data, error: supabaseError } = await supabase
         .from("dietario_unidades")
-        .select("producto, unidades")
+        .select(
+          "producto, unidades, manana, tarde, sobrante, nota_producto",
+        )
         .eq("fecha", fecha);
 
       if (supabaseError) {
         setError(supabaseError.message);
-        setCantidades({});
+        setRegistros({});
       } else {
-        const guardadas = {};
+        const guardados = {};
 
         (data ?? []).forEach((fila) => {
-          guardadas[fila.producto] = fila.unidades;
+          guardados[fila.producto] = {
+            manana:
+              fila.manana ?? fila.unidades ?? "",
+            tarde: fila.tarde ?? "",
+            sobrante: fila.sobrante ?? "",
+            nota_producto: fila.nota_producto ?? "",
+          };
         });
 
-        setCantidades(guardadas);
+        setRegistros(guardados);
       }
 
       const { data: notaGuardada, error: errorNota } = await supabase
@@ -252,7 +278,11 @@ function DietarioAnual() {
         .maybeSingle();
 
       if (errorNota) {
-        setError(errorNota.message);
+        setError((anterior) =>
+          anterior
+            ? `${anterior} · ${errorNota.message}`
+            : errorNota.message,
+        );
         setNotas("");
       } else {
         setNotas(notaGuardada?.notas ?? "");
@@ -261,8 +291,34 @@ function DietarioAnual() {
       setCargando(false);
     }
 
-    cargarUnidades();
+    cargarDatos();
   }, [fecha]);
+
+  function obtenerRegistro(producto) {
+    return (
+      registros[producto] ?? {
+        manana: "",
+        tarde: "",
+        sobrante: "",
+        nota_producto: "",
+      }
+    );
+  }
+
+  function numero(valor) {
+    const n = Number(valor);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function cambiarCampo(producto, campo, valor) {
+    setRegistros((anteriores) => ({
+      ...anteriores,
+      [producto]: {
+        ...obtenerRegistroDesde(anteriores, producto),
+        [campo]: valor,
+      },
+    }));
+  }
 
   async function guardarUnidades() {
     if (!fecha) return;
@@ -282,14 +338,32 @@ function DietarioAnual() {
       return;
     }
 
-    const filas = Object.entries(cantidades)
-      .filter(([, valor]) => Number(valor) > 0)
-      .map(([producto, valor]) => ({
-        fecha,
-        producto,
-        unidades: Number(valor),
-        updated_at: new Date().toISOString(),
-      }));
+    const filas = Object.entries(registros)
+      .filter(([producto, registro]) => {
+        if (!productosVisibles.includes(producto)) return false;
+
+        return (
+          numero(registro.manana) > 0 ||
+          numero(registro.tarde) > 0 ||
+          numero(registro.sobrante) > 0 ||
+          String(registro.nota_producto ?? "").trim() !== ""
+        );
+      })
+      .map(([producto, registro]) => {
+        const manana = numero(registro.manana);
+        const tarde = numero(registro.tarde);
+
+        return {
+          fecha,
+          producto,
+          unidades: manana + tarde,
+          manana,
+          tarde,
+          sobrante: numero(registro.sobrante),
+          nota_producto: String(registro.nota_producto ?? "").trim(),
+          updated_at: new Date().toISOString(),
+        };
+      });
 
     if (filas.length > 0) {
       const { error: errorInsertar } = await supabase
@@ -322,7 +396,7 @@ function DietarioAnual() {
       return;
     }
 
-    setMensaje("Unidades y notas guardadas correctamente.");
+    setMensaje("Dietario guardado correctamente.");
     setGuardando(false);
   }
 
@@ -338,7 +412,7 @@ function DietarioAnual() {
     evento.preventDefault();
 
     const campos = Array.from(
-      document.querySelectorAll(".cantidad-input"),
+      document.querySelectorAll(".dietario-input"),
     );
 
     const indice = campos.indexOf(evento.currentTarget);
@@ -356,38 +430,31 @@ function DietarioAnual() {
   }
 
   function cambiarDia(numeroDias) {
-    if (!fecha) {
-      return;
-    }
+    if (!fecha) return;
 
     const fechaActual = new Date(`${fecha}T12:00:00`);
     fechaActual.setDate(fechaActual.getDate() + numeroDias);
 
     setFecha(obtenerFechaLocal(fechaActual));
     setFestivo(false);
-    setCantidades({});
+    setRegistros({});
+    setNotas("");
   }
 
   function irAHoy() {
     setFecha(obtenerFechaLocal(new Date()));
     setFestivo(false);
-    setCantidades({});
-  }
-
-  function cambiarCantidad(producto, valor) {
-    setCantidades((anteriores) => ({
-      ...anteriores,
-      [producto]: valor,
-    }));
+    setRegistros({});
+    setNotas("");
   }
 
   function limpiarLista() {
     const confirmar = window.confirm(
-      "¿Seguro que quieres borrar todas las cantidades?",
+      "¿Seguro que quieres borrar todas las cantidades y notas del día?",
     );
 
     if (confirmar) {
-      setCantidades({});
+      setRegistros({});
       setNotas("");
     }
   }
@@ -396,6 +463,39 @@ function DietarioAnual() {
     window.print();
   }
 
+  const totales = useMemo(() => {
+    return productosVisibles.reduce(
+      (acumulado, producto) => {
+        const registro = registros[producto] ?? {};
+        const manana = numeroSeguro(registro.manana);
+        const tarde = numeroSeguro(registro.tarde);
+        const sobrante = numeroSeguro(registro.sobrante);
+        const total = manana + tarde;
+        const vendido = Math.max(total - sobrante, 0);
+
+        acumulado.manana += manana;
+        acumulado.tarde += tarde;
+        acumulado.total += total;
+        acumulado.sobrante += sobrante;
+        acumulado.vendido += vendido;
+
+        return acumulado;
+      },
+      {
+        manana: 0,
+        tarde: 0,
+        total: 0,
+        sobrante: 0,
+        vendido: 0,
+      },
+    );
+  }, [productosVisibles, registros]);
+
+  const porcentajeVendido =
+    totales.total > 0
+      ? ((totales.vendido / totales.total) * 100).toFixed(1)
+      : "0.0";
+
   return (
     <section className="panel">
       <div className="titulo-seccion">
@@ -403,7 +503,7 @@ function DietarioAnual() {
           <p className="etiqueta">Producción</p>
           <h2>Dietario anual</h2>
           <p>
-            Lista diaria de pastelería según el día de la semana.
+            Producción prevista, sobrante de noche y venta real por producto.
           </p>
         </div>
 
@@ -419,15 +519,15 @@ function DietarioAnual() {
         style={{
           display: "flex",
           alignItems: "end",
-          gap: "16px",
+          gap: "12px",
           flexWrap: "wrap",
-          marginBottom: "24px",
+          marginBottom: "18px",
         }}
       >
         <div
           style={{
             display: "flex",
-            gap: "10px",
+            gap: "8px",
             alignItems: "center",
             flexWrap: "wrap",
           }}
@@ -457,16 +557,16 @@ function DietarioAnual() {
           </button>
         </div>
 
-        <label style={{ minWidth: "220px" }}>
+        <label style={{ minWidth: "210px" }}>
           Día
-
           <input
             type="date"
             value={fecha}
             onChange={(event) => {
               setFecha(event.target.value);
               setFestivo(false);
-              setCantidades({});
+              setRegistros({});
+              setNotas("");
             }}
             style={estiloCampo}
           />
@@ -476,8 +576,8 @@ function DietarioAnual() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "10px",
-            minHeight: "48px",
+            gap: "8px",
+            minHeight: "44px",
           }}
         >
           <input
@@ -485,14 +585,13 @@ function DietarioAnual() {
             checked={festivo}
             onChange={(event) => {
               setFestivo(event.target.checked);
-              setCantidades({});
+              setRegistros({});
             }}
             style={{
-              width: "22px",
-              height: "22px",
+              width: "20px",
+              height: "20px",
             }}
           />
-
           Marcar como festivo
         </label>
 
@@ -501,7 +600,7 @@ function DietarioAnual() {
           onClick={guardarUnidades}
           disabled={guardando || cargando}
         >
-          {guardando ? "Guardando..." : "💾 Guardar unidades"}
+          {guardando ? "Guardando..." : "💾 Guardar dietario"}
         </button>
 
         <button type="button" onClick={imprimirLista}>
@@ -513,16 +612,17 @@ function DietarioAnual() {
           className="boton-cancelar"
           onClick={limpiarLista}
         >
-          Limpiar cantidades
+          Limpiar
         </button>
       </div>
 
-      {cargando && <p>Cargando unidades...</p>}
+      {cargando && <p>Cargando dietario...</p>}
       {error && <p style={{ color: "#ff8c8c" }}>Error: {error}</p>}
       {mensaje && <p>{mensaje}</p>}
 
-      <p style={{ marginBottom: "18px", opacity: 0.75 }}>
-        Enter o ↓: siguiente línea · Shift + Enter o ↑: línea anterior
+      <p style={{ marginBottom: "12px", opacity: 0.75 }}>
+        Escribe mañana y tarde durante el día. Al cerrar, anota
+        únicamente lo que queda. El vendido se calcula automáticamente.
       </p>
 
       <div
@@ -530,18 +630,19 @@ function DietarioAnual() {
         style={{
           background: "white",
           color: "#18131b",
-          borderRadius: "16px",
-          padding: "28px",
+          borderRadius: "14px",
+          padding: "18px",
           border: "1px solid #ddd5e2",
+          overflowX: "auto",
         }}
       >
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            gap: "20px",
+            gap: "16px",
             flexWrap: "wrap",
-            marginBottom: "26px",
+            marginBottom: "14px",
           }}
         >
           <div>
@@ -550,12 +651,13 @@ function DietarioAnual() {
                 margin: 0,
                 color: "#18131b",
                 textTransform: "uppercase",
+                fontSize: "22px",
               }}
             >
               Llista Pastisseria
             </h2>
 
-            <p style={{ margin: "8px 0 0" }}>
+            <p style={{ margin: "5px 0 0" }}>
               Plantilla:{" "}
               <strong>
                 {plantillaCompleta
@@ -566,137 +668,133 @@ function DietarioAnual() {
           </div>
 
           <div>
-            <strong>Dia:</strong>{" "}
-            {formatearFecha(fecha)}
+            <strong>Dia:</strong> {formatearFecha(fecha)}
           </div>
         </div>
 
-        <div
+        <table
           style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(380px, 1fr))",
-            gap: "24px",
-            alignItems: "start",
+            width: "100%",
+            minWidth: "1000px",
+            borderCollapse: "collapse",
+            tableLayout: "fixed",
           }}
         >
-          {grupos.map((grupo, indice) => (
-            <div
-              key={`${grupo.titulo}-${indice}`}
-              style={{
-                breakInside: "avoid",
-              }}
-            >
-              {grupo.titulo && (
-                <h3
-                  style={{
-                    margin: "0 0 8px",
-                    textTransform: "uppercase",
-                    color: "#18131b",
-                  }}
-                >
-                  {grupo.titulo}
-                </h3>
-              )}
-
-              <table
+          <thead>
+            <tr>
+              <th style={{ ...estiloCabecera, width: "23%" }}>
+                Producto
+              </th>
+              <th style={{ ...estiloCabecera, width: "9%" }}>
+                Mañana
+              </th>
+              <th style={{ ...estiloCabecera, width: "9%" }}>
+                Tarde
+              </th>
+              <th style={{ ...estiloCabecera, width: "10%" }}>
+                Total hecho
+              </th>
+              <th
                 style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  marginBottom: "18px",
+                  ...estiloCabecera,
+                  width: "11%",
+                  background: "#fff3d6",
                 }}
               >
-                <thead>
-                  <tr>
-                    <th
-                      style={{
-                        ...estiloCelda,
-                        textAlign: "left",
-                      }}
-                    >
-                      Producto
-                    </th>
+                Queda noche
+              </th>
+              <th
+                style={{
+                  ...estiloCabecera,
+                  width: "10%",
+                  background: "#eaf7ec",
+                }}
+              >
+                Vendido
+              </th>
+              <th style={{ ...estiloCabecera, width: "28%" }}>
+                Notas / observaciones
+              </th>
+            </tr>
+          </thead>
 
-                    <th
-                      style={{
-                        ...estiloCelda,
-                        width: "120px",
-                      }}
-                    >
-                      Unitats
-                    </th>
-                  </tr>
-                </thead>
+          <tbody>
+            {grupos.map((grupo, indiceGrupo) => (
+              <TablaGrupo
+                key={`${grupo.titulo}-${indiceGrupo}`}
+                grupo={grupo}
+                registros={registros}
+                cambiarCampo={cambiarCampo}
+                moverCampo={moverCampo}
+              />
+            ))}
+          </tbody>
 
-                <tbody>
-                  {grupo.productos.map((producto) => (
-                    <tr key={producto}>
-                      <td style={estiloCelda}>
-                        {producto}
-                      </td>
-
-                      <td style={estiloCelda}>
-                        <input
-                          className="cantidad-input"
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={cantidades[producto] ?? ""}
-                          onChange={(event) =>
-                            cambiarCantidad(
-                              producto,
-                              event.target.value,
-                            )
-                          }
-                          onKeyDown={moverCampo}
-                          style={{
-                            width: "100%",
-                            border: "none",
-                            outline: "none",
-                            textAlign: "center",
-                            fontSize: "16px",
-                            background: "transparent",
-                            color: "#18131b",
-                          }}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>
+          <tfoot>
+            <tr>
+              <td style={estiloTotal}>TOTALES DEL DÍA</td>
+              <td style={estiloTotal}>{totales.manana}</td>
+              <td style={estiloTotal}>{totales.tarde}</td>
+              <td style={estiloTotal}>{totales.total}</td>
+              <td
+                style={{
+                  ...estiloTotal,
+                  background: "#fff3d6",
+                }}
+              >
+                {totales.sobrante}
+              </td>
+              <td
+                style={{
+                  ...estiloTotal,
+                  background: "#eaf7ec",
+                }}
+              >
+                {totales.vendido}
+              </td>
+              <td
+                style={{
+                  ...estiloTotal,
+                  textAlign: "left",
+                  background: "#f3f8ef",
+                }}
+              >
+                % vendido: {porcentajeVendido}%
+              </td>
+            </tr>
+          </tfoot>
+        </table>
 
         <div
           style={{
-            marginTop: "26px",
+            marginTop: "18px",
             breakInside: "avoid",
           }}
         >
           <h3
             style={{
-              margin: "0 0 10px",
+              margin: "0 0 8px",
               textTransform: "uppercase",
               color: "#18131b",
+              fontSize: "16px",
             }}
           >
-            Notes
+            Notes generals del dia
           </h3>
 
           <textarea
             value={notas}
             onChange={(event) => setNotas(event.target.value)}
-            placeholder="Escribe aquí observaciones, encargos especiales o notas de producción..."
-            rows="6"
+            placeholder="Encargos especiales, incidencias o notas generales..."
+            rows="4"
             style={{
               width: "100%",
               boxSizing: "border-box",
               resize: "vertical",
-              border: "1px solid #18131b",
+              border: "1px solid #bbb2c2",
               borderRadius: "8px",
-              padding: "12px",
-              fontSize: "16px",
+              padding: "10px",
+              fontSize: "14px",
               fontFamily: "inherit",
               color: "#18131b",
               background: "white",
@@ -708,30 +806,242 @@ function DietarioAnual() {
   );
 }
 
+function TablaGrupo({
+  grupo,
+  registros,
+  cambiarCampo,
+  moverCampo,
+}) {
+  return (
+    <>
+      {grupo.titulo && (
+        <tr>
+          <td
+            colSpan="7"
+            style={{
+              padding: "7px 9px",
+              fontWeight: 800,
+              textTransform: "uppercase",
+              background: "#f1e8f4",
+              border: "1px solid #d9cddd",
+              fontSize: "13px",
+            }}
+          >
+            {grupo.titulo}
+          </td>
+        </tr>
+      )}
+
+      {grupo.productos.map((producto) => {
+        const registro =
+          registros[producto] ?? {
+            manana: "",
+            tarde: "",
+            sobrante: "",
+            nota_producto: "",
+          };
+
+        const manana = numeroSeguro(registro.manana);
+        const tarde = numeroSeguro(registro.tarde);
+        const sobrante = numeroSeguro(registro.sobrante);
+        const total = manana + tarde;
+        const vendido = Math.max(total - sobrante, 0);
+
+        return (
+          <tr key={producto}>
+            <td style={estiloCeldaProducto}>{producto}</td>
+
+            <td style={estiloCelda}>
+              <input
+                className="dietario-input"
+                type="number"
+                min="0"
+                step="1"
+                value={registro.manana ?? ""}
+                onChange={(event) =>
+                  cambiarCampo(
+                    producto,
+                    "manana",
+                    event.target.value,
+                  )
+                }
+                onKeyDown={moverCampo}
+                style={estiloInputNumero}
+              />
+            </td>
+
+            <td style={estiloCelda}>
+              <input
+                className="dietario-input"
+                type="number"
+                min="0"
+                step="1"
+                value={registro.tarde ?? ""}
+                onChange={(event) =>
+                  cambiarCampo(
+                    producto,
+                    "tarde",
+                    event.target.value,
+                  )
+                }
+                onKeyDown={moverCampo}
+                style={estiloInputNumero}
+              />
+            </td>
+
+            <td style={estiloCeldaCalculada}>{total}</td>
+
+            <td
+              style={{
+                ...estiloCelda,
+                background: "#fffaf0",
+              }}
+            >
+              <input
+                className="dietario-input"
+                type="number"
+                min="0"
+                step="1"
+                value={registro.sobrante ?? ""}
+                onChange={(event) =>
+                  cambiarCampo(
+                    producto,
+                    "sobrante",
+                    event.target.value,
+                  )
+                }
+                onKeyDown={moverCampo}
+                style={estiloInputNumero}
+              />
+            </td>
+
+            <td
+              style={{
+                ...estiloCeldaCalculada,
+                background: "#f3faf4",
+                fontWeight: 800,
+              }}
+            >
+              {vendido}
+            </td>
+
+            <td style={estiloCelda}>
+              <input
+                className="dietario-input"
+                type="text"
+                value={registro.nota_producto ?? ""}
+                onChange={(event) =>
+                  cambiarCampo(
+                    producto,
+                    "nota_producto",
+                    event.target.value,
+                  )
+                }
+                style={estiloInputTexto}
+              />
+            </td>
+          </tr>
+        );
+      })}
+    </>
+  );
+}
+
+function obtenerRegistroDesde(registros, producto) {
+  return (
+    registros[producto] ?? {
+      manana: "",
+      tarde: "",
+      sobrante: "",
+      nota_producto: "",
+    }
+  );
+}
+
+function numeroSeguro(valor) {
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : 0;
+}
+
 const estiloCampo = {
   display: "block",
   width: "100%",
   boxSizing: "border-box",
-  marginTop: "8px",
-  minHeight: "48px",
-  padding: "0 14px",
-  borderRadius: "12px",
+  marginTop: "6px",
+  minHeight: "42px",
+  padding: "0 12px",
+  borderRadius: "10px",
   border: "1px solid #4b4453",
   background: "#151319",
   color: "white",
-  fontSize: "16px",
-};
-
-const estiloCelda = {
-  border: "1px solid #18131b",
-  padding: "8px 10px",
   fontSize: "15px",
 };
 
+const estiloCabecera = {
+  border: "1px solid #cfc5d4",
+  padding: "7px 6px",
+  fontSize: "13px",
+  background: "#f3ebf5",
+  textAlign: "center",
+};
+
+const estiloCelda = {
+  border: "1px solid #ddd5e2",
+  padding: "3px 5px",
+  fontSize: "13px",
+  height: "34px",
+};
+
+const estiloCeldaProducto = {
+  ...estiloCelda,
+  paddingLeft: "9px",
+  fontWeight: 600,
+};
+
+const estiloCeldaCalculada = {
+  ...estiloCelda,
+  textAlign: "center",
+  background: "#faf8fb",
+  fontWeight: 700,
+};
+
+const estiloInputNumero = {
+  width: "100%",
+  minHeight: "27px",
+  boxSizing: "border-box",
+  border: "1px solid #e2dbe6",
+  borderRadius: "6px",
+  outline: "none",
+  textAlign: "center",
+  fontSize: "13px",
+  background: "white",
+  color: "#18131b",
+};
+
+const estiloInputTexto = {
+  width: "100%",
+  minHeight: "27px",
+  boxSizing: "border-box",
+  border: "1px solid #e2dbe6",
+  borderRadius: "6px",
+  outline: "none",
+  padding: "0 7px",
+  fontSize: "13px",
+  background: "white",
+  color: "#18131b",
+};
+
+const estiloTotal = {
+  border: "1px solid #cfc5d4",
+  padding: "9px 7px",
+  fontSize: "13px",
+  fontWeight: 800,
+  textAlign: "center",
+  background: "#f1e8f4",
+};
+
 function formatearFecha(fecha) {
-  if (!fecha) {
-    return "—";
-  }
+  if (!fecha) return "—";
 
   return new Intl.DateTimeFormat("ca-ES", {
     weekday: "long",

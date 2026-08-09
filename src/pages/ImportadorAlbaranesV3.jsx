@@ -84,6 +84,23 @@ function redondear(valor, decimales = 2) {
   return Number(numero(valor).toFixed(decimales));
 }
 
+function lineaVacia(linea = {}) {
+  return (
+    !String(linea.codigo || "").trim() &&
+    !String(linea.descripcion || "").trim() &&
+    numero(linea.precio_unitario) <= 0 &&
+    numero(linea.total_linea) <= 0
+  );
+}
+
+function lineaValidaParaConfirmar(linea = {}) {
+  return (
+    String(linea.descripcion || "").trim().length >= 2 &&
+    numero(linea.cantidad) > 0 &&
+    numero(linea.precio_unitario) > 0
+  );
+}
+
 function formatearEuros(valor) {
   return numero(valor).toLocaleString("es-ES", {
     style: "currency",
@@ -382,6 +399,42 @@ function ImportadorAlbaranesV3() {
     }));
   }
 
+  function confirmarLineaComoNueva(temporalId) {
+    setResultado((anterior) => ({
+      ...anterior,
+      lineas: anterior.lineas.map((linea) => {
+        if (linea.temporalId !== temporalId) return linea;
+
+        if (!lineaValidaParaConfirmar(linea)) {
+          return {
+            ...linea,
+            confirmado: false,
+            necesita_revision: true,
+            motivo: "Completa producto, cantidad y precio antes de confirmar.",
+          };
+        }
+
+        return prepararLinea({
+          ...linea,
+          estado_ia: ESTADOS_COMPARACION_IA.ARTICULO_NUEVO,
+          catalogo_id: null,
+          articulo_catalogo: null,
+          producto_catalogo: "",
+          codigo_catalogo: "",
+          precio_anterior: 0,
+          crear_articulo: true,
+          actualizar_precio: false,
+          confirmado: true,
+          necesita_revision: false,
+          motivo: "Confirmado manualmente como artículo nuevo.",
+        });
+      }),
+    }));
+
+    setError("");
+    setMensaje("Línea confirmada como artículo nuevo.");
+  }
+
   function confirmarCoincidencia(temporalId, usarExistente) {
     setResultado((anterior) => ({
       ...anterior,
@@ -445,22 +498,27 @@ function ImportadorAlbaranesV3() {
     if (inputArchivoRef.current) inputArchivoRef.current.value = "";
   }
 
-  const totales = useMemo(
-    () => recalcularDocumentoIA(resultado.lineas),
+  const lineasUtiles = useMemo(
+    () => resultado.lineas.filter((linea) => !lineaVacia(linea)),
     [resultado.lineas],
   );
 
+  const totales = useMemo(
+    () => recalcularDocumentoIA(lineasUtiles),
+    [lineasUtiles],
+  );
+
   const resumen = useMemo(
-    () => obtenerResumenComparacionIA(resultado.lineas),
-    [resultado.lineas],
+    () => obtenerResumenComparacionIA(lineasUtiles),
+    [lineasUtiles],
   );
 
   function validarImportacion() {
     if (!resultado.proveedor_id) return "Selecciona el proveedor.";
     if (!resultado.fecha_albaran) return "Indica la fecha del albarán.";
-    if (resultado.lineas.length === 0) return "No hay productos para importar.";
+    if (lineasUtiles.length === 0) return "No hay productos para importar.";
 
-    const pendientes = resultado.lineas.filter(
+    const pendientes = lineasUtiles.filter(
       (linea) =>
         linea.estado_ia === ESTADOS_COMPARACION_IA.POSIBLE_COINCIDENCIA ||
         linea.estado_ia === ESTADOS_COMPARACION_IA.REVISAR ||
@@ -468,7 +526,7 @@ function ImportadorAlbaranesV3() {
     );
 
     if (pendientes.length > 0) {
-      return "Hay líneas pendientes de revisar o confirmar.";
+      return `Hay ${pendientes.length} línea(s) pendientes. Pulsa «Aceptar como nuevo» o «Volver a comparar».`;
     }
 
     return "";
@@ -493,7 +551,7 @@ function ImportadorAlbaranesV3() {
         proveedorNombre: resultado.proveedor_nombre,
         lectura,
         analisis: { ...resultado, ...totales },
-        lineas: resultado.lineas,
+        lineas: lineasUtiles,
       });
 
       const resumenFinal = resultadoImportacion.resumen;
@@ -536,7 +594,7 @@ function ImportadorAlbaranesV3() {
         proveedorNombre: resultado.proveedor_nombre,
         lectura,
         analisis: { ...resultado, ...totales },
-        lineas: resultado.lineas,
+        lineas: lineasUtiles,
       });
 
       if (aprendizaje.errores.length > 0) {
@@ -1002,7 +1060,20 @@ function ImportadorAlbaranesV3() {
                         )}
 
                         {linea.estado_ia === ESTADOS_COMPARACION_IA.REVISAR && (
-                          <small>Corrige y vuelve a comparar.</small>
+                          <>
+                            {lineaValidaParaConfirmar(linea) ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  confirmarLineaComoNueva(linea.temporalId)
+                                }
+                              >
+                                ✅ Aceptar como nuevo
+                              </button>
+                            ) : (
+                              <small>Completa la línea o elimínala.</small>
+                            )}
+                          </>
                         )}
                       </td>
 
@@ -1047,7 +1118,7 @@ function ImportadorAlbaranesV3() {
                   guardando ||
                   comparando ||
                   aprendiendo ||
-                  resultado.lineas.length === 0
+                  lineasUtiles.length === 0
                 }
               >
                 {guardando ? "Importando..." : "✅ Confirmar importación"}

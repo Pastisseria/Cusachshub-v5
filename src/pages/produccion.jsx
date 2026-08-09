@@ -50,6 +50,8 @@ function Produccion() {
   const [sincronizando, setSincronizando] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [vistaBarraSemanal, setVistaBarraSemanal] = useState(false);
+  const [fechaSemanaBarra, setFechaSemanaBarra] = useState(hoy);
 
   useEffect(() => {
     inicializarProduccion();
@@ -414,6 +416,91 @@ function Produccion() {
       terminados,
     };
   }, [produccionesFecha]);
+
+  const diasSemanaBarra = useMemo(() => {
+    const fechaBase = new Date(`${fechaSemanaBarra}T12:00:00`);
+    const diaSemana = fechaBase.getDay();
+    const diferenciaLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
+
+    const lunes = new Date(fechaBase);
+    lunes.setDate(fechaBase.getDate() + diferenciaLunes);
+
+    return Array.from({ length: 7 }, (_, indice) => {
+      const fecha = new Date(lunes);
+      fecha.setDate(lunes.getDate() + indice);
+
+      return {
+        fecha: obtenerFechaISO(fecha),
+        nombre: new Intl.DateTimeFormat("es-ES", {
+          weekday: "long",
+        }).format(fecha),
+        diaMes: new Intl.DateTimeFormat("es-ES", {
+          day: "2-digit",
+          month: "2-digit",
+        }).format(fecha),
+      };
+    });
+  }, [fechaSemanaBarra]);
+
+  const produccionBarraSemana = useMemo(() => {
+    const fechasSemana = new Set(diasSemanaBarra.map((dia) => dia.fecha));
+
+    const lineasBarra = producciones.filter(
+      (linea) =>
+        linea.zona === "Barra" &&
+        fechasSemana.has(linea.fecha) &&
+        linea.estado !== "Cancelado",
+    );
+
+    const agrupado = {};
+
+    diasSemanaBarra.forEach((dia) => {
+      agrupado[dia.fecha] = {};
+    });
+
+    lineasBarra.forEach((linea) => {
+      const clavePedido =
+        linea.catering_id ||
+        `${linea.cliente_nombre || "Sin cliente"}-${
+          linea.pedido_nombre || "Pedido"
+        }`;
+
+      if (!agrupado[linea.fecha][clavePedido]) {
+        agrupado[linea.fecha][clavePedido] = {
+          clave: clavePedido,
+          cliente_nombre: linea.cliente_nombre || "Cliente",
+          pedido_nombre: linea.pedido_nombre || "Pedido",
+          lineas: [],
+        };
+      }
+
+      agrupado[linea.fecha][clavePedido].lineas.push(linea);
+    });
+
+    return agrupado;
+  }, [producciones, diasSemanaBarra]);
+
+  function cambiarSemanaBarra(semanas) {
+    const fecha = new Date(`${fechaSemanaBarra}T12:00:00`);
+    fecha.setDate(fecha.getDate() + semanas * 7);
+    setFechaSemanaBarra(obtenerFechaISO(fecha));
+  }
+
+  function imprimirBarraSemanal() {
+    const limpiar = () => {
+      document.body.classList.remove("imprimiendo-barra-semanal");
+      window.removeEventListener("afterprint", limpiar);
+    };
+
+    document.body.classList.add("imprimiendo-barra-semanal");
+    window.addEventListener("afterprint", limpiar);
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.print();
+      });
+    });
+  }
 
   const cateringsFecha = useMemo(() => {
     return caterings.filter(
@@ -820,6 +907,16 @@ function Produccion() {
 
             <button
               type="button"
+              className="boton-secundario-produccion"
+              onClick={() => setVistaBarraSemanal((anterior) => !anterior)}
+            >
+              {vistaBarraSemanal
+                ? "↩ Volver a Producción"
+                : "☕ Vista semanal Barra"}
+            </button>
+
+            <button
+              type="button"
               onClick={() => abrirNuevaLinea()}
             >
               + Añadir producción
@@ -827,6 +924,114 @@ function Produccion() {
           </div>
         </div>
 
+        {vistaBarraSemanal ? (
+          <section className="barra-semanal-panel">
+            <div className="barra-semanal-cabecera no-imprimir-barra">
+              <div>
+                <p className="produccion-etiqueta">BARRA</p>
+                <h3>Plan semanal de Barra</h3>
+                <p>
+                  Preparación por días, sin horas. Pensado para imprimir y
+                  preparar el día anterior.
+                </p>
+              </div>
+
+              <div className="barra-semanal-acciones">
+                <button
+                  type="button"
+                  className="boton-secundario-produccion"
+                  onClick={() => cambiarSemanaBarra(-1)}
+                >
+                  ← Semana anterior
+                </button>
+
+                <button
+                  type="button"
+                  className="boton-secundario-produccion"
+                  onClick={() => setFechaSemanaBarra(hoy)}
+                >
+                  Esta semana
+                </button>
+
+                <button
+                  type="button"
+                  className="boton-secundario-produccion"
+                  onClick={() => cambiarSemanaBarra(1)}
+                >
+                  Semana siguiente →
+                </button>
+
+                <button type="button" onClick={imprimirBarraSemanal}>
+                  🖨️ Imprimir Barra
+                </button>
+              </div>
+            </div>
+
+            <div className="barra-semanal-hoja">
+              <div className="barra-semanal-titulo-print">
+                <div>
+                  <strong>PASTISSERIA CUSACHS</strong>
+                  <h2>Plan semanal de Barra</h2>
+                </div>
+                <span>
+                  {diasSemanaBarra[0]?.diaMes} -{" "}
+                  {diasSemanaBarra[6]?.diaMes}
+                </span>
+              </div>
+
+              <div className="barra-semanal-grid">
+                {diasSemanaBarra.map((dia) => {
+                  const pedidosDia = Object.values(
+                    produccionBarraSemana[dia.fecha] || {},
+                  );
+
+                  return (
+                    <section key={dia.fecha} className="barra-semanal-dia">
+                      <div className="barra-semanal-dia-cabecera">
+                        <strong>{dia.nombre}</strong>
+                        <span>{dia.diaMes}</span>
+                      </div>
+
+                      {pedidosDia.length === 0 ? (
+                        <div className="barra-semanal-vacio">Sin preparación</div>
+                      ) : (
+                        pedidosDia.map((pedido) => (
+                          <div
+                            key={pedido.clave}
+                            className="barra-semanal-pedido"
+                          >
+                            <div className="barra-semanal-pedido-cabecera">
+                              <strong>{pedido.cliente_nombre}</strong>
+                              <span>{pedido.pedido_nombre}</span>
+                            </div>
+
+                            <div className="barra-semanal-lineas">
+                              {pedido.lineas.map((linea) => (
+                                <div
+                                  key={linea.id}
+                                  className="barra-semanal-linea"
+                                >
+                                  <span className="barra-check">☐</span>
+                                  <span className="barra-cantidad">
+                                    {formatearCantidad(linea.cantidad)}
+                                  </span>
+                                  <span className="barra-producto">
+                                    {linea.producto_nombre}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        ) : (
+          <>
         <div className="produccion-fecha-barra">
           <div className="produccion-navegacion">
             <button
@@ -1078,6 +1283,8 @@ function Produccion() {
               </article>
             ))}
           </div>
+        )}
+          </>
         )}
       </section>
 
@@ -1978,6 +2185,187 @@ const ESTILOS_PRODUCCION = `
   .boton-eliminar-produccion {
     margin-left: auto;
     background: #bb334b;
+  }
+
+  .barra-semanal-panel {
+    margin-top: 22px;
+  }
+
+  .barra-semanal-cabecera,
+  .barra-semanal-titulo-print {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .barra-semanal-cabecera {
+    margin-bottom: 16px;
+  }
+
+  .barra-semanal-cabecera h3,
+  .barra-semanal-titulo-print h2 {
+    margin: 0;
+  }
+
+  .barra-semanal-cabecera p {
+    margin: 6px 0 0;
+    color: #756d7a;
+  }
+
+  .barra-semanal-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+
+  .barra-semanal-hoja {
+    overflow: hidden;
+    border: 1px solid #d8cedd;
+    border-radius: 16px;
+    background: #ffffff;
+  }
+
+  .barra-semanal-titulo-print {
+    padding: 16px 18px;
+    border-bottom: 1px solid #d8cedd;
+    background: #f7f1fa;
+  }
+
+  .barra-semanal-titulo-print strong {
+    color: #713397;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+  }
+
+  .barra-semanal-titulo-print span {
+    font-weight: 900;
+  }
+
+  .barra-semanal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .barra-semanal-dia {
+    min-height: 420px;
+    border-right: 1px solid #ded5e3;
+  }
+
+  .barra-semanal-dia:last-child {
+    border-right: 0;
+  }
+
+  .barra-semanal-dia-cabecera {
+    padding: 11px 8px;
+    border-bottom: 1px solid #ded5e3;
+    background: #f0f3ef;
+    text-align: center;
+    text-transform: capitalize;
+  }
+
+  .barra-semanal-dia-cabecera strong,
+  .barra-semanal-dia-cabecera span {
+    display: block;
+  }
+
+  .barra-semanal-dia-cabecera span {
+    margin-top: 3px;
+    font-size: 12px;
+  }
+
+  .barra-semanal-vacio {
+    padding: 28px 8px;
+    color: #9b929f;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .barra-semanal-pedido {
+    padding: 9px 8px;
+    border-bottom: 1px solid #ece5ef;
+  }
+
+  .barra-semanal-pedido-cabecera {
+    margin-bottom: 7px;
+  }
+
+  .barra-semanal-pedido-cabecera strong,
+  .barra-semanal-pedido-cabecera span {
+    display: block;
+  }
+
+  .barra-semanal-pedido-cabecera strong {
+    color: #642a87;
+    font-size: 12px;
+  }
+
+  .barra-semanal-pedido-cabecera span {
+    margin-top: 2px;
+    font-size: 11px;
+    color: #756d7a;
+  }
+
+  .barra-semanal-lineas {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .barra-semanal-linea {
+    display: grid;
+    grid-template-columns: 18px 30px 1fr;
+    gap: 4px;
+    align-items: start;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .barra-check {
+    font-size: 14px;
+  }
+
+  .barra-cantidad {
+    font-weight: 900;
+    text-align: right;
+  }
+
+  .barra-producto {
+    overflow-wrap: anywhere;
+  }
+
+  @media print {
+    body.imprimiendo-barra-semanal * {
+      visibility: hidden !important;
+    }
+
+    body.imprimiendo-barra-semanal .barra-semanal-hoja,
+    body.imprimiendo-barra-semanal .barra-semanal-hoja * {
+      visibility: visible !important;
+    }
+
+    body.imprimiendo-barra-semanal .barra-semanal-hoja {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: auto;
+      border: 0;
+      border-radius: 0;
+    }
+
+    body.imprimiendo-barra-semanal .barra-semanal-grid {
+      grid-template-columns: repeat(7, 1fr);
+    }
+
+    body.imprimiendo-barra-semanal .barra-semanal-dia {
+      min-height: 0;
+    }
+
+    @page {
+      size: A4 landscape;
+      margin: 8mm;
+    }
   }
 
   @media (max-width: 1100px) {

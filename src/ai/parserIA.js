@@ -1,5 +1,5 @@
-const VERSION_PARSER = "3.1.0";
-const PATRON_NO_PRODUCTO = /^(pastisseria|cusachs|cliente|proveedor|albar[aá]n|factura|pedido|fecha|data|p[aá]gina|cif|nif|direcci[oó]n|tel[eé]fono|email|subtotal|base imponible|iva|total|forma de pago|vencimiento|observaciones|iban|banco|firma|portes)/i;
+const VERSION_PARSER = "3.2.0";
+const PATRON_NO_PRODUCTO = /^(pastisseria|cusachs|cliente|proveedor|albar[aá]n|alb\.|factura|pedido|fecha|fec\.|data|p[aá]gina|pag\.?|cif|nif|n\.?i\.?f|cod\.?\s*cliente|direcci[oó]n|tel[eé]fono|email|doc\.?\s*electr[oó]nico|subtotal|base imponible|iva|total|forma de pago|vencimiento|observaciones|iban|banco|firma|portes|ord\.?|\d{1,2}:\d{2})/i;
 
 function espacios(texto = "") {
   return String(texto).replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
@@ -47,7 +47,7 @@ function extraerNumeros(texto = "") {
 
 function esCabeceraTabla(texto = "") {
   const t = normalizarNombreProducto(texto);
-  const palabras = ["codigo", "referencia", "articulo", "descripcion", "producto", "cantidad", "precio", "importe", "total", "iva"];
+  const palabras = ["codigo", "referencia", "articulo", "artic", "descripcion", "producto", "cantidad", "cant", "precio", "pvp", "p v p", "p ver", "p vta", "importe", "total", "iva", "ibee"];
   return palabras.filter((p) => t.includes(p)).length >= 3;
 }
 
@@ -135,7 +135,75 @@ function construirDescripcion(texto, numeros, seleccion, codigo) {
     .replace(/[-–—.:;\s]+$/, ""));
 }
 
+
+function parsearLineaColumnasProveedor(linea) {
+  const texto = espacios(linea?.texto || linea || "");
+  if (!texto || PATRON_NO_PRODUCTO.test(texto) || esCabeceraTabla(texto) || esPie(texto)) return null;
+
+  // Formato habitual de mayoristas:
+  // CODIGO DESCRIPCION CANTIDAD C/U ... PVP [DTO%] IMPORTE IVA
+  // Se ancla la cantidad a la letra C/U para no confundir números dentro
+  // de la descripción (0.30L, 24B, 1.5L, 6u, etc.).
+  const m = texto.match(
+    /^([A-Z0-9._/-]{3,30})\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s+([CU])\s+(.+)$/i,
+  );
+
+  if (!m || !/\d/.test(m[1])) return null;
+
+  const codigo = m[1].toUpperCase();
+  const descripcion = espacios(m[2]);
+  const cantidad = numeroEuropeo(m[3]);
+  const tipoUnidad = m[4].toUpperCase();
+  const cola = m[5];
+
+  if (!descripcion || !cantidad || cantidad <= 0) return null;
+
+  const nums = extraerNumeros(cola);
+  if (nums.length < 2) return null;
+
+  // El último valor suele ser el IVA (4, 10, 21) aunque no lleve %.
+  let iva = 10;
+  let finEconomicos = nums.length;
+  const ultimo = nums[nums.length - 1]?.valor;
+  if ([0, 4, 5, 10, 21].some((v) => Math.abs(v - ultimo) < 0.001)) {
+    iva = Number(ultimo);
+    finEconomicos -= 1;
+  }
+
+  const economicos = nums.slice(0, finEconomicos);
+  if (!economicos.length) return null;
+
+  // El importe de línea es el último número antes del IVA.
+  const totalLinea = Number(economicos[economicos.length - 1].valor);
+  if (!Number.isFinite(totalLinea) || totalLinea <= 0) return null;
+
+  // Precio neto efectivo. También funciona cuando hay descuento intermedio.
+  const precioUnitario = totalLinea / cantidad;
+
+  let confianza = 92;
+  if (codigo) confianza += 3;
+
+  return {
+    codigo,
+    descripcion,
+    nombre_normalizado: normalizarNombreProducto(descripcion),
+    cantidad: redondear(cantidad, 4),
+    unidad: tipoUnidad === "C" ? "caja" : "unidad",
+    precio_unitario: redondear(precioUnitario, 4),
+    iva,
+    total_linea: redondear(totalLinea, 2),
+    confianza: Math.min(100, confianza),
+    necesita_revision: false,
+    texto_origen: texto,
+    producto_id: linea?.aprendizaje_diccionario?.producto_id || null,
+    catalogo_proveedor_id: linea?.aprendizaje_diccionario?.catalogo_proveedor_id || null,
+  };
+}
+
 function parsearLinea(linea) {
+  const especial = parsearLineaColumnasProveedor(linea);
+  if (especial) return especial;
+
   const texto = espacios(linea?.texto || linea || "");
   if (!texto || PATRON_NO_PRODUCTO.test(texto) || esCabeceraTabla(texto) || esPie(texto)) return null;
   const numeros = extraerNumeros(texto);
@@ -175,7 +243,7 @@ function parsearLinea(linea) {
 
 function extraerFecha(texto = "") {
   const patrones = [
-    /(?:fecha|data)(?:\s+(?:albar[aá]n|documento|emisi[oó]n))?\s*[:#-]?\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/i,
+    /(?:fecha|data|fec\.?)(?:\s*\.?\s*(?:albar[aá]n|documento|emisi[oó]n))?\s*[:#-]?\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/i,
     /\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\b/,
     /\b(\d{4})-(\d{1,2})-(\d{1,2})\b/,
   ];
@@ -193,6 +261,7 @@ function extraerFecha(texto = "") {
 
 function extraerNumero(texto = "") {
   const patrones = [
+    /(?:num\.?\s*albar[aá]n|n[uú]m\.?\s*albar[aá]n)\s*[:#-]?\s*([A-Z0-9][A-Z0-9\/._-]{2,})/i,
     /(?:albar[aá]n|delivery\s*note)\s*(?:n(?:ú|u|º|°|o)?\.?|n[uú]mero)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9\/._-]{2,})/i,
     /(?:documento|doc\.?|n[uú]mero)\s*[:#-]?\s*([A-Z0-9][A-Z0-9\/._-]{3,})/i,
   ];

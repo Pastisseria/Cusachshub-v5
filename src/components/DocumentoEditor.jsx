@@ -1139,113 +1139,219 @@ function DocumentoEditor({
   }
 
 
-  async function asegurarCateringPendiente(documento) {
-    if (!documento) return null;
+  function obtenerNombreClienteProduccion(documento) {
+    const cliente = documento?.clientes || null;
 
-    const tituloCatering = [
-      documento.clientes?.empresa || documento.clientes?.nombre,
-      documento.numero,
-    ]
-      .filter(Boolean)
-      .join(" · ");
-
-    const datosBaseCatering = {
-      cliente_id: documento.cliente_id || null,
-      presupuesto_id: documento.id,
-      titulo: tituloCatering || documento.numero || "Catering",
-      fecha: documento.fecha || fechaActual(),
-      hora_inicio: documento.hora_entrega || null,
-      hora_fin: null,
-      direccion: documento.direccion_entrega || null,
-      poblacion: documento.clientes?.poblacion || null,
-      codigo_postal: documento.clientes?.codigo_postal || null,
-      numero_personas: 0,
-      responsable: documento.persona_contacto || null,
-      telefono_contacto: documento.telefono_contacto || null,
-      tipo_servicio: documento.tipo_documento || "Catering",
-      observaciones: documento.observaciones || null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data: cateringExistente, error: errorConsulta } =
-      await supabase
-        .from("caterings")
-        .select("id, estado")
-        .eq("presupuesto_id", documento.id)
-        .maybeSingle();
-
-    if (errorConsulta) throw errorConsulta;
-
-    if (cateringExistente) {
-      /*
-       * Si Catering ya fue aceptado, realizado o cancelado,
-       * respetamos ese estado. Solo los nuevos nacen como Pendiente.
-       */
-      const estadoActual = cateringExistente.estado || "Pendiente";
-
-      const { error: errorActualizacion } = await supabase
-        .from("caterings")
-        .update({
-          ...datosBaseCatering,
-          estado: estadoActual,
-        })
-        .eq("id", cateringExistente.id);
-
-      if (errorActualizacion) throw errorActualizacion;
-
-      return {
-        id: cateringExistente.id,
-        estado: estadoActual,
-        creado: false,
-      };
+    if (cliente?.empresa && cliente?.nombre) {
+      return `${cliente.empresa} — ${cliente.nombre}`;
     }
 
-    const { data: cateringCreado, error: errorInsercion } =
-      await supabase
-        .from("caterings")
-        .insert({
-          ...datosBaseCatering,
-          estado: "Pendiente",
-        })
-        .select("id, estado")
-        .single();
-
-    if (errorInsercion) throw errorInsercion;
-
-    return {
-      id: cateringCreado.id,
-      estado: cateringCreado.estado || "Pendiente",
-      creado: true,
-    };
+    return (
+      cliente?.empresa ||
+      cliente?.nombre ||
+      documento?.visitador_nombre ||
+      "Cliente"
+    );
   }
 
-  async function programarEnCatering(documento = documentoAbierto) {
+  function determinarZonaProduccionDirecta(producto, nombreProducto = "") {
+    const zonas = ["Obrador", "Cocina", "Barra"];
+
+    const zonaConfigurada =
+      producto?.zona_produccion ||
+      producto?.zona ||
+      producto?.seccion ||
+      "";
+
+    if (zonas.includes(zonaConfigurada)) {
+      return zonaConfigurada;
+    }
+
+    const texto = String(nombreProducto || "")
+      .trim()
+      .toLocaleLowerCase("es-ES")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+    const palabrasBarra = [
+      "cafe",
+      "agua",
+      "refresco",
+      "cerveza",
+      "vino",
+      "zumo",
+      "bebida",
+      "leche",
+      "infusion",
+      "te ",
+    ];
+
+    if (palabrasBarra.some((palabra) => texto.includes(palabra))) {
+      return "Barra";
+    }
+
+    const palabrasCocina = [
+      "tortilla",
+      "brocheta",
+      "croqueta",
+      "hamburguesa",
+      "quiche",
+      "ensalada",
+      "carne",
+      "pollo",
+      "pescado",
+      "verdura",
+      "arroz",
+      "pasta",
+      "salsa",
+      "caliente",
+    ];
+
+    if (palabrasCocina.some((palabra) => texto.includes(palabra))) {
+      return "Cocina";
+    }
+
+    return "Obrador";
+  }
+
+  async function borrarProduccionDelDocumento(documento) {
     if (!documento) return;
+
+    const pedidoNombre = documento.numero || `Pedido ${documento.id}`;
+    const clienteNombre = obtenerNombreClienteProduccion(documento);
+
+    let consulta = supabase
+      .from("producciones")
+      .delete()
+      .is("catering_id", null)
+      .eq("pedido_nombre", pedidoNombre);
+
+    if (documento.cliente_id) {
+      consulta = consulta.eq("cliente_id", documento.cliente_id);
+    } else {
+      consulta = consulta.eq("cliente_nombre", clienteNombre);
+    }
+
+    const { error: errorBorrado } = await consulta;
+
+    if (errorBorrado) throw errorBorrado;
+  }
+
+  async function enviarAProduccion(documento = documentoAbierto, opciones = {}) {
+    if (!documento) return false;
 
     if (documento.estado !== "Aceptado") {
       setError("Primero debes aceptar el presupuesto.");
-      return;
+      return false;
     }
 
-    setProgramandoCatering(true);
-    setError("");
-    setMensaje("");
+    const silencioso = Boolean(opciones.silencioso);
+
+    if (!silencioso) {
+      setProgramandoCatering(true);
+      setError("");
+      setMensaje("");
+    }
 
     try {
-      const resultado = await asegurarCateringPendiente(documento);
+      const { data: lineasPedido, error: errorLineas } = await supabase
+        .from("presupuesto_lineas")
+        .select(`
+          id,
+          presupuesto_id,
+          producto_id,
+          descripcion,
+          cantidad,
+          productos (
+            id,
+            nombre,
+            unidad,
+            unidad_medida,
+            zona_produccion,
+            zona,
+            seccion
+          )
+        `)
+        .eq("presupuesto_id", documento.id)
+        .order("created_at", { ascending: true });
 
-      setMensaje(
-        resultado?.creado
-          ? "Presupuesto programado en Catering como Pendiente."
-          : `Catering actualizado correctamente (${resultado?.estado || "Pendiente"}).`,
+      if (errorLineas) throw errorLineas;
+
+      const lineasValidas = (lineasPedido || []).filter(
+        (linea) =>
+          String(linea.descripcion || "").trim() &&
+          Number(linea.cantidad || 0) > 0,
       );
+
+      if (lineasValidas.length === 0) {
+        throw new Error("El pedido no tiene líneas válidas para Producción.");
+      }
+
+      // Al actualizar un pedido aceptado, sustituimos sus líneas anteriores.
+      // Así nunca se duplica la producción al pulsar el botón más de una vez.
+      await borrarProduccionDelDocumento(documento);
+
+      const clienteNombre = obtenerNombreClienteProduccion(documento);
+      const pedidoNombre = documento.numero || `Pedido ${documento.id}`;
+
+      const nuevasLineas = lineasValidas.map((linea) => {
+        const producto = linea.productos || null;
+        const productoNombre =
+          String(linea.descripcion || "").trim() ||
+          producto?.nombre ||
+          "Producto";
+
+        return {
+          catering_id: null,
+          cliente_id: documento.cliente_id || null,
+          cliente_nombre: clienteNombre,
+          pedido_nombre: pedidoNombre,
+          fecha: documento.fecha || fechaActual(),
+          zona: determinarZonaProduccionDirecta(producto, productoNombre),
+          producto_id: linea.producto_id || null,
+          producto_nombre: productoNombre,
+          cantidad: Number(linea.cantidad || 0),
+          unidad:
+            producto?.unidad ||
+            producto?.unidad_medida ||
+            "unidades",
+          responsable: null,
+          hora_limite: documento.hora_entrega || null,
+          estado: "Pendiente",
+          direccion_entrega: documento.direccion_entrega || null,
+          observaciones: documento.observaciones || null,
+          updated_at: new Date().toISOString(),
+        };
+      });
+
+      const { error: errorInsercion } = await supabase
+        .from("producciones")
+        .insert(nuevasLineas);
+
+      if (errorInsercion) throw errorInsercion;
+
+      if (!silencioso) {
+        setMensaje(
+          `✅ Pedido ${pedidoNombre} enviado a Producción (${nuevasLineas.length} líneas).`,
+        );
+      }
+
+      return true;
     } catch (err) {
-      setError(
-        err.message ||
-          "No se ha podido programar el presupuesto en Catering.",
-      );
+      console.error("Error al enviar el pedido a Producción:", err);
+
+      if (!silencioso) {
+        setError(
+          err?.message ||
+            "No se ha podido enviar el pedido a Producción.",
+        );
+      }
+
+      return false;
     } finally {
-      setProgramandoCatering(false);
+      if (!silencioso) {
+        setProgramandoCatering(false);
+      }
     }
   }
 
@@ -1297,6 +1403,34 @@ function DocumentoEditor({
           .eq("catering_id", catering.id);
 
         if (errorProduccion) throw errorProduccion;
+      }
+
+      const documentoParaProduccion =
+        documentoAbierto?.id === documentoId
+          ? documentoAbierto
+          : documentos.find((documento) => documento.id === documentoId);
+
+      if (documentoParaProduccion?.numero) {
+        let consultaProduccionDirecta = supabase
+          .from("producciones")
+          .update({
+            fecha: nuevaFecha,
+            updated_at: new Date().toISOString(),
+          })
+          .is("catering_id", null)
+          .eq("pedido_nombre", documentoParaProduccion.numero);
+
+        if (documentoParaProduccion.cliente_id) {
+          consultaProduccionDirecta = consultaProduccionDirecta.eq(
+            "cliente_id",
+            documentoParaProduccion.cliente_id,
+          );
+        }
+
+        const { error: errorProduccionDirecta } =
+          await consultaProduccionDirecta;
+
+        if (errorProduccionDirecta) throw errorProduccionDirecta;
       }
 
       setDocumentoAbierto((anterior) =>
@@ -1387,19 +1521,11 @@ function DocumentoEditor({
         : null;
 
       if (nuevoEstado === "Aceptado" && documentoActualizado) {
-        await asegurarCateringPendiente(documentoActualizado);
+        await enviarAProduccion(documentoActualizado, { silencioso: true });
       }
 
-      if (nuevoEstado === "Cancelado") {
-        const { error: errorCatering } = await supabase
-          .from("caterings")
-          .update({
-            estado: "Cancelado",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("presupuesto_id", documentoId);
-
-        if (errorCatering) throw errorCatering;
+      if (nuevoEstado === "Cancelado" && documentoActualizado) {
+        await borrarProduccionDelDocumento(documentoActualizado);
       }
 
       setDocumentoAbierto((anterior) =>
@@ -1418,9 +1544,9 @@ function DocumentoEditor({
 
       setMensaje(
         nuevoEstado === "Aceptado"
-          ? "Presupuesto aceptado. Se ha enviado automáticamente a Catering como Pendiente."
+          ? "✅ Presupuesto aceptado y pedido enviado automáticamente a Producción."
           : nuevoEstado === "Cancelado"
-            ? "Presupuesto anulado. El Catering vinculado también queda cancelado."
+            ? "Presupuesto anulado. Se ha retirado su producción pendiente."
             : "Presupuesto marcado como Pendiente.",
       );
 
@@ -2559,12 +2685,12 @@ function DocumentoEditor({
             {documentoAbierto.estado === "Aceptado" ? (
               <button
                 type="button"
-                onClick={() => programarEnCatering(documentoAbierto)}
+                onClick={() => enviarAProduccion(documentoAbierto)}
                 disabled={programandoCatering}
               >
                 {programandoCatering
-                  ? "Programando..."
-                  : "📅 Actualizar datos en Catering"}
+                  ? "Enviando..."
+                  : "🧁 Enviar / actualizar Producción"}
               </button>
             ) : (
               <button
@@ -2572,7 +2698,7 @@ function DocumentoEditor({
                 disabled
                 title="Primero debes aceptar el presupuesto"
               >
-                📅 Acepta para enviar a Catering
+                🧁 Acepta para enviar a Producción
               </button>
             )}
 

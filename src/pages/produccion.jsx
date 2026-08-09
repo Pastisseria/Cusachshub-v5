@@ -56,7 +56,6 @@ function Produccion() {
   }, []);
 
   async function inicializarProduccion() {
-    await sincronizarProduccionAceptada({ silencioso: true });
     await cargarDatos();
   }
 
@@ -813,15 +812,10 @@ function Produccion() {
             <button
               type="button"
               className="boton-secundario-produccion"
-              onClick={async () => {
-                await sincronizarProduccionAceptada();
-                await cargarDatos();
-              }}
-              disabled={sincronizando}
+              onClick={cargarDatos}
+              disabled={cargando}
             >
-              {sincronizando
-                ? "Sincronizando..."
-                : "🔄 Importar caterings aceptados"}
+              {cargando ? "Actualizando..." : "🔄 Recargar producción"}
             </button>
 
             <button
@@ -926,8 +920,8 @@ function Produccion() {
             <h3>No hay producción para este día</h3>
 
             <p>
-              Añade una línea manualmente o selecciona un
-              catering.
+              Acepta un presupuesto para enviarlo automáticamente
+              a Producción, o añade una línea manualmente.
             </p>
 
             <button

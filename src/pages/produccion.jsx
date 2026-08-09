@@ -52,6 +52,7 @@ function Produccion() {
   const [mensaje, setMensaje] = useState("");
   const [vistaBarraSemanal, setVistaBarraSemanal] = useState(false);
   const [fechaSemanaBarra, setFechaSemanaBarra] = useState(hoy);
+  const [zonaImpresionDiaria, setZonaImpresionDiaria] = useState("");
 
   useEffect(() => {
     inicializarProduccion();
@@ -484,6 +485,23 @@ function Produccion() {
     const fecha = new Date(`${fechaSemanaBarra}T12:00:00`);
     fecha.setDate(fecha.getDate() + semanas * 7);
     setFechaSemanaBarra(obtenerFechaISO(fecha));
+  }
+
+  function imprimirZonaDiaria(zona) {
+    setZonaImpresionDiaria(zona);
+
+    const limpiar = () => {
+      document.body.classList.remove("imprimiendo-zona-diaria");
+      setZonaImpresionDiaria("");
+      window.removeEventListener("afterprint", limpiar);
+    };
+
+    document.body.classList.add("imprimiendo-zona-diaria");
+    window.addEventListener("afterprint", limpiar);
+
+    window.setTimeout(() => {
+      window.print();
+    }, 80);
   }
 
   function imprimirBarraSemanal() {
@@ -1071,6 +1089,24 @@ function Produccion() {
           <div className="produccion-fecha-texto">
             {formatearFecha(fechaSeleccionada)}
           </div>
+
+          <div className="produccion-impresion-diaria">
+            <button
+              type="button"
+              className="boton-secundario-produccion"
+              onClick={() => imprimirZonaDiaria("Obrador")}
+            >
+              🖨️ Imprimir Obrador
+            </button>
+
+            <button
+              type="button"
+              className="boton-secundario-produccion"
+              onClick={() => imprimirZonaDiaria("Cocina")}
+            >
+              🖨️ Imprimir Cocina
+            </button>
+          </div>
         </div>
 
         <div className="produccion-resumen">
@@ -1286,6 +1322,82 @@ function Produccion() {
         )}
           </>
         )}
+
+        <section className="zona-diaria-hoja-print">
+          <div className="zona-diaria-titulo-print">
+            <div>
+              <strong>PASTISSERIA CUSACHS</strong>
+              <h2>
+                {zonaImpresionDiaria === "Obrador"
+                  ? "🥐 Producción Obrador"
+                  : "🍳 Producción Cocina"}
+              </h2>
+            </div>
+            <span>{formatearFecha(fechaSeleccionada)}</span>
+          </div>
+
+          <div className="zona-diaria-pedidos-print">
+            {pedidosAgrupados
+              .map((pedido) => ({
+                ...pedido,
+                lineasZona: pedido.lineas.filter(
+                  (linea) =>
+                    linea.zona === zonaImpresionDiaria &&
+                    linea.estado !== "Cancelado",
+                ),
+              }))
+              .filter((pedido) => pedido.lineasZona.length > 0)
+              .map((pedido) => (
+                <article
+                  key={`print-${pedido.clave}`}
+                  className="zona-diaria-pedido-print"
+                >
+                  <div className="zona-diaria-pedido-cabecera-print">
+                    <div>
+                      <strong>{pedido.cliente_nombre}</strong>
+                      <span>{pedido.pedido_nombre}</span>
+                    </div>
+                    <span>
+                      {pedido.lineasZona.length}{" "}
+                      {pedido.lineasZona.length === 1 ? "línea" : "líneas"}
+                    </span>
+                  </div>
+
+                  <div className="zona-diaria-lineas-print">
+                    {pedido.lineasZona.map((linea) => (
+                      <div
+                        key={`print-linea-${linea.id}`}
+                        className="zona-diaria-linea-print"
+                      >
+                        <span className="zona-diaria-check-print">☐</span>
+                        <strong>
+                          {formatearCantidad(linea.cantidad)} {linea.unidad}
+                        </strong>
+                        <span>{linea.producto_nombre}</span>
+                        {linea.observaciones && (
+                          <small>{linea.observaciones}</small>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ))}
+
+            {zonaImpresionDiaria &&
+              pedidosAgrupados.every(
+                (pedido) =>
+                  !pedido.lineas.some(
+                    (linea) =>
+                      linea.zona === zonaImpresionDiaria &&
+                      linea.estado !== "Cancelado",
+                  ),
+              ) && (
+                <p className="zona-diaria-sin-lineas-print">
+                  No hay líneas de {zonaImpresionDiaria} para este día.
+                </p>
+              )}
+          </div>
+        </section>
       </section>
 
       {modalAbierto && (
@@ -2187,6 +2299,107 @@ const ESTILOS_PRODUCCION = `
     background: #bb334b;
   }
 
+  .produccion-impresion-diaria {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .zona-diaria-hoja-print {
+    display: none;
+  }
+
+  .zona-diaria-titulo-print {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #2f2932;
+  }
+
+  .zona-diaria-titulo-print strong {
+    font-size: 12px;
+    letter-spacing: 1.5px;
+  }
+
+  .zona-diaria-titulo-print h2 {
+    margin: 4px 0 0;
+    font-size: 25px;
+  }
+
+  .zona-diaria-titulo-print > span {
+    font-size: 15px;
+    font-weight: 800;
+    text-transform: capitalize;
+  }
+
+  .zona-diaria-pedidos-print {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 14px;
+  }
+
+  .zona-diaria-pedido-print {
+    break-inside: avoid;
+    border: 1px solid #aaa;
+  }
+
+  .zona-diaria-pedido-cabecera-print {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #aaa;
+  }
+
+  .zona-diaria-pedido-cabecera-print strong,
+  .zona-diaria-pedido-cabecera-print span {
+    display: block;
+  }
+
+  .zona-diaria-pedido-cabecera-print strong {
+    font-size: 15px;
+  }
+
+  .zona-diaria-pedido-cabecera-print div span {
+    margin-top: 2px;
+    font-size: 12px;
+  }
+
+  .zona-diaria-lineas-print {
+    padding: 5px 10px;
+  }
+
+  .zona-diaria-linea-print {
+    display: grid;
+    grid-template-columns: 24px 110px 1fr;
+    gap: 8px;
+    align-items: baseline;
+    padding: 7px 0;
+    border-bottom: 1px solid #ddd;
+    font-size: 14px;
+  }
+
+  .zona-diaria-linea-print:last-child {
+    border-bottom: 0;
+  }
+
+  .zona-diaria-linea-print small {
+    grid-column: 3;
+    font-size: 11px;
+  }
+
+  .zona-diaria-check-print {
+    font-size: 17px;
+  }
+
+  .zona-diaria-sin-lineas-print {
+    padding: 25px;
+    text-align: center;
+  }
+
   .barra-semanal-panel {
     margin-top: 22px;
   }
@@ -2333,6 +2546,35 @@ const ESTILOS_PRODUCCION = `
 
   .barra-producto {
     overflow-wrap: anywhere;
+  }
+
+  @media print {
+    body.imprimiendo-zona-diaria * {
+      visibility: hidden !important;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-hoja-print,
+    body.imprimiendo-zona-diaria .zona-diaria-hoja-print * {
+      visibility: visible !important;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-hoja-print {
+      display: block !important;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      padding: 0;
+      background: #ffffff;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-pedido-print {
+      page-break-inside: avoid;
+    }
+
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
   }
 
   @media print {

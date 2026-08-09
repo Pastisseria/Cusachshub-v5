@@ -1256,13 +1256,7 @@ function DocumentoEditor({
     try {
       const { data: lineasPedido, error: errorLineas } = await supabase
         .from("presupuesto_lineas")
-        .select(`
-          id,
-          presupuesto_id,
-          producto_id,
-          descripcion,
-          cantidad
-        `)
+        .select("id, presupuesto_id, producto_id, descripcion, cantidad")
         .eq("presupuesto_id", documento.id)
         .order("created_at", { ascending: true });
 
@@ -1278,46 +1272,87 @@ function DocumentoEditor({
         throw new Error("El pedido no tiene líneas válidas para Producción.");
       }
 
-      // Al actualizar un pedido aceptado, sustituimos sus líneas anteriores.
-      // Así nunca se duplica la producción al pulsar el botón más de una vez.
-      await borrarProduccionDelDocumento(documento);
+      const clienteNombre =
+        documento?.clientes?.empresa && documento?.clientes?.nombre
+          ? `${documento.clientes.empresa} — ${documento.clientes.nombre}`
+          : documento?.clientes?.empresa ||
+            documento?.clientes?.nombre ||
+            documento?.visitador_nombre ||
+            "Cliente";
 
-      const clienteNombre = obtenerNombreClienteProduccion(documento);
-      const pedidoNombre = documento.numero || `Pedido ${documento.id}`;
+      const pedidoNombre =
+        documento.numero ||
+        `${documento.tipo_documento || "Pedido"} ${documento.id}`;
 
-      const nuevasLineas = lineasValidas.map((linea) => {
+      // Borramos solo las líneas automáticas anteriores de este mismo pedido.
+      // Esto evita duplicados al volver a pulsar "Enviar / actualizar Producción".
+      let consultaBorrado = supabase
+        .from("producciones")
+        .delete()
+        .is("catering_id", null)
+        .eq("pedido_nombre", pedidoNombre);
+
+      if (documento.cliente_id) {
+        consultaBorrado = consultaBorrado.eq(
+          "cliente_id",
+          documento.cliente_id,
+        );
+      } else {
+        consultaBorrado = consultaBorrado.eq(
+          "cliente_nombre",
+          clienteNombre,
+        );
+      }
+
+      const { error: errorBorrado } = await consultaBorrado;
+      if (errorBorrado) throw errorBorrado;
+
+      // IMPORTANTE:
+      // estos son exactamente los mismos campos que usa guardarLinea()
+      // en produccion.jsx, que ya hemos comprobado que funciona.
+      const nuevasProducciones = lineasValidas.map((linea) => {
         const productoNombre =
           String(linea.descripcion || "").trim() || "Producto";
 
         return {
           catering_id: null,
           cliente_id: documento.cliente_id || null,
-          cliente_nombre: clienteNombre,
-          pedido_nombre: pedidoNombre,
+          cliente_nombre: clienteNombre.trim(),
+          pedido_nombre: pedidoNombre.trim(),
           fecha: documento.fecha || fechaActual(),
           zona: determinarZonaProduccionDirecta(null, productoNombre),
           producto_id: linea.producto_id || null,
           producto_nombre: productoNombre,
-          cantidad: Number(linea.cantidad || 0),
+          cantidad: Number(linea.cantidad),
           unidad: "unidades",
           responsable: null,
           hora_limite: documento.hora_entrega || null,
           estado: "Pendiente",
-          direccion_entrega: documento.direccion_entrega || null,
-          observaciones: documento.observaciones || null,
+          direccion_entrega:
+            String(documento.direccion_entrega || "").trim() || null,
+          observaciones:
+            String(documento.observaciones || "").trim() || null,
           updated_at: new Date().toISOString(),
         };
       });
 
-      const { error: errorInsercion } = await supabase
-        .from("producciones")
-        .insert(nuevasLineas);
+      // Insertamos una por una, igual que hace el alta manual.
+      // Si una línea falla, sabremos exactamente cuál es.
+      for (const datos of nuevasProducciones) {
+        const { error: errorInsercion } = await supabase
+          .from("producciones")
+          .insert(datos);
 
-      if (errorInsercion) throw errorInsercion;
+        if (errorInsercion) {
+          throw new Error(
+            `${datos.producto_nombre}: ${errorInsercion.message || "Error al guardar en Producción"}`,
+          );
+        }
+      }
 
       if (!silencioso) {
         setMensaje(
-          `✅ Pedido ${pedidoNombre} enviado a Producción (${nuevasLineas.length} líneas).`,
+          `✅ Pedido ${pedidoNombre} enviado a Producción (${nuevasProducciones.length} líneas).`,
         );
       }
 

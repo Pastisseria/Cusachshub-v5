@@ -31,9 +31,11 @@ function Dashboard() {
       ).padStart(2, "0")}-01`;
 
       const [
-        respuestaPresupuestos,
+        respuestaPresupuestosResumen,
         respuestaFacturas,
-        respuestaCaterings,
+        respuestaPresupuestosHoy,
+        respuestaCateringsHoy,
+        respuestaProduccionHoy,
       ] = await Promise.all([
         supabase.from("presupuestos").select("id, estado"),
 
@@ -41,6 +43,32 @@ function Dashboard() {
           .from("facturas")
           .select("total, estado, fecha_factura")
           .gte("fecha_factura", inicioMes),
+
+        supabase
+          .from("presupuestos")
+          .select(`
+            id,
+            numero,
+            cliente_id,
+            fecha,
+            estado,
+            tipo_documento,
+            hora_entrega,
+            direccion_entrega,
+            persona_contacto,
+            telefono_contacto,
+            observaciones,
+            clientes (
+              id,
+              nombre,
+              empresa,
+              telefono,
+              email
+            )
+          `)
+          .eq("fecha", hoyISO)
+          .eq("estado", "Aceptado")
+          .order("hora_entrega", { ascending: true }),
 
         supabase
           .from("caterings")
@@ -72,26 +100,51 @@ function Dashboard() {
           .eq("fecha", hoyISO)
           .neq("estado", "Cancelado")
           .order("hora_inicio", { ascending: true }),
+
+        supabase
+          .from("producciones")
+          .select(`
+            id,
+            catering_id,
+            cliente_id,
+            cliente_nombre,
+            pedido_nombre,
+            fecha,
+            zona,
+            producto_nombre,
+            cantidad,
+            unidad,
+            estado,
+            hora_limite,
+            direccion_entrega,
+            observaciones
+          `)
+          .eq("fecha", hoyISO)
+          .neq("estado", "Cancelado")
+          .order("hora_limite", { ascending: true }),
       ]);
 
-      if (respuestaPresupuestos.error) {
-        throw respuestaPresupuestos.error;
+      const errores = [
+        respuestaPresupuestosResumen.error,
+        respuestaFacturas.error,
+        respuestaPresupuestosHoy.error,
+        respuestaCateringsHoy.error,
+        respuestaProduccionHoy.error,
+      ].filter(Boolean);
+
+      if (errores.length > 0) {
+        throw errores[0];
       }
 
-      if (respuestaFacturas.error) {
-        throw respuestaFacturas.error;
-      }
-
-      if (respuestaCaterings.error) {
-        throw respuestaCaterings.error;
-      }
-
-      const listaPresupuestos = respuestaPresupuestos.data ?? [];
+      const listaPresupuestosResumen =
+        respuestaPresupuestosResumen.data ?? [];
       const listaFacturas = respuestaFacturas.data ?? [];
-      const listaCaterings = respuestaCaterings.data ?? [];
+      const presupuestosHoy = respuestaPresupuestosHoy.data ?? [];
+      const cateringsBD = respuestaCateringsHoy.data ?? [];
+      const produccionHoy = respuestaProduccionHoy.data ?? [];
 
       setDatos({
-        presupuestos: listaPresupuestos.filter(
+        presupuestos: listaPresupuestosResumen.filter(
           (item) =>
             ![
               "Facturado",
@@ -121,18 +174,13 @@ function Dashboard() {
         ),
       });
 
-      setCateringsHoy(listaCaterings);
+      // 1) Cargamos todas las líneas de los presupuestos aceptados de hoy.
+      const idsPresupuestosHoy = presupuestosHoy.map((item) => item.id);
 
-      const presupuestosIds = [
-        ...new Set(
-          listaCaterings
-            .map((item) => item.presupuesto_id)
-            .filter(Boolean),
-        ),
-      ];
+      let lineasPresupuesto = [];
 
-      if (presupuestosIds.length > 0) {
-        const { data: lineas, error: errorLineas } = await supabase
+      if (idsPresupuestosHoy.length > 0) {
+        const { data, error } = await supabase
           .from("presupuesto_lineas")
           .select(`
             id,
@@ -141,27 +189,193 @@ function Dashboard() {
             descripcion,
             cantidad
           `)
-          .in("presupuesto_id", presupuestosIds)
+          .in("presupuesto_id", idsPresupuestosHoy)
           .order("created_at", { ascending: true });
 
-        if (errorLineas) {
-          throw errorLineas;
+        if (error) throw error;
+        lineasPresupuesto = data || [];
+      }
+
+      const lineasAgrupadas = {};
+
+      lineasPresupuesto.forEach((linea) => {
+        if (!lineasAgrupadas[linea.presupuesto_id]) {
+          lineasAgrupadas[linea.presupuesto_id] = [];
         }
 
-        const agrupadas = {};
+        lineasAgrupadas[linea.presupuesto_id].push(linea);
+      });
 
-        (lineas || []).forEach((linea) => {
-          if (!agrupadas[linea.presupuesto_id]) {
-            agrupadas[linea.presupuesto_id] = [];
+      setLineasPorPresupuesto(lineasAgrupadas);
+
+      // 2) Índices para unir Presupuesto + Catering + Producción.
+      const cateringPorPresupuesto = new Map(
+        cateringsBD
+          .filter((item) => item.presupuesto_id)
+          .map((item) => [String(item.presupuesto_id), item]),
+      );
+
+      const produccionPorPedido = new Map();
+
+      produccionHoy.forEach((linea) => {
+        const clave = String(linea.pedido_nombre || "").trim();
+        if (!clave) return;
+
+        if (!produccionPorPedido.has(clave)) {
+          produccionPorPedido.set(clave, []);
+        }
+
+        produccionPorPedido.get(clave).push(linea);
+      });
+
+      // 3) La base principal son TODOS los presupuestos aceptados de hoy.
+      //    Así nunca desaparecen del Dashboard aunque no exista fila en caterings.
+      const unificados = presupuestosHoy.map((presupuesto) => {
+        const catering =
+          cateringPorPresupuesto.get(String(presupuesto.id)) || null;
+
+        const produccion =
+          produccionPorPedido.get(String(presupuesto.numero || "").trim()) ||
+          [];
+
+        const cliente =
+          presupuesto.clientes ||
+          catering?.clientes ||
+          null;
+
+        const estadosProduccion = produccion.map((item) => item.estado);
+
+        let estadoProduccion = "Sin enviar";
+
+        if (estadosProduccion.length > 0) {
+          if (
+            estadosProduccion.every(
+              (estado) => estado === "Terminado",
+            )
+          ) {
+            estadoProduccion = "Terminado";
+          } else if (
+            estadosProduccion.some(
+              (estado) => estado === "En preparación",
+            )
+          ) {
+            estadoProduccion = "En preparación";
+          } else {
+            estadoProduccion = "Pendiente";
           }
+        }
 
-          agrupadas[linea.presupuesto_id].push(linea);
+        return {
+          id: catering?.id || `presupuesto-${presupuesto.id}`,
+          presupuesto_id: presupuesto.id,
+          numero: presupuesto.numero,
+          cliente_id:
+            presupuesto.cliente_id ||
+            catering?.cliente_id ||
+            null,
+          titulo:
+            catering?.titulo ||
+            presupuesto.numero ||
+            "Catering",
+          fecha: presupuesto.fecha,
+          hora_inicio:
+            catering?.hora_inicio ||
+            presupuesto.hora_entrega ||
+            null,
+          hora_fin: catering?.hora_fin || null,
+          direccion:
+            catering?.direccion ||
+            presupuesto.direccion_entrega ||
+            null,
+          poblacion: catering?.poblacion || null,
+          codigo_postal: catering?.codigo_postal || null,
+          numero_personas:
+            catering?.numero_personas || 0,
+          responsable:
+            catering?.responsable ||
+            presupuesto.persona_contacto ||
+            null,
+          telefono_contacto:
+            catering?.telefono_contacto ||
+            presupuesto.telefono_contacto ||
+            null,
+          tipo_servicio:
+            catering?.tipo_servicio ||
+            presupuesto.tipo_documento ||
+            "Catering",
+          observaciones:
+            catering?.observaciones ||
+            presupuesto.observaciones ||
+            null,
+          estado:
+            catering?.estado ||
+            presupuesto.estado ||
+            "Aceptado",
+          estado_produccion: estadoProduccion,
+          clientes: cliente,
+          lineas_produccion: produccion,
+          origen: catering ? "Presupuesto + Catering" : "Presupuesto",
+        };
+      });
+
+      // 4) Añadimos caterings creados manualmente que no tengan presupuesto.
+      cateringsBD.forEach((catering) => {
+        const yaExiste = unificados.some(
+          (item) =>
+            item.presupuesto_id &&
+            String(item.presupuesto_id) ===
+              String(catering.presupuesto_id),
+        );
+
+        if (yaExiste) return;
+
+        const produccion = produccionHoy.filter(
+          (linea) =>
+            (catering.id &&
+              String(linea.catering_id || "") ===
+                String(catering.id)) ||
+            String(linea.pedido_nombre || "") ===
+              String(catering.titulo || ""),
+        );
+
+        const estadosProduccion = produccion.map((item) => item.estado);
+
+        let estadoProduccion = "Sin enviar";
+
+        if (estadosProduccion.length > 0) {
+          if (
+            estadosProduccion.every(
+              (estado) => estado === "Terminado",
+            )
+          ) {
+            estadoProduccion = "Terminado";
+          } else if (
+            estadosProduccion.some(
+              (estado) => estado === "En preparación",
+            )
+          ) {
+            estadoProduccion = "En preparación";
+          } else {
+            estadoProduccion = "Pendiente";
+          }
+        }
+
+        unificados.push({
+          ...catering,
+          numero: catering.titulo || "",
+          estado_produccion: estadoProduccion,
+          lineas_produccion: produccion,
+          origen: "Catering",
         });
+      });
 
-        setLineasPorPresupuesto(agrupadas);
-      } else {
-        setLineasPorPresupuesto({});
-      }
+      unificados.sort((a, b) =>
+        String(a.hora_inicio || "99:99").localeCompare(
+          String(b.hora_inicio || "99:99"),
+        ),
+      );
+
+      setCateringsHoy(unificados);
     } catch (err) {
       console.error("Error al cargar dashboard:", err);
       setError(
@@ -317,10 +531,19 @@ function Dashboard() {
                       .filter(Boolean)
                       .join(", ");
 
-                    const lineas =
+                    const lineasPresupuesto =
                       lineasPorPresupuesto[
                         catering.presupuesto_id
                       ] || [];
+
+                    const lineas =
+                      lineasPresupuesto.length > 0
+                        ? lineasPresupuesto
+                        : (catering.lineas_produccion || []).map((linea) => ({
+                            id: `produccion-${linea.id}`,
+                            cantidad: linea.cantidad,
+                            descripcion: linea.producto_nombre,
+                          }));
 
                     return (
                       <article
@@ -329,19 +552,28 @@ function Dashboard() {
                       >
                         <div className="dashboard-catering-cabecera">
                           <div>
-                            <span
-                              className={`dashboard-estado estado-${normalizarClase(
-                                catering.estado,
-                              )}`}
-                            >
-                              {catering.estado || "Pendiente"}
-                            </span>
+                            <div className="dashboard-estados">
+                              <span
+                                className={`dashboard-estado estado-${normalizarClase(
+                                  catering.estado,
+                                )}`}
+                              >
+                                {catering.estado || "Pendiente"}
+                              </span>
+
+                              <span
+                                className={`dashboard-estado-produccion produccion-${normalizarClase(
+                                  catering.estado_produccion,
+                                )}`}
+                              >
+                                🏭 {catering.estado_produccion || "Sin enviar"}
+                              </span>
+                            </div>
 
                             <h3>{nombreCliente}</h3>
 
                             <p className="dashboard-pedido">
-                              {catering.titulo ||
-                                "Catering sin título"}
+                              {catering.numero || catering.titulo || "Catering sin título"}
                             </p>
                           </div>
 
@@ -762,6 +994,42 @@ const ESTILOS_DASHBOARD = `
   .dashboard-estado.estado-pendiente {
     background: #fff4d6;
     color: #8a6516;
+  }
+
+  .dashboard-estados {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .dashboard-estado-produccion {
+    display: inline-flex;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #f0edf2;
+    color: #625568;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .dashboard-estado-produccion.produccion-pendiente {
+    background: #fff4d6;
+    color: #8a6516;
+  }
+
+  .dashboard-estado-produccion.produccion-en-preparacion {
+    background: #e7f2ff;
+    color: #2d6f9f;
+  }
+
+  .dashboard-estado-produccion.produccion-terminado {
+    background: #e2f5e8;
+    color: #246840;
+  }
+
+  .dashboard-estado-produccion.produccion-sin-enviar {
+    background: #f0edf2;
+    color: #625568;
   }
 
   .dashboard-hora {

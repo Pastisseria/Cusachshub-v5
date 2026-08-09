@@ -1261,16 +1261,7 @@ function DocumentoEditor({
           presupuesto_id,
           producto_id,
           descripcion,
-          cantidad,
-          productos (
-            id,
-            nombre,
-            unidad,
-            unidad_medida,
-            zona_produccion,
-            zona,
-            seccion
-          )
+          cantidad
         `)
         .eq("presupuesto_id", documento.id)
         .order("created_at", { ascending: true });
@@ -1295,11 +1286,8 @@ function DocumentoEditor({
       const pedidoNombre = documento.numero || `Pedido ${documento.id}`;
 
       const nuevasLineas = lineasValidas.map((linea) => {
-        const producto = linea.productos || null;
         const productoNombre =
-          String(linea.descripcion || "").trim() ||
-          producto?.nombre ||
-          "Producto";
+          String(linea.descripcion || "").trim() || "Producto";
 
         return {
           catering_id: null,
@@ -1307,14 +1295,11 @@ function DocumentoEditor({
           cliente_nombre: clienteNombre,
           pedido_nombre: pedidoNombre,
           fecha: documento.fecha || fechaActual(),
-          zona: determinarZonaProduccionDirecta(producto, productoNombre),
+          zona: determinarZonaProduccionDirecta(null, productoNombre),
           producto_id: linea.producto_id || null,
           producto_nombre: productoNombre,
           cantidad: Number(linea.cantidad || 0),
-          unidad:
-            producto?.unidad ||
-            producto?.unidad_medida ||
-            "unidades",
+          unidad: "unidades",
           responsable: null,
           hora_limite: documento.hora_entrega || null,
           estado: "Pendiente",

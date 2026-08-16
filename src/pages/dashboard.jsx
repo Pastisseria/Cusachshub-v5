@@ -15,12 +15,13 @@ function Dashboard() {
   const [error, setError] = useState("");
 
   const hoyISO = obtenerFechaISO(new Date());
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(hoyISO);
 
   useEffect(() => {
-    cargarDashboard();
-  }, []);
+    cargarDashboard(fechaSeleccionada);
+  }, [fechaSeleccionada]);
 
-  async function cargarDashboard() {
+  async function cargarDashboard(fechaOperativa = fechaSeleccionada) {
     setCargando(true);
     setError("");
 
@@ -66,7 +67,7 @@ function Dashboard() {
               email
             )
           `)
-          .eq("fecha", hoyISO)
+          .eq("fecha", fechaOperativa)
           .eq("estado", "Aceptado")
           .order("hora_entrega", { ascending: true }),
 
@@ -97,7 +98,7 @@ function Dashboard() {
               email
             )
           `)
-          .eq("fecha", hoyISO)
+          .eq("fecha", fechaOperativa)
           .neq("estado", "Cancelado")
           .order("hora_inicio", { ascending: true }),
 
@@ -119,7 +120,7 @@ function Dashboard() {
             direccion_entrega,
             observaciones
           `)
-          .eq("fecha", hoyISO)
+          .eq("fecha", fechaOperativa)
           .neq("estado", "Cancelado")
           .order("hora_limite", { ascending: true }),
       ]);
@@ -386,6 +387,16 @@ function Dashboard() {
     }
   }
 
+  function cambiarDia(dias) {
+    const fechaBase = new Date(`${fechaSeleccionada}T12:00:00`);
+    fechaBase.setDate(fechaBase.getDate() + dias);
+    setFechaSeleccionada(obtenerFechaISO(fechaBase));
+  }
+
+  function volverAHoy() {
+    setFechaSeleccionada(hoyISO);
+  }
+
   const resumenHoy = useMemo(() => {
     const confirmados = cateringsHoy.filter((item) =>
       ["Aceptado", "Confirmado"].includes(item.estado),
@@ -418,14 +429,14 @@ function Dashboard() {
             <p className="dashboard-etiqueta">CUSACHS HUB</p>
             <h1>Dashboard de dirección</h1>
             <p className="dashboard-subtitulo">
-              Resumen del negocio y detalle operativo de hoy.
+              Resumen del negocio y detalle operativo por día.
             </p>
           </div>
 
           <button
             type="button"
             className="dashboard-recargar"
-            onClick={cargarDashboard}
+            onClick={() => cargarDashboard(fechaSeleccionada)}
             disabled={cargando}
           >
             {cargando ? "Actualizando..." : "🔄 Actualizar"}
@@ -470,14 +481,21 @@ function Dashboard() {
               <div className="dashboard-hoy-cabecera">
                 <div>
                   <p className="dashboard-etiqueta">
-                    OPERATIVA DE HOY
+                    OPERATIVA DEL DÍA
                   </p>
 
-                  <h2>Caterings de hoy</h2>
+                  <h2>Caterings del día</h2>
 
                   <p>
-                    {formatearFechaCompleta(hoyISO)}
+                    {formatearFechaCompleta(fechaSeleccionada)}
                   </p>
+
+                  <div className="dashboard-navegacion-fecha">
+                    <button type="button" onClick={() => cambiarDia(-1)}>← Día anterior</button>
+                    <button type="button" className="dashboard-hoy-boton" onClick={volverAHoy} disabled={fechaSeleccionada === hoyISO}>Hoy</button>
+                    <button type="button" onClick={() => cambiarDia(1)}>Día siguiente →</button>
+                    <input type="date" value={fechaSeleccionada} onChange={(event) => setFechaSeleccionada(event.target.value)} aria-label="Seleccionar fecha del dashboard" />
+                  </div>
                 </div>
 
                 <div className="dashboard-hoy-resumen">
@@ -506,9 +524,9 @@ function Dashboard() {
               {cateringsHoy.length === 0 ? (
                 <div className="dashboard-vacio">
                   <div className="dashboard-vacio-icono">✓</div>
-                  <h3>No hay caterings para hoy</h3>
+                  <h3>No hay caterings para este día</h3>
                   <p>
-                    Cuando haya servicios programados para hoy aparecerán
+                    Cuando haya servicios programados para este día aparecerán
                     aquí con todo el detalle.
                   </p>
                 </div>
@@ -1156,6 +1174,18 @@ const ESTILOS_DASHBOARD = `
     font-weight: 800;
     text-decoration: none;
   }
+
+  .dashboard-navegacion-fecha {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px;
+  }
+  .dashboard-navegacion-fecha button, .dashboard-navegacion-fecha input {
+    min-height: 40px; padding: 0 12px; border: 1px solid #d8cadd; border-radius: 10px;
+    background: #ffffff; color: #4b075e; font: inherit; font-weight: 800;
+  }
+  .dashboard-navegacion-fecha button { cursor: pointer; }
+  .dashboard-navegacion-fecha button:hover { background: #f6f0f8; }
+  .dashboard-navegacion-fecha .dashboard-hoy-boton { background: #4b075e; color: #ffffff; }
+  .dashboard-navegacion-fecha button:disabled { opacity: 0.45; cursor: default; }
 
   @media (max-width: 1100px) {
     .dashboard-resumen {

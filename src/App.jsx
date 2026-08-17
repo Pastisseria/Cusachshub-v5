@@ -19,6 +19,7 @@ import Bebidas from "./pages/bebidas.jsx";
 import Produccion from "./pages/produccion.jsx";
 import Ingredientes from "./pages/ingredientes.jsx";
 import Escandallos from "./pages/escandallos.jsx";
+import Recetas from "./pages/recetas.jsx";
 import DietarioAnual from "./pages/dietarioanual.jsx";
 import HorarioPersonal from "./pages/horariopersonal.jsx";
 import Proveedores from "./pages/proveedores.jsx";
@@ -64,6 +65,7 @@ function App() {
             <Route path="/produccion" element={<Produccion />} />
             <Route path="/ingredientes" element={<Ingredientes />} />
             <Route path="/escandallos" element={<Escandallos />} />
+            <Route path="/recetas" element={<Recetas />} />
             <Route path="/dietario" element={<DietarioAnual />} />
 
             {/* PERSONAL */}
@@ -98,7 +100,7 @@ function App() {
 
             {/* RUTA NO ENCONTRADA */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                      </Routes>
+          </Routes>
         </main>
       </div>
     </HashRouter>

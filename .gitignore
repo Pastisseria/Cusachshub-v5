@@ -13,4 +13,4 @@ build/
 # Sistema y editor
 .DS_Store
 Thumbs.db
-.vscode/
+.vscode/.env

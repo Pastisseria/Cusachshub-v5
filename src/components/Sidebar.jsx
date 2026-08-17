@@ -76,6 +76,10 @@ function Sidebar() {
           📊 Escandallos
         </NavLink>
 
+        <NavLink to="/recetas" className={claseEnlace}>
+          📖 Recetas
+        </NavLink>
+
         <NavLink to="/dietario" className={claseEnlace}>
           📅 Dietario
         </NavLink>

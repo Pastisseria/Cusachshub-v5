@@ -98,3 +98,11 @@ function App() {
 
             {/* RUTA NO ENCONTRADA */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                      </Routes>
+        </main>
+      </div>
+    </HashRouter>
+  );
+}
+
+export default App;

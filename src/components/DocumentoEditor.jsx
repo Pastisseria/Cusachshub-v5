@@ -675,13 +675,6 @@ function DocumentoEditor({
         throw errorLineas;
       }
 
-      /*
-       * Al insertar las líneas puede existir un trigger de Supabase que
-       * recalcule subtotal y total usando solo presupuesto_lineas.
-       * Ese recálculo no conoce el transporte y puede pisar los importes.
-       * Por eso volvemos a guardar los totales finales después de insertar
-       * todas las líneas.
-       */
       const totalesFinales = {
         transporte: convertirNumero(transporte),
         transporte_iva: convertirNumero(transporteIva),
@@ -824,7 +817,6 @@ function DocumentoEditor({
       setAbriendo(false);
     }
   }
-
 
   async function duplicarDocumento(documento) {
     setAbriendo(true);
@@ -1012,6 +1004,7 @@ function DocumentoEditor({
 
       const cliente = documento.clientes ?? {};
       const numeroFactura = generarNumeroFactura();
+
       const direccionCompleta = [
         cliente.direccion,
         [cliente.codigo_postal, cliente.poblacion].filter(Boolean).join(" "),
@@ -1038,10 +1031,6 @@ function DocumentoEditor({
           ? tiposIva[0]
           : Number(documento.tipo_iva || 10);
 
-      /*
-       * Usamos los totales guardados en el presupuesto porque ya incluyen
-       * el transporte interno. El transporte no se añade como línea visible.
-       */
       const baseImponible = Number(documento.subtotal || 0);
       const importeIva = Number(documento.iva_total || 0);
       const totalFactura = Number(
@@ -1137,7 +1126,6 @@ function DocumentoEditor({
       setFacturando(false);
     }
   }
-
 
   function obtenerNombreClienteProduccion(documento) {
     const cliente = documento?.clientes || null;
@@ -1284,8 +1272,6 @@ function DocumentoEditor({
         documento.numero ||
         `${documento.tipo_documento || "Pedido"} ${documento.id}`;
 
-      // Borramos solo las líneas automáticas anteriores de este mismo pedido.
-      // Esto evita duplicados al volver a pulsar "Enviar / actualizar Producción".
       let consultaBorrado = supabase
         .from("producciones")
         .delete()
@@ -1307,9 +1293,6 @@ function DocumentoEditor({
       const { error: errorBorrado } = await consultaBorrado;
       if (errorBorrado) throw errorBorrado;
 
-      // IMPORTANTE:
-      // estos son exactamente los mismos campos que usa guardarLinea()
-      // en produccion.jsx, que ya hemos comprobado que funciona.
       const nuevasProducciones = lineasValidas.map((linea) => {
         const productoNombre =
           String(linea.descripcion || "").trim() || "Producto";
@@ -1336,8 +1319,6 @@ function DocumentoEditor({
         };
       });
 
-      // Insertamos una por una, igual que hace el alta manual.
-      // Si una línea falla, sabremos exactamente cuál es.
       for (const datos of nuevasProducciones) {
         const { error: errorInsercion } = await supabase
           .from("producciones")
@@ -1345,7 +1326,9 @@ function DocumentoEditor({
 
         if (errorInsercion) {
           throw new Error(
-            `${datos.producto_nombre}: ${errorInsercion.message || "Error al guardar en Producción"}`,
+            `${datos.producto_nombre}: ${
+              errorInsercion.message || "Error al guardar en Producción"
+            }`,
           );
         }
       }
@@ -1623,6 +1606,7 @@ function DocumentoEditor({
   return (
     <section className="panel">
       <style>{ESTILOS_ESTADOS_PRESUPUESTO}</style>
+
       <div className="titulo-seccion">
         <div>
           <p className="etiqueta">{etiqueta}</p>
@@ -1839,7 +1823,13 @@ function DocumentoEditor({
         </div>
       )}
 
-      <div className="formulario" style={{ marginBottom: "22px", padding: "18px" }}>
+      <div
+        className="formulario"
+        style={{
+          marginBottom: "22px",
+          padding: "18px",
+        }}
+      >
         <div className="rejilla-presupuesto">
           <label>
             Buscar
@@ -1877,6 +1867,7 @@ function DocumentoEditor({
                 onChange={(event) => setFiltroTipo(event.target.value)}
               >
                 <option value="">Todos los tipos</option>
+
                 {TIPOS_DOCUMENTO.map((tipo) => (
                   <option key={tipo} value={tipo}>
                     {tipo}
@@ -1905,7 +1896,9 @@ function DocumentoEditor({
                 Tipo de documento *
                 <select
                   value={tipoDocumento}
-                  onChange={(event) => cambiarTipoDocumento(event.target.value)}
+                  onChange={(event) =>
+                    cambiarTipoDocumento(event.target.value)
+                  }
                   disabled={guardando}
                   required
                 >
@@ -1923,11 +1916,14 @@ function DocumentoEditor({
                 Visitador médico *
                 <select
                   value={visitadorSeleccionadoId}
-                  onChange={(event) => seleccionarVisitador(event.target.value)}
+                  onChange={(event) =>
+                    seleccionarVisitador(event.target.value)
+                  }
                   disabled={guardando}
                   required
                 >
                   <option value="">Selecciona un visitador médico</option>
+
                   {visitadoresMedicos.map((visitador) => (
                     <option key={visitador.id} value={visitador.id}>
                       {obtenerNombreVisitador(visitador)}
@@ -1948,6 +1944,7 @@ function DocumentoEditor({
                   required
                 >
                   <option value="">Selecciona un cliente</option>
+
                   {clientes.map((cliente) => (
                     <option key={cliente.id} value={cliente.id}>
                       {cliente.nombre}
@@ -2024,7 +2021,9 @@ function DocumentoEditor({
                   <input
                     type="text"
                     value={visitadorNombre}
-                    onChange={(event) => setVisitadorNombre(event.target.value)}
+                    onChange={(event) =>
+                      setVisitadorNombre(event.target.value)
+                    }
                     disabled={guardando}
                     required
                   />
@@ -2139,7 +2138,9 @@ function DocumentoEditor({
                     className="linea-presupuesto"
                     key={linea.temporalId}
                   >
-                    <div className="numero-linea">{indice + 1}</div>
+                    <div className="numero-linea">
+                      {indice + 1}
+                    </div>
 
                     <label className="campo-producto">
                       Producto
@@ -2153,7 +2154,10 @@ function DocumentoEditor({
                         }
                         disabled={guardando}
                       >
-                        <option value="">Línea manual / servicio</option>
+                        <option value="">
+                          Línea manual / servicio
+                        </option>
+
                         {productos.map((producto) => (
                           <option key={producto.id} value={producto.id}>
                             {producto.nombre}
@@ -2243,7 +2247,9 @@ function DocumentoEditor({
                     <button
                       type="button"
                       className="boton-eliminar-linea"
-                      onClick={() => eliminarLinea(linea.temporalId)}
+                      onClick={() =>
+                        eliminarLinea(linea.temporalId)
+                      }
                       disabled={guardando}
                       title="Eliminar línea"
                     >
@@ -2264,7 +2270,9 @@ function DocumentoEditor({
               background: "#faf7fc",
             }}
           >
-            <h3 style={{ marginTop: 0 }}>🚚 Transporte interno</h3>
+            <h3 style={{ marginTop: 0 }}>
+              🚚 Transporte interno
+            </h3>
 
             <p
               style={{
@@ -2285,7 +2293,9 @@ function DocumentoEditor({
                   min="0"
                   step="0.01"
                   value={transporte}
-                  onChange={(event) => setTransporte(event.target.value)}
+                  onChange={(event) =>
+                    setTransporte(event.target.value)
+                  }
                   disabled={guardando}
                   placeholder="0,00"
                 />
@@ -2295,7 +2305,9 @@ function DocumentoEditor({
                 IVA del transporte
                 <select
                   value={transporteIva}
-                  onChange={(event) => setTransporteIva(event.target.value)}
+                  onChange={(event) =>
+                    setTransporteIva(event.target.value)
+                  }
                   disabled={guardando}
                 >
                   <option value="0">0 %</option>
@@ -2307,11 +2319,18 @@ function DocumentoEditor({
             </div>
           </div>
 
-          <label style={{ display: "block", marginTop: "24px" }}>
+          <label
+            style={{
+              display: "block",
+              marginTop: "24px",
+            }}
+          >
             Observaciones
             <textarea
               value={observaciones}
-              onChange={(event) => setObservaciones(event.target.value)}
+              onChange={(event) =>
+                setObservaciones(event.target.value)
+              }
               disabled={guardando}
               rows="4"
               placeholder="Condiciones, horarios, entrega, montaje..."
@@ -2382,6 +2401,7 @@ function DocumentoEditor({
 
               <div className="presupuesto-print-titulo">
                 <h1>{textos.presupuesto}</h1>
+
                 <div className="presupuesto-print-numero">
                   {documentoAbierto.numero}
                 </div>
@@ -2398,6 +2418,7 @@ function DocumentoEditor({
                   }}
                 >
                   Idioma
+
                   <select
                     value={idiomaDocumento}
                     onChange={(event) =>
@@ -2435,6 +2456,7 @@ function DocumentoEditor({
                     }}
                   >
                     Fecha servicio
+
                     <input
                       id={`fecha-servicio-${documentoAbierto.id}`}
                       type="date"
@@ -2470,7 +2492,9 @@ function DocumentoEditor({
 
                 <button
                   type="button"
-                  onClick={() => editarDocumento(documentoAbierto)}
+                  onClick={() =>
+                    editarDocumento(documentoAbierto)
+                  }
                   disabled={abriendo}
                 >
                   ✏️ Editar
@@ -2491,7 +2515,8 @@ function DocumentoEditor({
 
             <section className="presupuesto-print-datos">
               <div className="presupuesto-print-cliente">
-                {documentoAbierto.tipo_documento !== "Visitador médico" && (
+                {documentoAbierto.tipo_documento !==
+                  "Visitador médico" && (
                   <h2>● {textos.cliente}</h2>
                 )}
 
@@ -2513,31 +2538,47 @@ function DocumentoEditor({
               <div className="presupuesto-print-detalles">
                 <p>
                   <strong>▣ {textos.fecha}</strong>
-                  <span>{formatearFecha(documentoAbierto.fecha)}</span>
+                  <span>
+                    {formatearFecha(documentoAbierto.fecha)}
+                  </span>
                 </p>
 
                 <p>
                   <strong>▣ {textos.validoHasta}</strong>
-                  <span>{formatearFecha(documentoAbierto.validez_hasta)}</span>
+                  <span>
+                    {formatearFecha(documentoAbierto.validez_hasta)}
+                  </span>
                 </p>
 
                 <p>
                   <strong>◷ {textos.horaEntrega}</strong>
-                  <span>{documentoAbierto.hora_entrega || "—"}</span>
+                  <span>
+                    {documentoAbierto.hora_entrega || "—"}
+                  </span>
                 </p>
 
                 <p>
                   <strong>⌖ {textos.direccion}</strong>
-                  <span>{documentoAbierto.direccion_entrega || "—"}</span>
+                  <span>
+                    {documentoAbierto.direccion_entrega || "—"}
+                  </span>
                 </p>
               </div>
 
               <label className="presupuesto-estado no-imprimir">
                 Estado
+
                 <select
-                  value={documentoAbierto.estado === "Enviado" ? "Borrador" : documentoAbierto.estado}
+                  value={
+                    documentoAbierto.estado === "Enviado"
+                      ? "Borrador"
+                      : documentoAbierto.estado
+                  }
                   onChange={(event) =>
-                    cambiarEstado(documentoAbierto.id, event.target.value)
+                    cambiarEstado(
+                      documentoAbierto.id,
+                      event.target.value,
+                    )
                   }
                 >
                   {ESTADOS_DOCUMENTO.map((estadoDocumento) => (
@@ -2558,10 +2599,12 @@ function DocumentoEditor({
                   <strong>{textos.nombre}</strong>{" "}
                   {documentoAbierto.visitador_nombre || "—"}
                 </p>
+
                 <p>
                   <strong>{textos.laboratorio}</strong>{" "}
                   {documentoAbierto.laboratorio || "—"}
                 </p>
+
                 <p>
                   <strong>{textos.centroMedico}</strong>{" "}
                   {documentoAbierto.centro_medico || "—"}
@@ -2576,8 +2619,12 @@ function DocumentoEditor({
               </div>
 
               {lineasAbiertas.map((linea) => (
-                <div className="presupuesto-print-fila" key={linea.id}>
+                <div
+                  className="presupuesto-print-fila"
+                  key={linea.id}
+                >
                   <strong>{linea.cantidad}</strong>
+
                   <span>
                     {obtenerDescripcionTraducida(
                       linea,
@@ -2592,8 +2639,10 @@ function DocumentoEditor({
             <section className="presupuesto-print-cierre">
               <div className="presupuesto-print-observaciones">
                 <h3>◌ {textos.observaciones}</h3>
+
                 <p>
-                  {documentoAbierto.observaciones || textos.textoDefecto}
+                  {documentoAbierto.observaciones ||
+                    textos.textoDefecto}
                 </p>
               </div>
 
@@ -2604,17 +2653,24 @@ function DocumentoEditor({
 
                 <p>
                   <span>Base imponible</span>
-                  <strong>{formatearEuros(documentoAbierto.subtotal)}</strong>
+                  <strong>
+                    {formatearEuros(documentoAbierto.subtotal)}
+                  </strong>
                 </p>
 
                 <p>
                   <span>IVA</span>
-                  <strong>{formatearEuros(documentoAbierto.iva_total)}</strong>
+                  <strong>
+                    {formatearEuros(documentoAbierto.iva_total)}
+                  </strong>
                 </p>
 
                 <p className="presupuesto-print-total-final">
                   <span>{textos.total}</span>
-                  <strong>{formatearEuros(documentoAbierto.total)}</strong>
+
+                  <strong>
+                    {formatearEuros(documentoAbierto.total)}
+                  </strong>
                 </p>
               </div>
             </section>
@@ -2632,12 +2688,24 @@ function DocumentoEditor({
               type="button"
               onClick={() => {
                 const limpiarImpresion = () => {
-                  document.body.classList.remove("imprimiendo-documento");
-                  window.removeEventListener("afterprint", limpiarImpresion);
+                  document.body.classList.remove(
+                    "imprimiendo-documento",
+                  );
+
+                  window.removeEventListener(
+                    "afterprint",
+                    limpiarImpresion,
+                  );
                 };
 
-                document.body.classList.add("imprimiendo-documento");
-                window.addEventListener("afterprint", limpiarImpresion);
+                document.body.classList.add(
+                  "imprimiendo-documento",
+                );
+
+                window.addEventListener(
+                  "afterprint",
+                  limpiarImpresion,
+                );
 
                 window.requestAnimationFrame(() => {
                   window.requestAnimationFrame(() => {
@@ -2655,7 +2723,10 @@ function DocumentoEditor({
                   type="button"
                   className="boton-aceptar-presupuesto"
                   onClick={() =>
-                    cambiarEstado(documentoAbierto.id, "Aceptado")
+                    cambiarEstado(
+                      documentoAbierto.id,
+                      "Aceptado",
+                    )
                   }
                 >
                   ✅ Aceptar presupuesto
@@ -2666,7 +2737,10 @@ function DocumentoEditor({
               <button
                 type="button"
                 onClick={() =>
-                  cambiarEstado(documentoAbierto.id, "Borrador")
+                  cambiarEstado(
+                    documentoAbierto.id,
+                    "Borrador",
+                  )
                 }
               >
                 🟡 Volver a Pendiente
@@ -2677,7 +2751,10 @@ function DocumentoEditor({
               <button
                 type="button"
                 onClick={() =>
-                  cambiarEstado(documentoAbierto.id, "Borrador")
+                  cambiarEstado(
+                    documentoAbierto.id,
+                    "Borrador",
+                  )
                 }
               >
                 ↩️ Reactivar como Pendiente
@@ -2694,7 +2771,10 @@ function DocumentoEditor({
                   );
 
                   if (confirmar) {
-                    cambiarEstado(documentoAbierto.id, "Cancelado");
+                    cambiarEstado(
+                      documentoAbierto.id,
+                      "Cancelado",
+                    );
                   }
                 }}
               >
@@ -2705,7 +2785,9 @@ function DocumentoEditor({
             {documentoAbierto.estado === "Aceptado" ? (
               <button
                 type="button"
-                onClick={() => enviarAProduccion(documentoAbierto)}
+                onClick={() =>
+                  enviarAProduccion(documentoAbierto)
+                }
                 disabled={programandoCatering}
               >
                 {programandoCatering
@@ -2724,7 +2806,9 @@ function DocumentoEditor({
 
             <button
               type="button"
-              onClick={() => generarFactura(documentoAbierto)}
+              onClick={() =>
+                generarFactura(documentoAbierto)
+              }
               disabled={
                 facturando ||
                 Boolean(documentoAbierto.factura_id) ||
@@ -2748,12 +2832,18 @@ function DocumentoEditor({
         </div>
       )}
 
-      {cargando && <p className="mensaje">Cargando documentos...</p>}
+      {cargando && (
+        <p className="mensaje">
+          Cargando documentos...
+        </p>
+      )}
 
       {!cargando && documentosFiltrados.length === 0 && (
         <div className="estado-vacio">
           <h3>No hay documentos guardados</h3>
-          <p>Pulsa “Nuevo documento” para crear el primero.</p>
+          <p>
+            Pulsa “Nuevo documento” para crear el primero.
+          </p>
         </div>
       )}
 
@@ -2777,20 +2867,28 @@ function DocumentoEditor({
               {documentosFiltrados.map((documento) => (
                 <tr key={documento.id}>
                   <td>
-                    <strong>{documento.numero || "—"}</strong>
+                    <strong>
+                      {documento.numero || "—"}
+                    </strong>
                   </td>
 
-                  <td>{formatearFecha(documento.fecha)}</td>
+                  <td>
+                    {formatearFecha(documento.fecha)}
+                  </td>
 
                   <td>
-                    {documento.tipo_documento === "Visitador médico"
-                      ? documento.visitador_nombre || "Visitador no disponible"
+                    {documento.tipo_documento ===
+                    "Visitador médico"
+                      ? documento.visitador_nombre ||
+                        "Visitador no disponible"
                       : documento.clientes?.empresa ||
                         documento.clientes?.nombre ||
                         "Cliente no disponible"}
                   </td>
 
-                  <td>{documento.tipo_documento || "Catering"}</td>
+                  <td>
+                    {documento.tipo_documento || "Catering"}
+                  </td>
 
                   <td>
                     <span
@@ -2803,11 +2901,15 @@ function DocumentoEditor({
                   </td>
 
                   <td>
-                    {formatearEuros(documento.transporte || 0)}
+                    {formatearEuros(
+                      documento.transporte || 0,
+                    )}
                   </td>
 
                   <td>
-                    <strong>{formatearEuros(documento.total)}</strong>
+                    <strong>
+                      {formatearEuros(documento.total)}
+                    </strong>
                   </td>
 
                   <td>
@@ -2815,7 +2917,9 @@ function DocumentoEditor({
                       <button
                         type="button"
                         className="boton-ficha"
-                        onClick={() => abrirDocumento(documento)}
+                        onClick={() =>
+                          abrirDocumento(documento)
+                        }
                         disabled={abriendo}
                       >
                         👁 Abrir
@@ -2823,7 +2927,9 @@ function DocumentoEditor({
 
                       <button
                         type="button"
-                        onClick={() => editarDocumento(documento)}
+                        onClick={() =>
+                          editarDocumento(documento)
+                        }
                         disabled={abriendo}
                       >
                         ✏ Editar
@@ -2831,7 +2937,9 @@ function DocumentoEditor({
 
                       <button
                         type="button"
-                        onClick={() => duplicarDocumento(documento)}
+                        onClick={() =>
+                          duplicarDocumento(documento)
+                        }
                         disabled={abriendo}
                       >
                         📋 Duplicar
@@ -2840,7 +2948,9 @@ function DocumentoEditor({
                       <button
                         type="button"
                         className="boton-peligro"
-                        onClick={() => eliminarDocumento(documento)}
+                        onClick={() =>
+                          eliminarDocumento(documento)
+                        }
                       >
                         🗑
                       </button>
@@ -2852,7 +2962,6 @@ function DocumentoEditor({
           </table>
         </div>
       )}
-
     </section>
   );
 }
@@ -2874,18 +2983,34 @@ function normalizarEstadoDocumento(estado) {
 
 function obtenerNombreProducto(producto, idioma = "es") {
   if (!producto) return "";
-  if (idioma === "ca") return producto.nombre_ca || producto.nombre || "";
-  if (idioma === "en") return producto.nombre_en || producto.nombre || "";
+
+  if (idioma === "ca") {
+    return producto.nombre_ca || producto.nombre || "";
+  }
+
+  if (idioma === "en") {
+    return producto.nombre_en || producto.nombre || "";
+  }
+
   return producto.nombre || "";
 }
 
-function obtenerDescripcionTraducida(linea, idioma, productos) {
-  const descripcionActual = String(linea?.descripcion || "").trim();
+function obtenerDescripcionTraducida(
+  linea,
+  idioma,
+  productos,
+) {
+  const descripcionActual = String(
+    linea?.descripcion || "",
+  ).trim();
+
   let producto = linea?.productos || null;
 
   if (!producto && linea?.producto_id) {
     producto = productos.find(
-      (elemento) => String(elemento.id) === String(linea.producto_id),
+      (elemento) =>
+        String(elemento.id) ===
+        String(linea.producto_id),
     );
   }
 
@@ -2897,22 +3022,25 @@ function obtenerDescripcionTraducida(linea, idioma, productos) {
     producto.nombre_en,
   ]
     .filter(Boolean)
-    .map((nombre) => normalizarTextoProducto(nombre));
+    .map((nombre) =>
+      normalizarTextoProducto(nombre),
+    );
 
   const descripcionNormalizada =
     normalizarTextoProducto(descripcionActual);
 
-  /*
-   * Si el usuario ha cambiado la descripción manualmente, manda el texto
-   * guardado en presupuesto_lineas y NO se sustituye por el catálogo.
-   * Solo traducimos si la descripción sigue siendo uno de los nombres
-   * oficiales del producto.
-   */
-  if (!nombresOficiales.includes(descripcionNormalizada)) {
+  if (
+    !nombresOficiales.includes(
+      descripcionNormalizada,
+    )
+  ) {
     return descripcionActual;
   }
 
-  return obtenerNombreProducto(producto, idioma) || descripcionActual;
+  return (
+    obtenerNombreProducto(producto, idioma) ||
+    descripcionActual
+  );
 }
 
 function normalizarTextoProducto(valor) {
@@ -2956,34 +3084,104 @@ function obtenerCentroVisitador(visitador) {
 
 function calcularLinea(linea) {
   const cantidad = convertirNumero(linea.cantidad);
-  const precio = convertirNumero(linea.precio_unitario);
+  const precio = convertirNumero(
+    linea.precio_unitario,
+  );
   const iva = convertirNumero(linea.iva);
-  const subtotal = redondear(cantidad * precio);
-  const importeIva = redondear(subtotal * (iva / 100));
-  const total = redondear(subtotal + importeIva);
 
-  return { subtotal, importeIva, total };
+  const subtotal = redondear(
+    cantidad * precio,
+  );
+
+  const importeIva = redondear(
+    subtotal * (iva / 100),
+  );
+
+  const total = redondear(
+    subtotal + importeIva,
+  );
+
+  return {
+    subtotal,
+    importeIva,
+    total,
+  };
 }
 
-function calcularTotales(lineas, transporte = 0, transporteIva = 10) {
+/*
+ * ============================================================
+ * CÁLCULO GENERAL DEL PRESUPUESTO
+ * ============================================================
+ *
+ * El IVA total se redondea al múltiplo de 0,05 € más cercano.
+ *
+ * Ejemplo:
+ *
+ * Base imponible: 893,75 €
+ * IVA matemático: 89,375 €
+ * IVA mostrado:    89,40 €
+ * TOTAL:           983,15 €
+ *
+ * De esta manera:
+ *
+ * 893,75 + 89,40 = 983,15 €
+ *
+ * ============================================================
+ */
+function calcularTotales(
+  lineas,
+  transporte = 0,
+  transporteIva = 10,
+) {
   const baseProductos = redondear(
     lineas.reduce((acumulado, linea) => {
       const calculo = calcularLinea(linea);
+
       return acumulado + calculo.subtotal;
     }, 0),
   );
 
-  const baseTransporte = convertirNumero(transporte);
-  const tipoIva = convertirNumero(transporteIva) || 10;
+  const baseTransporte =
+    convertirNumero(transporte);
+
+  const tipoIva =
+    convertirNumero(transporteIva) || 10;
 
   const baseImponible = redondear(
     baseProductos + baseTransporte,
   );
 
+  /*
+   * Calculamos primero el IVA matemático.
+   *
+   * Ejemplo:
+   * 893,75 × 10 % = 89,375
+   */
+  const ivaCalculado =
+    baseImponible * (tipoIva / 100);
+
+  /*
+   * Redondeo al múltiplo de 0,05 € más cercano.
+   *
+   * 89,375 € -> 89,40 €
+   *
+   * Multiplicamos por 20 porque:
+   * 1 / 0,05 = 20
+   */
   const ivaTotal = redondear(
-    baseImponible * (tipoIva / 100),
+    Math.round(
+      (ivaCalculado + Number.EPSILON) * 20,
+    ) / 20,
   );
 
+  /*
+   * El TOTAL siempre se obtiene sumando:
+   *
+   * base imponible + IVA redondeado.
+   *
+   * De esta manera nunca aparecerá un descuadre
+   * entre las cifras mostradas.
+   */
   const total = redondear(
     baseImponible + ivaTotal,
   );
@@ -2999,31 +3197,67 @@ function calcularTotales(lineas, transporte = 0, transporteIva = 10) {
   };
 }
 
+/*
+ * Se mantiene esta función por compatibilidad
+ * con el resto del DocumentoEditor.
+ */
 function redondearA05(numero) {
-  return Math.round((Number(numero || 0) + Number.EPSILON) * 2) / 2;
+  return (
+    Math.round(
+      (Number(numero || 0) + Number.EPSILON) *
+        2,
+    ) / 2
+  );
 }
 
 function convertirNumero(valor) {
-  const numero = Number(String(valor ?? "0").replace(",", "."));
-  return Number.isFinite(numero) ? numero : 0;
+  const numero = Number(
+    String(valor ?? "0").replace(",", "."),
+  );
+
+  return Number.isFinite(numero)
+    ? numero
+    : 0;
 }
 
 function redondear(numero) {
-  return Math.round((numero + Number.EPSILON) * 100) / 100;
+  return (
+    Math.round(
+      (numero + Number.EPSILON) * 100,
+    ) / 100
+  );
 }
 
 function fechaActual() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date()
+    .toISOString()
+    .slice(0, 10);
 }
 
 function generarNumeroDocumento(tipoDocumento) {
   const ahora = new Date();
+
   const año = ahora.getFullYear();
-  const mes = String(ahora.getMonth() + 1).padStart(2, "0");
-  const dia = String(ahora.getDate()).padStart(2, "0");
-  const hora = String(ahora.getHours()).padStart(2, "0");
-  const minutos = String(ahora.getMinutes()).padStart(2, "0");
-  const segundos = String(ahora.getSeconds()).padStart(2, "0");
+
+  const mes = String(
+    ahora.getMonth() + 1,
+  ).padStart(2, "0");
+
+  const dia = String(
+    ahora.getDate(),
+  ).padStart(2, "0");
+
+  const hora = String(
+    ahora.getHours(),
+  ).padStart(2, "0");
+
+  const minutos = String(
+    ahora.getMinutes(),
+  ).padStart(2, "0");
+
+  const segundos = String(
+    ahora.getSeconds(),
+  ).padStart(2, "0");
 
   const prefijos = {
     Catering: "CAT",
@@ -3034,13 +3268,16 @@ function generarNumeroDocumento(tipoDocumento) {
     Otro: "OTR",
   };
 
-  const prefijo = prefijos[tipoDocumento] || "DOC";
+  const prefijo =
+    prefijos[tipoDocumento] || "DOC";
+
   return `${prefijo}-${año}${mes}${dia}-${hora}${minutos}${segundos}`;
 }
 
 function generarNumeroFactura() {
   const ahora = new Date();
   const año = ahora.getFullYear();
+
   const marca = [
     ahora.getMonth() + 1,
     ahora.getDate(),
@@ -3048,33 +3285,46 @@ function generarNumeroFactura() {
     ahora.getMinutes(),
     ahora.getSeconds(),
   ]
-    .map((valor) => String(valor).padStart(2, "0"))
+    .map((valor) =>
+      String(valor).padStart(2, "0"),
+    )
     .join("");
 
   return `F-${año}-${marca}`;
 }
 
 function formatearEuros(valor) {
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-  }).format(Number(valor || 0));
+  return new Intl.NumberFormat(
+    "es-ES",
+    {
+      style: "currency",
+      currency: "EUR",
+    },
+  ).format(Number(valor || 0));
 }
 
 function formatearPorcentaje(valor) {
-  return `(${new Intl.NumberFormat("es-ES", {
-    maximumFractionDigits: 2,
-  }).format(Number(valor || 0))} %)`;
+  return `(${new Intl.NumberFormat(
+    "es-ES",
+    {
+      maximumFractionDigits: 2,
+    },
+  ).format(Number(valor || 0))} %)`;
 }
 
 function formatearFecha(fecha) {
   if (!fecha) return "—";
 
-  return new Intl.DateTimeFormat("es-ES", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(`${fecha}T12:00:00`));
+  return new Intl.DateTimeFormat(
+    "es-ES",
+    {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    },
+  ).format(
+    new Date(`${fecha}T12:00:00`),
+  );
 }
 
 export default DocumentoEditor;

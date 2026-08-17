@@ -9,6 +9,7 @@ import '../styles/recetas.css';
 const EMPTY_RECIPE = {
   name: '', area: 'obrador', description: '', yield_quantity: 1,
   yield_unit: 'unidades', process: '', product_id: '', cost_sheet_id: '', active: true,
+  allergens: [],
 };
 
 const EMPTY_ITEM = {
@@ -17,6 +18,14 @@ const EMPTY_ITEM = {
 };
 
 const UNITS = ['g', 'kg', 'ml', 'l', 'unidad', 'docena', 'ración'];
+
+const ALLERGENS = [
+  ['gluten', 'Gluten'], ['crustaceos', 'Crustáceos'], ['huevos', 'Huevos'],
+  ['pescado', 'Pescado'], ['cacahuetes', 'Cacahuetes'], ['soja', 'Soja'],
+  ['leche', 'Leche'], ['frutos_de_cascara', 'Frutos de cáscara'], ['apio', 'Apio'],
+  ['mostaza', 'Mostaza'], ['sesamo', 'Sésamo'], ['sulfitos', 'Sulfitos'],
+  ['altramuces', 'Altramuces'], ['moluscos', 'Moluscos'],
+];
 
 const money = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
 const number = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 3 });
@@ -47,6 +56,12 @@ function RecipeForm({ initial, onCancel, onSaved }) {
   ]);
 
   const removeItem = (index) => setItems((current) => current.filter((_, i) => i !== index));
+  const toggleAllergen = (allergen) => setRecipe((current) => ({
+    ...current,
+    allergens: (current.allergens || []).includes(allergen)
+      ? current.allergens.filter((value) => value !== allergen)
+      : [...(current.allergens || []), allergen],
+  }));
 
   async function save(event) {
     event.preventDefault();
@@ -67,6 +82,7 @@ function RecipeForm({ initial, onCancel, onSaved }) {
         product_id: recipe.product_id || null,
         cost_sheet_id: recipe.cost_sheet_id || null,
         active: recipe.active,
+        allergens: recipe.allergens || [],
       };
 
       let recipeId = initial?.recipe?.id;
@@ -141,6 +157,18 @@ function RecipeForm({ initial, onCancel, onSaved }) {
             <button type="button" className="icon-button icon-button--danger" onClick={() => removeItem(index)} disabled={items.length === 1} aria-label="Eliminar ingrediente"><Trash2 size={17} /></button>
           </div>
         ))}
+      </div>
+
+      <div className="recipe-allergens">
+        <div className="recipe-section-title"><div><h3>Alérgenos</h3><p>Marca todos los presentes en la receta o sus ingredientes.</p></div></div>
+        <div className="allergen-selector">
+          {ALLERGENS.map(([value, label]) => (
+            <label className={(recipe.allergens || []).includes(value) ? 'selected' : ''} key={value}>
+              <input type="checkbox" checked={(recipe.allergens || []).includes(value)} onChange={() => toggleAllergen(value)} />
+              {label}
+            </label>
+          ))}
+        </div>
       </div>
 
       <label>Proceso / elaboración<textarea rows="7" value={recipe.process || ''} onChange={(e) => setField('process', e.target.value)} placeholder={'1. Preparar los ingredientes…\n2. Amasar…\n3. Fermentar…'} /></label>
@@ -219,6 +247,7 @@ export default function Recetas() {
             return <article className="recipe-card" key={recipe.id}>
               <div className="recipe-card__top"><span className={`area-badge area-badge--${recipe.area}`}>{recipe.area === 'cocina' ? <ChefHat size={15} /> : <Croissant size={15} />}{recipe.area}</span><span className={`status-dot ${recipe.active ? '' : 'inactive'}`}>{recipe.active ? 'Activa' : 'Inactiva'}</span></div>
               <h2>{recipe.name}</h2><p>{recipe.description || 'Sin descripción'}</p>
+              {(recipe.allergens || []).length > 0 ? <div className="allergen-badges" aria-label="Alérgenos">{recipe.allergens.map((value) => <span key={value}>{ALLERGENS.find(([key]) => key === value)?.[1] || value}</span>)}</div> : <div className="allergen-badges allergen-badges--empty">Alérgenos sin indicar</div>}
               <div className="recipe-card__meta"><span><Package size={16} />{number.format(recipe.yield_quantity)} {recipe.yield_unit}</span><span><Calculator size={16} />{money.format(perUnit)} / {recipe.yield_unit}</span></div>
               <div className="recipe-card__cost"><span>Coste receta</span><strong>{money.format(total)}</strong></div>
               <div className="recipe-card__actions"><button className="secondary-button" onClick={() => setEditor({ recipe, items: recipe.recipe_ingredients })}><Edit3 size={16} />Editar</button><button className="icon-button icon-button--danger" onClick={() => removeRecipe(recipe)} aria-label="Eliminar receta"><Trash2 size={17} /></button></div>

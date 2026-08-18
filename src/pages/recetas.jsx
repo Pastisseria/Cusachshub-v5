@@ -36,7 +36,22 @@ function normalizedCost(item) {
   return quantity * unitCost;
 }
 
-function RecipeForm({ initial, onCancel, onSaved }) {
+function sourceRecipeUnitCost(sourceRecipe, targetUnit) {
+  if (!sourceRecipe) return 0;
+  const total = (sourceRecipe.recipe_ingredients || []).reduce(
+    (sum, item) => sum + normalizedCost(item), 0,
+  );
+  const sourceUnit = String(sourceRecipe.yield_unit || '').toLowerCase();
+  const unit = String(targetUnit || sourceUnit).toLowerCase();
+  const costPerSourceUnit = total / Math.max(Number(sourceRecipe.yield_quantity) || 1, 1);
+  if (sourceUnit === 'kg' && unit === 'g') return costPerSourceUnit / 1000;
+  if (sourceUnit === 'g' && unit === 'kg') return costPerSourceUnit * 1000;
+  if (sourceUnit === 'l' && unit === 'ml') return costPerSourceUnit / 1000;
+  if (sourceUnit === 'ml' && unit === 'l') return costPerSourceUnit * 1000;
+  return costPerSourceUnit;
+}
+
+function RecipeForm({ initial, availableRecipes, onCancel, onSaved }) {
   const [recipe, setRecipe] = useState(initial?.recipe ?? EMPTY_RECIPE);
   const [items, setItems] = useState(initial?.items?.length ? initial.items : [{ ...EMPTY_ITEM }]);
   const [saving, setSaving] = useState(false);
@@ -62,6 +77,29 @@ function RecipeForm({ initial, onCancel, onSaved }) {
       ? current.allergens.filter((value) => value !== allergen)
       : [...(current.allergens || []), allergen],
   }));
+
+  const selectSourceRecipe = (index, sourceId) => {
+    const source = availableRecipes.find((candidate) => candidate.id === sourceId);
+    setItems((current) => current.map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+      if (!source) return { ...item, source_id: '', name: '', unit_cost: 0 };
+      const sourceUnit = source.yield_unit === 'unidades' ? 'unidad' : source.yield_unit;
+      return {
+        ...item,
+        source_type: 'recipe',
+        source_id: source.id,
+        name: source.name,
+        unit: sourceUnit,
+        unit_cost: sourceRecipeUnitCost(source, sourceUnit),
+      };
+    }));
+    if (source?.allergens?.length) {
+      setRecipe((current) => ({
+        ...current,
+        allergens: [...new Set([...(current.allergens || []), ...source.allergens])],
+      }));
+    }
+  };
 
   async function save(event) {
     event.preventDefault();
@@ -148,11 +186,24 @@ function RecipeForm({ initial, onCancel, onSaved }) {
         <div className="ingredients-table__head"><span>Ingrediente</span><span>Cantidad</span><span>Unidad</span><span>Origen</span><span>Coste/u.</span><span>Total</span><span /></div>
         {items.map((item, index) => (
           <div className="ingredients-table__row" key={item.id || index}>
-            <input value={item.name} onChange={(e) => setItem(index, 'name', e.target.value)} placeholder="Harina de fuerza" />
+            {item.source_type === 'recipe' ? (
+              <select value={item.source_id || ''} onChange={(e) => selectSourceRecipe(index, e.target.value)}>
+                <option value="">Selecciona receta base…</option>
+                {availableRecipes.filter((candidate) => candidate.id !== initial?.recipe?.id).map((candidate) => (
+                  <option value={candidate.id} key={candidate.id}>{candidate.name} · {candidate.yield_quantity} {candidate.yield_unit}</option>
+                ))}
+              </select>
+            ) : <input value={item.name} onChange={(e) => setItem(index, 'name', e.target.value)} placeholder="Harina de fuerza" />}
             <input type="number" min="0" step="0.001" value={item.quantity} onChange={(e) => setItem(index, 'quantity', e.target.value)} />
             <select value={item.unit} onChange={(e) => setItem(index, 'unit', e.target.value)}>{UNITS.map((unit) => <option key={unit}>{unit}</option>)}</select>
-            <select value={item.source_type} onChange={(e) => setItem(index, 'source_type', e.target.value)}><option value="manual">Manual</option><option value="product">Producto</option><option value="cost_sheet">Escandallo</option><option value="recipe">Otra receta</option></select>
-            <input type="number" min="0" step="0.0001" value={item.unit_cost} onChange={(e) => setItem(index, 'unit_cost', e.target.value)} />
+            <select value={item.source_type} onChange={(e) => {
+              const nextType = e.target.value;
+              setItems((current) => current.map((currentItem, itemIndex) => itemIndex === index ? {
+                ...currentItem, source_type: nextType,
+                ...(nextType === 'recipe' ? { source_id: '', name: '', unit_cost: 0 } : { source_id: '' }),
+              } : currentItem));
+            }}><option value="manual">Manual</option><option value="product">Producto</option><option value="cost_sheet">Escandallo</option><option value="recipe">Otra receta</option></select>
+            <input type="number" min="0" step="0.0001" value={item.unit_cost} onChange={(e) => setItem(index, 'unit_cost', e.target.value)} readOnly={item.source_type === 'recipe'} title={item.source_type === 'recipe' ? 'Calculado desde la receta base' : ''} />
             <strong>{money.format(normalizedCost(item))}</strong>
             <button type="button" className="icon-button icon-button--danger" onClick={() => removeItem(index)} disabled={items.length === 1} aria-label="Eliminar ingrediente"><Trash2 size={17} /></button>
           </div>
@@ -218,7 +269,7 @@ export default function Recetas() {
     if (deleteError) setError(deleteError.message); else loadRecipes();
   }
 
-  if (editor) return <RecipeForm initial={editor === 'new' ? null : editor} onCancel={() => setEditor(null)} onSaved={() => { setEditor(null); loadRecipes(); }} />;
+  if (editor) return <RecipeForm initial={editor === 'new' ? null : editor} availableRecipes={recipes} onCancel={() => setEditor(null)} onSaved={() => { setEditor(null); loadRecipes(); }} />;
 
   return (
     <main className="recipes-page">

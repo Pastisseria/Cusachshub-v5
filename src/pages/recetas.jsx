@@ -51,7 +51,22 @@ function sourceRecipeUnitCost(sourceRecipe, targetUnit) {
   return costPerSourceUnit;
 }
 
-function RecipeForm({ initial, availableRecipes, onCancel, onSaved }) {
+const normalizeName = (value) => String(value || '').trim().toLocaleLowerCase('es');
+const recipeUnitFromCatalog = (unit) => unit === 'ud.' ? 'unidad' : unit;
+
+function catalogUnitCost(ingredient, targetUnit) {
+  if (!ingredient) return 0;
+  const sourceUnit = recipeUnitFromCatalog(String(ingredient.unidad || '').toLowerCase());
+  const unit = String(targetUnit || sourceUnit).toLowerCase();
+  const cost = Number(ingredient.precio_coste) || 0;
+  if (sourceUnit === 'kg' && unit === 'g') return cost / 1000;
+  if (sourceUnit === 'g' && unit === 'kg') return cost * 1000;
+  if (sourceUnit === 'l' && unit === 'ml') return cost / 1000;
+  if (sourceUnit === 'ml' && unit === 'l') return cost * 1000;
+  return cost;
+}
+
+function RecipeForm({ initial, availableRecipes, availableIngredients, onCancel, onSaved }) {
   const [recipe, setRecipe] = useState(initial?.recipe ?? EMPTY_RECIPE);
   const [items, setItems] = useState(initial?.items?.length ? initial.items : [{ ...EMPTY_ITEM }]);
   const [saving, setSaving] = useState(false);
@@ -101,6 +116,32 @@ function RecipeForm({ initial, availableRecipes, onCancel, onSaved }) {
     }
   };
 
+  const selectCatalogIngredient = (index, ingredientId) => {
+    const ingredient = availableIngredients.find((candidate) => candidate.id === ingredientId);
+    setItems((current) => current.map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+      if (!ingredient) return { ...item, source_id: '', name: '', unit_cost: 0 };
+      const unit = recipeUnitFromCatalog(ingredient.unidad);
+      return {
+        ...item,
+        source_type: 'ingredient',
+        source_id: ingredient.id,
+        name: ingredient.nombre,
+        unit,
+        unit_cost: catalogUnitCost(ingredient, unit),
+      };
+    }));
+  };
+
+  const recognizeCatalogIngredient = (index) => {
+    const item = items[index];
+    if (!item || item.source_type !== 'manual') return;
+    const ingredient = availableIngredients.find(
+      (candidate) => normalizeName(candidate.nombre) === normalizeName(item.name),
+    );
+    if (ingredient) selectCatalogIngredient(index, ingredient.id);
+  };
+
   async function save(event) {
     event.preventDefault();
     setError('');
@@ -110,6 +151,40 @@ function RecipeForm({ initial, availableRecipes, onCancel, onSaved }) {
 
     setSaving(true);
     try {
+      const preparedItems = [];
+      for (const item of validItems) {
+        if (item.source_type !== 'manual') {
+          preparedItems.push(item);
+          continue;
+        }
+        let ingredient = availableIngredients.find(
+          (candidate) => normalizeName(candidate.nombre) === normalizeName(item.name),
+        );
+        if (!ingredient) {
+          const catalogPayload = {
+            nombre: item.name.trim(),
+            unidad: item.unit === 'unidad' ? 'ud.' : item.unit,
+            precio_coste: Number(item.unit_cost) || 0,
+            iva: 10,
+            stock_total: 0,
+            stock_minimo: 0,
+            activo: true,
+            updated_at: new Date().toISOString(),
+          };
+          const { data, error: catalogError } = await supabase
+            .from('ingredientes').insert(catalogPayload).select('*').single();
+          if (catalogError) throw catalogError;
+          ingredient = data;
+        }
+        preparedItems.push({
+          ...item,
+          source_type: 'ingredient',
+          source_id: ingredient.id,
+          name: ingredient.nombre,
+          unit_cost: catalogUnitCost(ingredient, item.unit),
+        });
+      }
+
       const payload = {
         name: recipe.name.trim(),
         area: recipe.area,
@@ -135,7 +210,7 @@ function RecipeForm({ initial, availableRecipes, onCancel, onSaved }) {
         recipeId = data.id;
       }
 
-      const ingredientPayload = validItems.map((item, index) => ({
+      const ingredientPayload = preparedItems.map((item, index) => ({
         recipe_id: recipeId,
         name: item.name.trim(),
         quantity: Number(item.quantity),
@@ -193,22 +268,28 @@ function RecipeForm({ initial, availableRecipes, onCancel, onSaved }) {
                   <option value={candidate.id} key={candidate.id}>{candidate.name} · {candidate.yield_quantity} {candidate.yield_unit}</option>
                 ))}
               </select>
-            ) : <input value={item.name} onChange={(e) => setItem(index, 'name', e.target.value)} placeholder="Harina de fuerza" />}
+            ) : item.source_type === 'ingredient' ? (
+              <select value={item.source_id || ''} onChange={(e) => selectCatalogIngredient(index, e.target.value)}>
+                <option value="">Selecciona ingrediente…</option>
+                {availableIngredients.map((ingredient) => <option value={ingredient.id} key={ingredient.id}>{ingredient.nombre} · {money.format(ingredient.precio_coste || 0)} / {ingredient.unidad}</option>)}
+              </select>
+            ) : <input list="recipe-ingredient-catalog" value={item.name} onChange={(e) => setItem(index, 'name', e.target.value)} onBlur={() => recognizeCatalogIngredient(index)} placeholder="Harina de fuerza" />}
             <input type="number" min="0" step="0.001" value={item.quantity} onChange={(e) => setItem(index, 'quantity', e.target.value)} />
             <select value={item.unit} onChange={(e) => setItem(index, 'unit', e.target.value)}>{UNITS.map((unit) => <option key={unit}>{unit}</option>)}</select>
             <select value={item.source_type} onChange={(e) => {
               const nextType = e.target.value;
               setItems((current) => current.map((currentItem, itemIndex) => itemIndex === index ? {
                 ...currentItem, source_type: nextType,
-                ...(nextType === 'recipe' ? { source_id: '', name: '', unit_cost: 0 } : { source_id: '' }),
+                ...(['recipe', 'ingredient'].includes(nextType) ? { source_id: '', name: '', unit_cost: 0 } : { source_id: '' }),
               } : currentItem));
-            }}><option value="manual">Manual</option><option value="product">Producto</option><option value="cost_sheet">Escandallo</option><option value="recipe">Otra receta</option></select>
-            <input type="number" min="0" step="0.0001" value={item.unit_cost} onChange={(e) => setItem(index, 'unit_cost', e.target.value)} readOnly={item.source_type === 'recipe'} title={item.source_type === 'recipe' ? 'Calculado desde la receta base' : ''} />
+            }}><option value="manual">Nuevo / manual</option><option value="ingredient">Catálogo</option><option value="product">Producto</option><option value="cost_sheet">Escandallo</option><option value="recipe">Otra receta</option></select>
+            <input type="number" min="0" step="0.0001" value={item.unit_cost} onChange={(e) => setItem(index, 'unit_cost', e.target.value)} readOnly={['recipe', 'ingredient'].includes(item.source_type)} title={['recipe', 'ingredient'].includes(item.source_type) ? 'Calculado desde el catálogo o la receta base' : ''} />
             <strong>{money.format(normalizedCost(item))}</strong>
             <button type="button" className="icon-button icon-button--danger" onClick={() => removeItem(index)} disabled={items.length === 1} aria-label="Eliminar ingrediente"><Trash2 size={17} /></button>
           </div>
         ))}
       </div>
+      <datalist id="recipe-ingredient-catalog">{availableIngredients.map((ingredient) => <option value={ingredient.nombre} key={ingredient.id} />)}</datalist>
 
       <div className="recipe-allergens">
         <div className="recipe-section-title"><div><h3>Alérgenos</h3><p>Marca todos los presentes en la receta o sus ingredientes.</p></div></div>
@@ -237,6 +318,7 @@ function RecipeForm({ initial, availableRecipes, onCancel, onSaved }) {
 
 export default function Recetas() {
   const [recipes, setRecipes] = useState([]);
+  const [catalogIngredients, setCatalogIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [area, setArea] = useState('all');
@@ -245,12 +327,24 @@ export default function Recetas() {
 
   const loadRecipes = useCallback(async () => {
     setLoading(true); setError('');
-    const { data, error: queryError } = await supabase
-      .from('recipes')
-      .select('*, recipe_ingredients(*)')
-      .order('updated_at', { ascending: false });
+    const [recipeResult, ingredientResult] = await Promise.all([
+      supabase.from('recipes').select('*, recipe_ingredients(*)').order('updated_at', { ascending: false }),
+      supabase.from('ingredientes').select('*').eq('activo', true).order('nombre', { ascending: true }),
+    ]);
+    const queryError = recipeResult.error || ingredientResult.error;
     if (queryError) setError(queryError.message);
-    else setRecipes(data || []);
+    else {
+      const catalog = ingredientResult.data || [];
+      setCatalogIngredients(catalog);
+      setRecipes((recipeResult.data || []).map((recipe) => ({
+        ...recipe,
+        recipe_ingredients: (recipe.recipe_ingredients || []).map((item) => {
+          if (item.source_type !== 'ingredient' || !item.source_id) return item;
+          const ingredient = catalog.find((candidate) => candidate.id === item.source_id);
+          return ingredient ? { ...item, unit_cost: catalogUnitCost(ingredient, item.unit) } : item;
+        }),
+      })));
+    }
     setLoading(false);
   }, []);
 
@@ -269,7 +363,7 @@ export default function Recetas() {
     if (deleteError) setError(deleteError.message); else loadRecipes();
   }
 
-  if (editor) return <RecipeForm initial={editor === 'new' ? null : editor} availableRecipes={recipes} onCancel={() => setEditor(null)} onSaved={() => { setEditor(null); loadRecipes(); }} />;
+  if (editor) return <RecipeForm initial={editor === 'new' ? null : editor} availableRecipes={recipes} availableIngredients={catalogIngredients} onCancel={() => setEditor(null)} onSaved={() => { setEditor(null); loadRecipes(); }} />;
 
   return (
     <main className="recipes-page">

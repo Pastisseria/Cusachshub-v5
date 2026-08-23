@@ -3280,7 +3280,7 @@ function calcularTotales(
   const tipoIva =
     convertirNumero(transporteIva) || 10;
 
-  const baseImponible = redondear(
+  const baseImponibleOriginal = redondear(
     baseProductos + baseTransporte,
   );
 
@@ -3291,7 +3291,7 @@ function calcularTotales(
    * 893,75 × 10 % = 89,375
    */
   const ivaCalculado =
-    baseImponible * (tipoIva / 100);
+    baseImponibleOriginal * (tipoIva / 100);
 
   /*
    * Redondeo al múltiplo de 0,05 € más cercano.
@@ -3306,6 +3306,16 @@ function calcularTotales(
       (ivaCalculado + Number.EPSILON) * 20,
     ) / 20,
   );
+
+  /*
+   * Ajustamos tambien la base para que el IVA mostrado sea
+   * exactamente el porcentaje indicado. Ejemplo al 10 %:
+   * 521,75 -> IVA 52,20 -> base ajustada 522,00.
+   */
+  const baseImponible =
+    tipoIva > 0
+      ? redondear(ivaTotal * (100 / tipoIva))
+      : baseImponibleOriginal;
 
   /*
    * El TOTAL siempre se obtiene sumando:

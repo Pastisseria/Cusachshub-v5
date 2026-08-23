@@ -738,11 +738,14 @@ function PresupuestosEstandar() {
         })),
       ];
 
-      const subtotal = redondear(
+      const subtotalOriginal = redondear(
         personas * precioPorPersona,
       );
 
-      const ivaTotal = redondear(subtotal * 0.1);
+      const ivaTotal = redondear(
+        Math.round((subtotalOriginal * 0.1 + Number.EPSILON) * 20) / 20,
+      );
+      const subtotal = redondear(ivaTotal * 10);
       const total = redondear(subtotal + ivaTotal);
 
       const datosDocumento = {

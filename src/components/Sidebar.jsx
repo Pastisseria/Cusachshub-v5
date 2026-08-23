@@ -4,6 +4,10 @@ function Sidebar() {
   const claseEnlace = ({ isActive }) =>
     isActive ? "menu-item active" : "menu-item";
 
+  function mostrarListadoPresupuestos() {
+    window.dispatchEvent(new CustomEvent("cusachs:mostrar-listado-presupuestos"));
+  }
+
   return (
     <aside className="sidebar">
       <div className="logo">
@@ -31,7 +35,11 @@ function Sidebar() {
           🍰 Productos
         </NavLink>
 
-        <NavLink to="/presupuestos" className={claseEnlace}>
+        <NavLink
+          to="/presupuestos"
+          className={claseEnlace}
+          onClick={mostrarListadoPresupuestos}
+        >
           📄 Presupuestos
         </NavLink>
 

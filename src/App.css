@@ -2002,6 +2002,98 @@ comparador-page {
 
 .documento-factura-imprimir { display: none; }
 
+.documentos-listado {
+  display: grid;
+  gap: 16px;
+}
+
+.documentos-vistas {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.documentos-vistas button.active {
+  background: #3f004d;
+  color: #fff;
+}
+
+.documentos-carpetas {
+  display: grid;
+  gap: 10px;
+}
+
+.documentos-carpeta {
+  overflow: hidden;
+  border: 1px solid #e1d5e5;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.documentos-carpeta.abierta {
+  border-color: #b78bc9;
+  box-shadow: 0 8px 24px rgba(63, 0, 77, 0.08);
+}
+
+.documentos-carpeta-cabecera {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: 0;
+  background: #faf7fb;
+  color: #2e1634;
+  text-align: left;
+}
+
+.documentos-carpeta-cabecera:hover {
+  background: #f3eaf6;
+}
+
+.documentos-carpeta-icono {
+  font-size: 22px;
+}
+
+.documentos-carpeta-nombre {
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.documentos-carpeta-resumen {
+  color: #73547b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.documentos-carpeta-flecha {
+  color: #6d3979;
+  font-size: 12px;
+}
+
+.documentos-carpeta .tabla-responsive {
+  border-top: 1px solid #eadfed;
+}
+
+.documentos-carpeta .tabla-facturas th {
+  background: #f8f2fa;
+}
+
+@media (max-width: 700px) {
+  .documentos-carpeta-cabecera {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .documentos-carpeta-resumen {
+    grid-column: 2 / 4;
+  }
+}
+
 @media (max-width: 900px) {
   .dashboard-grid,
   .facturacion-resumen,

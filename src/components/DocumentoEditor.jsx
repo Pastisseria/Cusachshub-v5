@@ -171,6 +171,8 @@ function DocumentoEditor({
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
+  const [vistaListado, setVistaListado] = useState("clientes");
+  const [grupoAbierto, setGrupoAbierto] = useState("");
 
   const [tipoDocumento, setTipoDocumento] = useState(
     tipoDocumentoFijo || "Catering",
@@ -424,6 +426,53 @@ function DocumentoEditor({
       return coincideBusqueda && coincideEstado && coincideTipo;
     });
   }, [documentos, busqueda, filtroEstado, filtroTipo, tipoDocumentoFijo]);
+
+  const documentosPorCliente = useMemo(() => {
+    const grupos = new Map();
+
+    documentosFiltrados.forEach((documento) => {
+      const esVisitador = documento.tipo_documento === "Visitador mÃ©dico";
+      const nombre = esVisitador
+        ? documento.visitador_nombre || "Visitador no disponible"
+        : documento.clientes?.empresa ||
+          documento.clientes?.nombre ||
+          "Sin cliente asignado";
+      const clave = esVisitador
+        ? `visitador-${nombre}`
+        : documento.clientes?.id
+          ? `cliente-${documento.clientes.id}`
+          : "sin-cliente";
+
+      if (!grupos.has(clave)) {
+        grupos.set(clave, { clave, nombre, documentos: [] });
+      }
+
+      grupos.get(clave).documentos.push(documento);
+    });
+
+    return [...grupos.values()].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }),
+    );
+  }, [documentosFiltrados]);
+
+  function volverAlListado() {
+    setMostrarFormulario(false);
+    setDocumentoEditando(null);
+    setDocumentoAbierto(null);
+    setLineasAbiertas([]);
+    setAsistenteVisible(false);
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  useEffect(() => {
+    window.addEventListener("cusachs:mostrar-listado-presupuestos", volverAlListado);
+    return () =>
+      window.removeEventListener(
+        "cusachs:mostrar-listado-presupuestos",
+        volverAlListado,
+      );
+  }, []);
 
   function abrirNuevoDocumento() {
     setDocumentoEditando(null);
@@ -1823,7 +1872,7 @@ function DocumentoEditor({
         </div>
       )}
 
-      <div
+      {!mostrarFormulario && !documentoAbierto && <div
         className="formulario"
         style={{
           marginBottom: "22px",
@@ -1877,7 +1926,7 @@ function DocumentoEditor({
             </label>
           )}
         </div>
-      </div>
+      </div>}
 
       {error && <p className="mensaje-error">Error: {error}</p>}
       {mensaje && <p className="mensaje">{mensaje}</p>}
@@ -2838,7 +2887,7 @@ function DocumentoEditor({
         </p>
       )}
 
-      {!cargando && documentosFiltrados.length === 0 && (
+      {!mostrarFormulario && !documentoAbierto && !cargando && documentosFiltrados.length === 0 && (
         <div className="estado-vacio">
           <h3>No hay documentos guardados</h3>
           <p>
@@ -2847,8 +2896,94 @@ function DocumentoEditor({
         </div>
       )}
 
-      {!cargando && documentosFiltrados.length > 0 && (
-        <div className="tabla-responsive no-imprimir">
+      {!mostrarFormulario && !documentoAbierto && !cargando && documentosFiltrados.length > 0 && (
+        <div className="documentos-listado no-imprimir">
+          <div className="documentos-vistas" role="group" aria-label="Vista de documentos">
+            <button
+              type="button"
+              className={vistaListado === "clientes" ? "active" : "boton-secundario"}
+              onClick={() => setVistaListado("clientes")}
+            >
+              📁 Por clientes ({documentosPorCliente.length})
+            </button>
+            <button
+              type="button"
+              className={vistaListado === "todos" ? "active" : "boton-secundario"}
+              onClick={() => setVistaListado("todos")}
+            >
+              📄 Todos ({documentosFiltrados.length})
+            </button>
+          </div>
+
+          {vistaListado === "clientes" ? (
+            <div className="documentos-carpetas">
+              {documentosPorCliente.map((grupo) => {
+                const abierto = grupoAbierto === grupo.clave;
+                const pendientes = grupo.documentos.filter(
+                  (documento) =>
+                    !documento.estado ||
+                    documento.estado === "Borrador" ||
+                    documento.estado === "Enviado",
+                ).length;
+
+                return (
+                  <section className={`documentos-carpeta ${abierto ? "abierta" : ""}`} key={grupo.clave}>
+                    <button
+                      type="button"
+                      className="documentos-carpeta-cabecera"
+                      aria-expanded={abierto}
+                      onClick={() => setGrupoAbierto(abierto ? "" : grupo.clave)}
+                    >
+                      <span className="documentos-carpeta-icono">{abierto ? "📂" : "📁"}</span>
+                      <span className="documentos-carpeta-nombre">{grupo.nombre}</span>
+                      <span className="documentos-carpeta-resumen">
+                        {grupo.documentos.length} {grupo.documentos.length === 1 ? "documento" : "documentos"}
+                        {pendientes > 0 &&
+                          ` · ${pendientes} ${pendientes === 1 ? "pendiente" : "pendientes"}`}
+                      </span>
+                      <span className="documentos-carpeta-flecha">{abierto ? "▲" : "▼"}</span>
+                    </button>
+
+                    {abierto && (
+                      <TablaDocumentos
+                        documentos={grupo.documentos}
+                        abriendo={abriendo}
+                        abrirDocumento={abrirDocumento}
+                        editarDocumento={editarDocumento}
+                        duplicarDocumento={duplicarDocumento}
+                        eliminarDocumento={eliminarDocumento}
+                      />
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            <TablaDocumentos
+              documentos={documentosFiltrados}
+              abriendo={abriendo}
+              abrirDocumento={abrirDocumento}
+              editarDocumento={editarDocumento}
+              duplicarDocumento={duplicarDocumento}
+              eliminarDocumento={eliminarDocumento}
+            />
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TablaDocumentos({
+  documentos,
+  abriendo,
+  abrirDocumento,
+  editarDocumento,
+  duplicarDocumento,
+  eliminarDocumento,
+}) {
+  return (
+    <div className="tabla-responsive">
           <table className="tabla-facturas">
             <thead>
               <tr>
@@ -2864,7 +2999,7 @@ function DocumentoEditor({
             </thead>
 
             <tbody>
-              {documentosFiltrados.map((documento) => (
+              {documentos.map((documento) => (
                 <tr key={documento.id}>
                   <td>
                     <strong>
@@ -2961,8 +3096,6 @@ function DocumentoEditor({
             </tbody>
           </table>
         </div>
-      )}
-    </section>
   );
 }
 

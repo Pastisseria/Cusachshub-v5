@@ -4,6 +4,7 @@ import {
   Route,
   Routes,
 } from "react-router-dom";
+import { useState } from "react";
 
 import Sidebar from "./components/Sidebar.jsx";
 
@@ -38,10 +39,35 @@ import ModuloPendiente from "./pages/modulopendiente.jsx";
 import "./App.css";
 
 function App() {
+  const [menuAbierto, setMenuAbierto] = useState(false);
+
   return (
     <HashRouter>
       <div className="app">
-        <Sidebar />
+        <button
+          type="button"
+          className="boton-menu-tablet"
+          aria-label="Abrir menú principal"
+          aria-expanded={menuAbierto}
+          onClick={() => setMenuAbierto(true)}
+        >
+          <span aria-hidden="true">☰</span>
+          Menú
+        </button>
+
+        <Sidebar
+          abierto={menuAbierto}
+          onCerrar={() => setMenuAbierto(false)}
+        />
+
+        {menuAbierto && (
+          <button
+            type="button"
+            className="fondo-menu-tablet"
+            aria-label="Cerrar menú principal"
+            onClick={() => setMenuAbierto(false)}
+          />
+        )}
 
         <main className="contenido">
           <Routes>

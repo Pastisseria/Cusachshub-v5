@@ -472,6 +472,7 @@ function Catering() {
           <div className="catering-navegacion">
             <button
               type="button"
+              aria-label="Mes anterior"
               onClick={() => cambiarMes(-1)}
             >
               ←
@@ -487,6 +488,7 @@ function Catering() {
 
             <button
               type="button"
+              aria-label="Mes siguiente"
               onClick={() => cambiarMes(1)}
             >
               →
@@ -654,8 +656,9 @@ function Catering() {
                 <div
                   key={dia}
                   className="calendario-nombre-dia"
+                  data-dia-corto={dia.slice(0, 3)}
                 >
-                  {dia}
+                  <span>{dia}</span>
                 </div>
               ))}
             </div>
@@ -1519,6 +1522,87 @@ const ESTILOS_CATERING = `
 
     .boton-eliminar {
       margin-left: 0;
+    }
+  }
+
+  @media (max-width: 1050px) {
+    .catering-panel {
+      padding: 22px;
+    }
+
+    .catering-cabecera {
+      align-items: flex-start;
+    }
+
+    .catering-acciones-cabecera {
+      justify-content: flex-end;
+    }
+
+    .catering-acciones-cabecera button,
+    .catering-navegacion button {
+      min-width: 48px;
+      min-height: 48px;
+      touch-action: manipulation;
+    }
+
+    .calendario-contenedor {
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .calendario-semana,
+    .calendario-rejilla {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      min-width: 0;
+    }
+
+    .calendario-nombre-dia {
+      padding: 11px 4px;
+      font-size: 13px;
+    }
+
+    .calendario-nombre-dia span {
+      display: none;
+    }
+
+    .calendario-nombre-dia::after {
+      content: attr(data-dia-corto);
+    }
+
+    .calendario-dia {
+      min-height: 112px;
+      padding: 40px 5px 6px;
+    }
+
+    .calendario-evento {
+      padding: 5px;
+      font-size: 11px;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .catering-panel {
+      padding: 16px;
+    }
+
+    .catering-barra h3 {
+      text-align: center;
+    }
+
+    .catering-navegacion {
+      justify-content: center;
+    }
+
+    .calendario-dia {
+      min-height: 86px;
+    }
+
+    .calendario-evento {
+      display: block;
+    }
+
+    .calendario-evento strong {
+      display: block;
     }
   }
 `;

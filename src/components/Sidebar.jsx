@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 
-function Sidebar() {
+function Sidebar({ abierto = false, onCerrar }) {
   const claseEnlace = ({ isActive }) =>
     isActive ? "menu-item active" : "menu-item";
 
@@ -9,9 +9,23 @@ function Sidebar() {
   }
 
   return (
-    <aside className="sidebar">
+    <aside
+      className={`sidebar${abierto ? " sidebar-abierta" : ""}`}
+      aria-label="Menú principal"
+      onClick={(event) => {
+        if (event.target.closest("a")) onCerrar?.();
+      }}
+    >
       <div className="logo">
         <h2>CUSACHS HUB</h2>
+        <button
+          type="button"
+          className="cerrar-menu-tablet"
+          aria-label="Cerrar menú principal"
+          onClick={onCerrar}
+        >
+          ×
+        </button>
       </div>
 
       {/* INICIO */}

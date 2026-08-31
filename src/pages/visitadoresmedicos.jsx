@@ -324,7 +324,7 @@ function VisitadoresMedicos() {
                   <button type="button" onClick={() => generarFactura(visitador)}>
                     🧾 Generar factura
                   </button>
-                  <button type="button" className="boton-ficha" onClick={() => navigate(`/visitadores-medicos/${visitador.id}`)}>
+                  <button type="button" className="boton-ficha" onClick={() => navigate(`/visitadores/${visitador.id}`)}>
                     👤 Abrir ficha
                   </button>
                   <button type="button" onClick={() => empezarEdicion(visitador)}>✏️ Editar</button>

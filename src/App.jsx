@@ -31,6 +31,7 @@ import ImportadorAlbaranes from "./pages/ImportadorAlbaranes.jsx";
 import ImportadorAlbaranesV3 from "./pages/ImportadorAlbaranesV3.jsx";
 import Albaranes from "./pages/albaranes.jsx";
 import VisitadoresMedicos from "./pages/visitadoresmedicos.jsx";
+import FichaVisitador from "./pages/fichavisitador.jsx";
 import ImportadorEmails from "./pages/ImportadorEmails.jsx";
 import Facturacion from "./pages/facturacion.jsx";
 import Estadisticas from "./pages/estadisticas.jsx";
@@ -114,6 +115,7 @@ function App() {
 
             {/* VISITADORES */}
             <Route path="/visitadores" element={<VisitadoresMedicos />} />
+            <Route path="/visitadores/:id" element={<FichaVisitador />} />
 
             {/* ADMINISTRACIÓN */}
             <Route path="/importar-emails" element={<ImportadorEmails />} />

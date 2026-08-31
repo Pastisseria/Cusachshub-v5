@@ -226,7 +226,7 @@ function FichaVisitador() {
         <button
           type="button"
           onClick={() =>
-            navigate("/visitadores-medicos")
+            navigate("/visitadores")
           }
         >
           ← Volver a visitadores
@@ -256,7 +256,7 @@ function FichaVisitador() {
         <button
           type="button"
           onClick={() =>
-            navigate("/visitadores-medicos")
+            navigate("/visitadores")
           }
         >
           ← Volver a visitadores

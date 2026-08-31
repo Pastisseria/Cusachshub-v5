@@ -789,6 +789,15 @@ function DocumentoEditor({
   }
 
   async function editarDocumento(documento) {
+    if (
+      documento.factura_id &&
+      !window.confirm(
+        "Este presupuesto ya está facturado. Puedes modificar el presupuesto, pero la factura emitida no cambiará automáticamente. ¿Quieres continuar?",
+      )
+    ) {
+      return;
+    }
+
     setAbriendo(true);
     setError("");
     setMensaje("");
@@ -2783,6 +2792,14 @@ function DocumentoEditor({
           </div>
 
           <div className="acciones documento-acciones no-imprimir">
+            <button
+              type="button"
+              onClick={() => editarDocumento(documentoAbierto)}
+              disabled={abriendo}
+            >
+              ✏️ Modificar presupuesto
+            </button>
+
             <button
               type="button"
               onClick={() => {

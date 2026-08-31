@@ -1407,6 +1407,43 @@ function DocumentoEditor({
     }
   }
 
+  async function sincronizarCateringDelDocumento(documento) {
+    if (!documento?.id || documento.tipo_documento !== "Catering") return;
+
+    const cliente = documento.clientes || {};
+    const tituloCliente =
+      cliente.empresa || cliente.nombre || documento.visitador_nombre || "Cliente";
+    const datosCatering = {
+      cliente_id: documento.cliente_id || null,
+      presupuesto_id: documento.id,
+      titulo: `${tituloCliente} · ${documento.numero || "Catering"}`,
+      fecha: documento.fecha || fechaActual(),
+      hora_inicio: documento.hora_entrega || null,
+      direccion: documento.direccion_entrega || cliente.direccion || null,
+      poblacion: cliente.poblacion || null,
+      codigo_postal: cliente.codigo_postal || null,
+      responsable: documento.persona_contacto || null,
+      telefono_contacto: documento.telefono_contacto || null,
+      estado: "Confirmado",
+      observaciones: documento.observaciones || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: cateringExistente, error: errorBusqueda } = await supabase
+      .from("caterings")
+      .select("id")
+      .eq("presupuesto_id", documento.id)
+      .maybeSingle();
+
+    if (errorBusqueda) throw errorBusqueda;
+
+    const consulta = cateringExistente?.id
+      ? supabase.from("caterings").update(datosCatering).eq("id", cateringExistente.id)
+      : supabase.from("caterings").insert(datosCatering);
+    const { error: errorCatering } = await consulta;
+    if (errorCatering) throw errorCatering;
+  }
+
   async function cambiarFechaDocumento(documentoId, nuevaFecha) {
     if (!nuevaFecha) return;
 
@@ -1573,6 +1610,7 @@ function DocumentoEditor({
         : null;
 
       if (nuevoEstado === "Aceptado" && documentoActualizado) {
+        await sincronizarCateringDelDocumento(documentoActualizado);
         await enviarAProduccion(documentoActualizado, { silencioso: true });
       }
 
@@ -1596,7 +1634,7 @@ function DocumentoEditor({
 
       setMensaje(
         nuevoEstado === "Aceptado"
-          ? "✅ Presupuesto aceptado y pedido enviado automáticamente a Producción."
+          ? "✅ Presupuesto aceptado y añadido automáticamente a Catering y Producción."
           : nuevoEstado === "Cancelado"
             ? "Presupuesto anulado. Se ha retirado su producción pendiente."
             : "Presupuesto marcado como Pendiente.",

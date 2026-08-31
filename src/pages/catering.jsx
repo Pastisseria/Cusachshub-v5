@@ -77,6 +77,8 @@ function Catering() {
     setError("");
 
     try {
+      await importarPresupuestosAceptados();
+
       const [
         respuestaCaterings,
         respuestaClientes,
@@ -121,6 +123,60 @@ function Catering() {
     } finally {
       setCargando(false);
     }
+  }
+
+  async function importarPresupuestosAceptados() {
+    const { data: aceptados, error: errorAceptados } = await supabase
+      .from("presupuestos")
+      .select(`
+        id, numero, cliente_id, fecha, hora_entrega, direccion_entrega,
+        persona_contacto, telefono_contacto, observaciones,
+        clientes (nombre, empresa, direccion, poblacion, codigo_postal)
+      `)
+      .eq("tipo_documento", "Catering")
+      .eq("estado", "Aceptado");
+    if (errorAceptados) throw errorAceptados;
+    if (!aceptados?.length) return;
+
+    const ids = aceptados.map((presupuesto) => presupuesto.id);
+    const { data: existentes, error: errorExistentes } = await supabase
+      .from("caterings")
+      .select("presupuesto_id")
+      .in("presupuesto_id", ids);
+    if (errorExistentes) throw errorExistentes;
+
+    const idsExistentes = new Set(
+      (existentes || []).map((catering) => String(catering.presupuesto_id)),
+    );
+    const pendientes = aceptados.filter(
+      (presupuesto) => !idsExistentes.has(String(presupuesto.id)),
+    );
+    if (!pendientes.length) return;
+
+    const nuevosCaterings = pendientes.map((presupuesto) => {
+      const cliente = presupuesto.clientes || {};
+      const nombre = cliente.empresa || cliente.nombre || "Cliente";
+      return {
+        cliente_id: presupuesto.cliente_id || null,
+        presupuesto_id: presupuesto.id,
+        titulo: `${nombre} · ${presupuesto.numero || "Catering"}`,
+        fecha: presupuesto.fecha,
+        hora_inicio: presupuesto.hora_entrega || null,
+        direccion: presupuesto.direccion_entrega || cliente.direccion || null,
+        poblacion: cliente.poblacion || null,
+        codigo_postal: cliente.codigo_postal || null,
+        responsable: presupuesto.persona_contacto || null,
+        telefono_contacto: presupuesto.telefono_contacto || null,
+        estado: "Confirmado",
+        observaciones: presupuesto.observaciones || null,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    const { error: errorInsercion } = await supabase
+      .from("caterings")
+      .insert(nuevosCaterings);
+    if (errorInsercion) throw errorInsercion;
   }
 
   const diasCalendario = useMemo(() => {

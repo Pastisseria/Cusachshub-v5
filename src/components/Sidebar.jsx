@@ -40,6 +40,15 @@ function Sidebar({ abierto = false, onCerrar }) {
           <span className="menu-item menu-item-pendiente">⚠️ Incidencias</span>
         </div>
 
+        <div className="menu-section">
+          <h4>TRAZABILIDAD Y COMPRAS</h4>
+          <NavLink to="/higiene/proveedores" className={claseEnlace}>🚚 Proveedores</NavLink>
+          <NavLink to="/higiene/catalogo-proveedores" className={claseEnlace}>📚 Catálogo proveedores</NavLink>
+          <NavLink to="/higiene/compras" className={claseEnlace}>🛒 Compras</NavLink>
+          <NavLink to="/higiene/importador-albaranes-v3" className={claseEnlace}>🧠 Importar albaranes</NavLink>
+          <NavLink to="/higiene/albaranes" className={claseEnlace}>🗂️ Historial de albaranes</NavLink>
+        </div>
+
         <div className="sesion-sidebar">
           <strong>{perfil?.nombre || usuario?.email}</strong>
           <span>Administrador · Higiene</span>

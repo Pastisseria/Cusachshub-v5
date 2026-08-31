@@ -105,6 +105,12 @@ function App() {
             <Route path="/restablecer-clave" element={<RestablecerClave />} />
             <Route path="/espacios" element={protegida(<Espacios />, true)} />
             <Route path="/higiene" element={protegida(<Higiene />, true)} />
+            <Route path="/higiene/proveedores" element={protegida(<Proveedores />, true)} />
+            <Route path="/higiene/catalogo-proveedores" element={protegida(<CatalogoProveedores />, true)} />
+            <Route path="/higiene/compras" element={protegida(<Compras />, true)} />
+            <Route path="/higiene/importar-albaranes" element={protegida(<ImportadorAlbaranes />, true)} />
+            <Route path="/higiene/importador-albaranes-v3" element={protegida(<ImportadorAlbaranesV3 />, true)} />
+            <Route path="/higiene/albaranes" element={protegida(<Albaranes />, true)} />
             <Route path="/dashboard" element={protegida(<Dashboard />, true)} />
 
             {/* COMERCIAL */}

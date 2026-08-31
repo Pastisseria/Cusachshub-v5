@@ -3529,6 +3529,7 @@ comparador-page {
   }
 
   body.imprimiendo-semana-catering #catering-semana-imprimible {
+    display: block !important;
     position: absolute !important;
     inset: 0 auto auto 0 !important;
     width: 100% !important;
@@ -3537,6 +3538,7 @@ comparador-page {
   }
 
   body.imprimiendo-semana-catering .catering-semana-tabla {
+    display: grid !important;
     grid-template-columns: 48px repeat(7, 1fr) !important;
     min-width: 0 !important;
     width: 100% !important;
@@ -3550,6 +3552,7 @@ comparador-page {
   }
 
   body.imprimiendo-semana-catering .catering-semana-evento {
+    display: flex !important;
     padding: 3px !important;
     border-radius: 0 !important;
     font-size: 8px !important;
@@ -3559,6 +3562,14 @@ comparador-page {
   body.imprimiendo-semana-catering .catering-semana-evento strong,
   body.imprimiendo-semana-catering .catering-semana-evento small {
     font-size: 8px !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-titulo {
+    display: flex !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-fila {
+    display: contents !important;
   }
 
   @page {

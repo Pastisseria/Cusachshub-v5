@@ -2077,6 +2077,16 @@ comparador-page {
   gap: 16px;
 }
 
+.documentos-subtitulo {
+  margin: 8px 0 0;
+}
+
+.documentos-subtitulo-clientes {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 2px solid #eadff0;
+}
+
 .documentos-vistas {
   display: flex;
   gap: 10px;

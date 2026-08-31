@@ -171,7 +171,6 @@ function DocumentoEditor({
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
-  const [vistaListado, setVistaListado] = useState("clientes");
   const [grupoAbierto, setGrupoAbierto] = useState("");
 
   const [tipoDocumento, setTipoDocumento] = useState(
@@ -465,6 +464,11 @@ function DocumentoEditor({
       a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }),
     );
   }, [documentosFiltrados]);
+
+  const ultimosDiezDocumentos = useMemo(
+    () => documentosFiltrados.slice(0, 10),
+    [documentosFiltrados],
+  );
 
   function volverAlListado() {
     setMostrarFormulario(false);
@@ -2815,25 +2819,32 @@ function DocumentoEditor({
 
       {!mostrarFormulario && !documentoAbierto && !cargando && documentosFiltrados.length > 0 && (
         <div className="documentos-listado no-imprimir">
-          <div className="documentos-vistas" role="group" aria-label="Vista de documentos">
-            <button
-              type="button"
-              className={vistaListado === "clientes" ? "active" : "boton-secundario"}
-              onClick={() => setVistaListado("clientes")}
-            >
-              📁 Por clientes ({documentosPorCliente.length})
-            </button>
-            <button
-              type="button"
-              className={vistaListado === "todos" ? "active" : "boton-secundario"}
-              onClick={() => setVistaListado("todos")}
-            >
-              📄 Todos ({documentosFiltrados.length})
-            </button>
+          <div className="titulo-seccion documentos-subtitulo">
+            <div>
+              <p className="etiqueta">Acceso rápido</p>
+              <h2>Últimos 10 presupuestos</h2>
+            </div>
+            <span className="contador">{ultimosDiezDocumentos.length}</span>
           </div>
 
-          {vistaListado === "clientes" ? (
-            <div className="documentos-carpetas">
+          <TablaDocumentos
+            documentos={ultimosDiezDocumentos}
+            abriendo={abriendo}
+            abrirDocumento={abrirDocumento}
+            editarDocumento={editarDocumento}
+            duplicarDocumento={duplicarDocumento}
+            eliminarDocumento={eliminarDocumento}
+          />
+
+          <div className="titulo-seccion documentos-subtitulo documentos-subtitulo-clientes">
+            <div>
+              <p className="etiqueta">Archivo completo</p>
+              <h2>Presupuestos por cliente</h2>
+            </div>
+            <span className="contador">{documentosPorCliente.length} clientes</span>
+          </div>
+
+          <div className="documentos-carpetas">
               {documentosPorCliente.map((grupo) => {
                 const abierto = grupoAbierto === grupo.clave;
                 const pendientes = grupo.documentos.filter(
@@ -2874,17 +2885,7 @@ function DocumentoEditor({
                   </section>
                 );
               })}
-            </div>
-          ) : (
-            <TablaDocumentos
-              documentos={documentosFiltrados}
-              abriendo={abriendo}
-              abrirDocumento={abrirDocumento}
-              editarDocumento={editarDocumento}
-              duplicarDocumento={duplicarDocumento}
-              eliminarDocumento={eliminarDocumento}
-            />
-          )}
+          </div>
         </div>
       )}
     </section>

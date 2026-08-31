@@ -1356,6 +1356,11 @@ function Produccion() {
                     <div>
                       <strong>{pedido.cliente_nombre}</strong>
                       <span>{pedido.pedido_nombre}</span>
+                      {pedido.hora_limite && (
+                        <span className="zona-diaria-hora-catering-print">
+                          Hora del catering: {cortarHora(pedido.hora_limite)}
+                        </span>
+                      )}
                     </div>
                     <span>
                       {pedido.lineasZona.length}{" "}
@@ -2366,6 +2371,12 @@ const ESTILOS_PRODUCCION = `
   .zona-diaria-pedido-cabecera-print div span {
     margin-top: 2px;
     font-size: 12px;
+  }
+
+  .zona-diaria-pedido-cabecera-print .zona-diaria-hora-catering-print {
+    margin-top: 5px;
+    font-size: 14px;
+    font-weight: 800;
   }
 
   .zona-diaria-lineas-print {

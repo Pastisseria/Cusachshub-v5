@@ -11,6 +11,8 @@ export default function Acceso() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [recuperando, setRecuperando] = useState(false);
+  const [mensaje, setMensaje] = useState("");
 
   if (!cargando && usuario && rol) {
     const destino = location.state?.desde || (rol === "administrador" ? "/espacios" : "/catering");
@@ -31,6 +33,29 @@ export default function Acceso() {
       setError("El correo o la contraseña no son correctos.");
       setEnviando(false);
     }
+  }
+
+  async function enviarRecuperacion() {
+    if (!email.trim()) {
+      setError("Escribe primero tu correo electrónico.");
+      return;
+    }
+
+    setEnviando(true);
+    setError("");
+    setMensaje("");
+    const direccionERP = `${window.location.origin}${import.meta.env.BASE_URL}`;
+    const { error: errorRecuperacion } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      { redirectTo: direccionERP },
+    );
+
+    if (errorRecuperacion) {
+      setError("No se ha podido enviar el correo de recuperación.");
+    } else {
+      setMensaje("Te hemos enviado un enlace para crear una contraseña nueva.");
+    }
+    setEnviando(false);
   }
 
   return (
@@ -63,8 +88,20 @@ export default function Acceso() {
             />
           </label>
           {error && <p className="error-acceso" role="alert">{error}</p>}
-          <button type="submit" disabled={enviando}>
+          {mensaje && <p className="mensaje-acceso" role="status">{mensaje}</p>}
+          <button type="submit" disabled={enviando || recuperando}>
             {enviando ? "Entrando…" : "Entrar"}
+          </button>
+          <button
+            type="button"
+            className="boton-recuperar"
+            disabled={enviando}
+            onClick={() => {
+              setRecuperando(true);
+              enviarRecuperacion().finally(() => setRecuperando(false));
+            }}
+          >
+            {recuperando ? "Enviando…" : "He olvidado mi contraseña"}
           </button>
         </form>
       </section>

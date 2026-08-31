@@ -7,6 +7,9 @@ export function AuthProvider({ children }) {
   const [perfil, setPerfil] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [errorPerfil, setErrorPerfil] = useState("");
+  const [recuperandoClave, setRecuperandoClave] = useState(
+    () => sessionStorage.getItem("cusachs:recuperando-clave") === "si",
+  );
 
   useEffect(() => {
     let activo = true;
@@ -49,7 +52,11 @@ export function AuthProvider({ children }) {
     });
 
     const { data: suscripcion } = supabase.auth.onAuthStateChange(
-      (_evento, nuevaSesion) => {
+      (evento, nuevaSesion) => {
+        if (evento === "PASSWORD_RECOVERY") {
+          sessionStorage.setItem("cusachs:recuperando-clave", "si");
+          setRecuperandoClave(true);
+        }
         setSesion(nuevaSesion);
         cargarPerfil(nuevaSesion);
       },
@@ -70,9 +77,14 @@ export function AuthProvider({ children }) {
       esAdministrador: perfil?.rol === "administrador",
       cargando,
       errorPerfil,
+      recuperandoClave,
+      finalizarRecuperacion: () => {
+        sessionStorage.removeItem("cusachs:recuperando-clave");
+        setRecuperandoClave(false);
+      },
       cerrarSesion: () => supabase.auth.signOut(),
     }),
-    [sesion, perfil, cargando, errorPerfil],
+    [sesion, perfil, cargando, errorPerfil, recuperandoClave],
   );
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;

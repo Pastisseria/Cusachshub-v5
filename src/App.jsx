@@ -41,13 +41,15 @@ import ModuloPendiente from "./pages/modulopendiente.jsx";
 import Acceso from "./pages/acceso.jsx";
 import Espacios from "./pages/espacios.jsx";
 import Higiene from "./pages/higiene.jsx";
+import RestablecerClave from "./pages/restablecerClave.jsx";
 
 import "./App.css";
 
 function Inicio() {
-  const { usuario, rol, cargando } = useAuth();
+  const { usuario, rol, cargando, recuperandoClave } = useAuth();
   if (cargando) return <div className="pantalla-carga">Preparando Cusachs Hub…</div>;
   if (!usuario) return <Navigate to="/acceso" replace />;
+  if (recuperandoClave) return <Navigate to="/restablecer-clave" replace />;
   return <Navigate to={rol === "administrador" ? "/espacios" : "/catering"} replace />;
 }
 
@@ -100,6 +102,7 @@ function App() {
       <Routes>
             <Route path="/" element={<Inicio />} />
             <Route path="/acceso" element={<Acceso />} />
+            <Route path="/restablecer-clave" element={<RestablecerClave />} />
             <Route path="/espacios" element={protegida(<Espacios />, true)} />
             <Route path="/higiene" element={protegida(<Higiene />, true)} />
             <Route path="/dashboard" element={protegida(<Dashboard />, true)} />

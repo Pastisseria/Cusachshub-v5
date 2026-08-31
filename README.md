@@ -1,4 +1,15 @@
-# React + Vite
+# Cusachs Hub
+
+## Activar el acceso de usuarios
+
+1. En Supabase, abre **SQL Editor** y ejecuta `supabase/configurar_accesos.sql`.
+2. Abre **Authentication > Users** y crea el usuario administrador.
+3. Vuelve al final del archivo SQL, sustituye `TU_CORREO@EJEMPLO.COM` por su correo y ejecuta las tres líneas indicadas.
+4. Crea las demás cuentas desde **Authentication > Users**. Automáticamente serán cuentas de Catering.
+
+La aplicación utiliza las variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` existentes. No se deben guardar contraseñas ni claves privadas dentro del proyecto.
+
+## Desarrollo
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

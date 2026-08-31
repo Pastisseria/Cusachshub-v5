@@ -1,6 +1,8 @@
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../auth/useAuth.js";
 
 function Sidebar({ abierto = false, onCerrar }) {
+  const { perfil, usuario, esAdministrador, cerrarSesion } = useAuth();
   const claseEnlace = ({ isActive }) =>
     isActive ? "menu-item active" : "menu-item";
 
@@ -32,9 +34,15 @@ function Sidebar({ abierto = false, onCerrar }) {
       <div className="menu-section">
         <h4>INICIO</h4>
 
-        <NavLink to="/dashboard" className={claseEnlace}>
-          📊 Dashboard
+        <NavLink to={esAdministrador ? "/espacios" : "/catering"} className={claseEnlace}>
+          🏠 Inicio
         </NavLink>
+
+        {esAdministrador && (
+          <NavLink to="/dashboard" className={claseEnlace}>
+            📊 Dashboard
+          </NavLink>
+        )}
       </div>
 
       {/* COMERCIAL */}
@@ -90,23 +98,26 @@ function Sidebar({ abierto = false, onCerrar }) {
           🏭 Producción
         </NavLink>
 
-        <NavLink to="/ingredientes" className={claseEnlace}>
-          🧂 Ingredientes
-        </NavLink>
+        {esAdministrador && <>
+          <NavLink to="/ingredientes" className={claseEnlace}>
+            🧂 Ingredientes
+          </NavLink>
 
-        <NavLink to="/escandallos" className={claseEnlace}>
-          📊 Escandallos
-        </NavLink>
+          <NavLink to="/escandallos" className={claseEnlace}>
+            📊 Escandallos
+          </NavLink>
 
-        <NavLink to="/recetas" className={claseEnlace}>
-          📖 Recetas
-        </NavLink>
+          <NavLink to="/recetas" className={claseEnlace}>
+            📖 Recetas
+          </NavLink>
 
-        <NavLink to="/dietario" className={claseEnlace}>
-          📅 Dietario
-        </NavLink>
+          <NavLink to="/dietario" className={claseEnlace}>
+            📅 Dietario
+          </NavLink>
+        </>}
       </div>
 
+      {esAdministrador && <>
       {/* PERSONAL */}
       <div className="menu-section">
         <h4>PERSONAL</h4>
@@ -211,6 +222,22 @@ function Sidebar({ abierto = false, onCerrar }) {
         >
           ⚙ Configuración
         </NavLink>
+      </div>
+      </>}
+
+      {esAdministrador && (
+        <div className="menu-section">
+          <h4>HIGIENE</h4>
+          <NavLink to="/higiene" className={claseEnlace}>
+            🧼 Bones pràctiques
+          </NavLink>
+        </div>
+      )}
+
+      <div className="sesion-sidebar">
+        <strong>{perfil?.nombre || usuario?.email}</strong>
+        <span>{esAdministrador ? "Administrador" : "Catering"}</span>
+        <button type="button" onClick={cerrarSesion}>Cerrar sesión</button>
       </div>
     </aside>
   );

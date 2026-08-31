@@ -7,6 +7,8 @@ import {
 import { useState } from "react";
 
 import Sidebar from "./components/Sidebar.jsx";
+import RutaProtegida from "./components/RutaProtegida.jsx";
+import { useAuth } from "./auth/useAuth.js";
 
 import Dashboard from "./pages/dashboard.jsx";
 import Clientes from "./pages/clientespages.jsx";
@@ -36,15 +38,24 @@ import ImportadorEmails from "./pages/ImportadorEmails.jsx";
 import Facturacion from "./pages/facturacion.jsx";
 import Estadisticas from "./pages/estadisticas.jsx";
 import ModuloPendiente from "./pages/modulopendiente.jsx";
+import Acceso from "./pages/acceso.jsx";
+import Espacios from "./pages/espacios.jsx";
+import Higiene from "./pages/higiene.jsx";
 
 import "./App.css";
 
-function App() {
+function Inicio() {
+  const { usuario, rol, cargando } = useAuth();
+  if (cargando) return <div className="pantalla-carga">Preparando Cusachs Hub…</div>;
+  if (!usuario) return <Navigate to="/acceso" replace />;
+  return <Navigate to={rol === "administrador" ? "/espacios" : "/catering"} replace />;
+}
+
+function MarcoERP({ children }) {
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   return (
-    <HashRouter>
-      <div className="app">
+    <div className="app">
         <button
           type="button"
           className="boton-menu-tablet"
@@ -71,68 +82,83 @@ function App() {
         )}
 
         <main className="contenido">
-          <Routes>
-            {/* INICIO */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+          {children}
+        </main>
+      </div>
+  );
+}
+
+const protegida = (componente, soloAdministrador = false) => (
+  <RutaProtegida soloAdministrador={soloAdministrador}>
+    <MarcoERP>{componente}</MarcoERP>
+  </RutaProtegida>
+);
+
+function App() {
+  return (
+    <HashRouter>
+      <Routes>
+            <Route path="/" element={<Inicio />} />
+            <Route path="/acceso" element={<Acceso />} />
+            <Route path="/espacios" element={protegida(<Espacios />, true)} />
+            <Route path="/higiene" element={protegida(<Higiene />, true)} />
+            <Route path="/dashboard" element={protegida(<Dashboard />, true)} />
 
             {/* COMERCIAL */}
-            <Route path="/clientes" element={<Clientes />} />
-            <Route path="/clientes/:id" element={<FichaCliente />} />
-            <Route path="/productos" element={<Productos />} />
-            <Route path="/presupuestos" element={<Presupuestos />} />
-            <Route path="/presupuestos-estandar" element={<PresupuestosEstandar />} />
+            <Route path="/clientes" element={protegida(<Clientes />)} />
+            <Route path="/clientes/:id" element={protegida(<FichaCliente />)} />
+            <Route path="/productos" element={protegida(<Productos />)} />
+            <Route path="/presupuestos" element={protegida(<Presupuestos />)} />
+            <Route path="/presupuestos-estandar" element={protegida(<PresupuestosEstandar />)} />
 
             {/* CATERING */}
-            <Route path="/catering" element={<Catering />} />
-            <Route path="/menaje" element={<Menaje />} />
-            <Route path="/bebidas" element={<Bebidas />} />
+            <Route path="/catering" element={protegida(<Catering />)} />
+            <Route path="/menaje" element={protegida(<Menaje />)} />
+            <Route path="/bebidas" element={protegida(<Bebidas />)} />
 
             {/* PRODUCCIÓN */}
-            <Route path="/produccion" element={<Produccion />} />
-            <Route path="/ingredientes" element={<Ingredientes />} />
-            <Route path="/escandallos" element={<Escandallos />} />
-            <Route path="/recetas" element={<Recetas />} />
-            <Route path="/dietario" element={<DietarioAnual />} />
+            <Route path="/produccion" element={protegida(<Produccion />)} />
+            <Route path="/ingredientes" element={protegida(<Ingredientes />, true)} />
+            <Route path="/escandallos" element={protegida(<Escandallos />, true)} />
+            <Route path="/recetas" element={protegida(<Recetas />, true)} />
+            <Route path="/dietario" element={protegida(<DietarioAnual />, true)} />
 
             {/* PERSONAL */}
-            <Route path="/horario-personal" element={<HorarioPersonal />} />
+            <Route path="/horario-personal" element={protegida(<HorarioPersonal />, true)} />
 
             {/* COMPRAS */}
-            <Route path="/proveedores" element={<Proveedores />} />
-            <Route path="/catalogo-proveedores" element={<CatalogoProveedores />} />
-            <Route path="/comparador-precios" element={<ComparadorPrecios />} />
-            <Route path="/compras" element={<Compras />} />
+            <Route path="/proveedores" element={protegida(<Proveedores />, true)} />
+            <Route path="/catalogo-proveedores" element={protegida(<CatalogoProveedores />, true)} />
+            <Route path="/comparador-precios" element={protegida(<ComparadorPrecios />, true)} />
+            <Route path="/compras" element={protegida(<Compras />, true)} />
 
             {/* LECTOR CLÁSICO */}
-            <Route path="/importar-albaranes" element={<ImportadorAlbaranes />} />
+            <Route path="/importar-albaranes" element={protegida(<ImportadorAlbaranes />, true)} />
 
             {/* LECTOR INTELIGENTE V3 */}
-            <Route path="/importador-albaranes-v3" element={<ImportadorAlbaranesV3 />} />
+            <Route path="/importador-albaranes-v3" element={protegida(<ImportadorAlbaranesV3 />, true)} />
 
             {/* HISTORIAL */}
-            <Route path="/albaranes" element={<Albaranes />} />
+            <Route path="/albaranes" element={protegida(<Albaranes />, true)} />
 
             {/* VISITADORES */}
-            <Route path="/visitadores" element={<VisitadoresMedicos />} />
-            <Route path="/visitadores/:id" element={<FichaVisitador />} />
-            <Route path="/visitadores-medicos" element={<VisitadoresMedicos />} />
-            <Route path="/visitadores-medicos/:id" element={<FichaVisitador />} />
+            <Route path="/visitadores" element={protegida(<VisitadoresMedicos />, true)} />
+            <Route path="/visitadores/:id" element={protegida(<FichaVisitador />, true)} />
+            <Route path="/visitadores-medicos" element={protegida(<VisitadoresMedicos />, true)} />
+            <Route path="/visitadores-medicos/:id" element={protegida(<FichaVisitador />, true)} />
 
             {/* ADMINISTRACIÓN */}
-            <Route path="/importar-emails" element={<ImportadorEmails />} />
-            <Route path="/facturacion" element={<Facturacion />} />
-            <Route path="/estadisticas" element={<Estadisticas />} />
+            <Route path="/importar-emails" element={protegida(<ImportadorEmails />, true)} />
+            <Route path="/facturacion" element={protegida(<Facturacion />, true)} />
+            <Route path="/estadisticas" element={protegida(<Estadisticas />, true)} />
             <Route
               path="/configuracion"
-              element={<ModuloPendiente titulo="Configuración" />}
+              element={protegida(<ModuloPendiente titulo="Configuración" />, true)}
             />
 
             {/* RUTA NO ENCONTRADA */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </main>
-      </div>
+            <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </HashRouter>
   );
 }

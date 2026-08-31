@@ -77,7 +77,7 @@ function Catering() {
     setError("");
 
     try {
-      await importarPresupuestosAceptados();
+      await sincronizarPresupuestosCatering();
 
       const [
         respuestaCaterings,
@@ -125,32 +125,61 @@ function Catering() {
     }
   }
 
-  async function importarPresupuestosAceptados() {
-    const { data: aceptados, error: errorAceptados } = await supabase
+  async function sincronizarPresupuestosCatering() {
+    const { data: presupuestosCatering, error: errorPresupuestos } = await supabase
       .from("presupuestos")
       .select(`
-        id, numero, cliente_id, fecha, hora_entrega, direccion_entrega,
+        id, numero, cliente_id, fecha, hora_entrega, direccion_entrega, estado,
         persona_contacto, telefono_contacto, observaciones,
         clientes (nombre, empresa, direccion, poblacion, codigo_postal)
       `)
-      .eq("tipo_documento", "Catering")
-      .eq("estado", "Aceptado");
-    if (errorAceptados) throw errorAceptados;
-    if (!aceptados?.length) return;
+      .eq("tipo_documento", "Catering");
+    if (errorPresupuestos) throw errorPresupuestos;
+    if (!presupuestosCatering?.length) return;
 
-    const ids = aceptados.map((presupuesto) => presupuesto.id);
+    const ids = presupuestosCatering.map((presupuesto) => presupuesto.id);
     const { data: existentes, error: errorExistentes } = await supabase
       .from("caterings")
-      .select("presupuesto_id")
+      .select("id, presupuesto_id, estado")
       .in("presupuesto_id", ids);
     if (errorExistentes) throw errorExistentes;
 
-    const idsExistentes = new Set(
-      (existentes || []).map((catering) => String(catering.presupuesto_id)),
+    const existentesPorPresupuesto = new Map(
+      (existentes || []).map((catering) => [
+        String(catering.presupuesto_id),
+        catering,
+      ]),
     );
-    const pendientes = aceptados.filter(
-      (presupuesto) => !idsExistentes.has(String(presupuesto.id)),
+    const pendientes = presupuestosCatering.filter(
+      (presupuesto) => !existentesPorPresupuesto.has(String(presupuesto.id)),
     );
+
+    const actualizaciones = presupuestosCatering
+      .map((presupuesto) => {
+        const catering = existentesPorPresupuesto.get(String(presupuesto.id));
+        const estado = estadoCateringDesdePresupuesto(presupuesto.estado);
+        return catering && catering.estado !== estado
+          ? { id: catering.id, estado }
+          : null;
+      })
+      .filter(Boolean);
+
+    if (actualizaciones.length > 0) {
+      const resultados = await Promise.all(
+        actualizaciones.map((catering) =>
+          supabase
+            .from("caterings")
+            .update({
+              estado: catering.estado,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", catering.id),
+        ),
+      );
+      const resultadoConError = resultados.find((resultado) => resultado.error);
+      if (resultadoConError?.error) throw resultadoConError.error;
+    }
+
     if (!pendientes.length) return;
 
     const nuevosCaterings = pendientes.map((presupuesto) => {
@@ -167,7 +196,7 @@ function Catering() {
         codigo_postal: cliente.codigo_postal || null,
         responsable: presupuesto.persona_contacto || null,
         telefono_contacto: presupuesto.telefono_contacto || null,
-        estado: "Confirmado",
+        estado: estadoCateringDesdePresupuesto(presupuesto.estado),
         observaciones: presupuesto.observaciones || null,
         updated_at: new Date().toISOString(),
       };
@@ -562,6 +591,12 @@ function Catering() {
               ? "evento"
               : "eventos"}
           </span>
+        </div>
+
+        <div className="catering-leyenda no-imprimir">
+          <span><i className="leyenda-confirmado" /> Confirmado</span>
+          <span><i className="leyenda-pendiente" /> Pendiente de confirmar</span>
+          <span><i className="leyenda-cancelado" /> Anulado</span>
         </div>
 
         {error && (
@@ -1236,6 +1271,12 @@ function normalizarEstado(estado) {
     .replace(/\s+/g, "-");
 }
 
+function estadoCateringDesdePresupuesto(estado) {
+  if (estado === "Aceptado") return "Confirmado";
+  if (estado === "Cancelado") return "Cancelado";
+  return "Pendiente";
+}
+
 const ESTILOS_CATERING = `
   .catering-panel {
     padding: 28px;
@@ -1298,6 +1339,32 @@ const ESTILOS_CATERING = `
     color: #642a87;
     font-weight: 700;
   }
+
+  .catering-leyenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin: -6px 0 16px;
+    color: #625968;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .catering-leyenda span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .catering-leyenda i {
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+  }
+
+  .leyenda-confirmado { background: #e5f2ff; border: 1px solid #245f9f; }
+  .leyenda-pendiente { background: #fff1c7; border: 1px solid #9a6813; }
+  .leyenda-cancelado { background: #fde9ed; border: 1px solid #a93045; }
 
   .catering-error,
   .catering-mensaje,
@@ -1579,6 +1646,12 @@ const ESTILOS_CATERING = `
     .boton-eliminar {
       margin-left: 0;
     }
+  }
+
+  .estado-pendiente {
+    background: #fff1c7;
+    color: #80540d;
+    border: 1px dashed #b77b17;
   }
 
   @media (max-width: 1050px) {

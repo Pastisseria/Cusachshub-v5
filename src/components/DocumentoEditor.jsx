@@ -1200,9 +1200,10 @@ function DocumentoEditor({
       producto?.seccion ||
       "";
 
-    if (zonas.includes(zonaConfigurada)) {
-      return zonaConfigurada;
-    }
+    const zonaNormalizada = zonas.find(
+      (zona) => zona.toLowerCase() === String(zonaConfigurada).toLowerCase(),
+    );
+    if (zonaNormalizada) return zonaNormalizada;
 
     const texto = String(nombreProducto || "")
       .trim()

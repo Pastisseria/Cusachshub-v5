@@ -341,7 +341,49 @@ function Produccion() {
         throw respuestaProductos.error;
       }
 
-      setProducciones(respuestaProducciones.data || []);
+      const productosPorId = new Map(
+        (respuestaProductos.data || []).map((producto) => [
+          String(producto.id),
+          producto,
+        ]),
+      );
+      const produccionesCorregidas = (respuestaProducciones.data || []).map(
+        (linea) => {
+          const producto = productosPorId.get(String(linea.producto_id));
+          const zonaProducto = normalizarZonaConfigurada(
+            producto?.zona_produccion,
+          );
+          if (
+            !zonaProducto ||
+            zonaProducto === linea.zona ||
+            ["Terminado", "Entregado", "Cancelado"].includes(linea.estado)
+          ) {
+            return linea;
+          }
+          return { ...linea, zona: zonaProducto };
+        },
+      );
+      const lineasParaCorregir = produccionesCorregidas.filter((linea) => {
+        const original = (respuestaProducciones.data || []).find(
+          (item) => item.id === linea.id,
+        );
+        return original && original.zona !== linea.zona;
+      });
+
+      if (lineasParaCorregir.length > 0) {
+        const resultados = await Promise.all(
+          lineasParaCorregir.map((linea) =>
+            supabase
+              .from("producciones")
+              .update({ zona: linea.zona, updated_at: new Date().toISOString() })
+              .eq("id", linea.id),
+          ),
+        );
+        const resultadoConError = resultados.find((resultado) => resultado.error);
+        if (resultadoConError?.error) throw resultadoConError.error;
+      }
+
+      setProducciones(produccionesCorregidas);
       setCaterings(respuestaCaterings.data || []);
       setClientes(respuestaClientes.data || []);
       setProductos(respuestaProductos.data || []);
@@ -1765,9 +1807,8 @@ function determinarZonaProduccion(producto, nombreProducto = "") {
     producto?.seccion ||
     "";
 
-  if (ZONAS.includes(zonaConfigurada)) {
-    return zonaConfigurada;
-  }
+  const zonaNormalizada = normalizarZonaConfigurada(zonaConfigurada);
+  if (zonaNormalizada) return zonaNormalizada;
 
   const texto = normalizarTextoProduccion(nombreProducto);
 
@@ -1810,6 +1851,14 @@ function determinarZonaProduccion(producto, nombreProducto = "") {
   }
 
   return "Obrador";
+}
+
+function normalizarZonaConfigurada(zona) {
+  const valor = normalizarTextoProduccion(zona);
+  if (valor === "obrador") return "Obrador";
+  if (valor === "cocina") return "Cocina";
+  if (valor === "barra") return "Barra";
+  return "";
 }
 
 function normalizarTextoProduccion(valor) {

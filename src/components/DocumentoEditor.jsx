@@ -1001,8 +1001,10 @@ function DocumentoEditor({
       setLineasAbiertas(data ?? []);
       setMostrarFormulario(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
+      return true;
     } catch (err) {
       setError(err.message || "No se ha podido abrir el documento.");
+      return false;
     } finally {
       setAbriendo(false);
     }
@@ -1274,6 +1276,24 @@ function DocumentoEditor({
         setProgramandoCatering(false);
       }
     }
+  }
+
+  function iniciarImpresionDocumento() {
+    const limpiarImpresion = () => {
+      document.body.classList.remove("imprimiendo-documento");
+      window.removeEventListener("afterprint", limpiarImpresion);
+    };
+
+    document.body.classList.add("imprimiendo-documento");
+    window.addEventListener("afterprint", limpiarImpresion);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.print());
+    });
+  }
+
+  async function imprimirDocumento(documento) {
+    const abierto = await abrirDocumento(documento);
+    if (abierto) iniciarImpresionDocumento();
   }
 
   async function sincronizarCateringDelDocumento(documento) {
@@ -2652,33 +2672,7 @@ function DocumentoEditor({
 
             <button
               type="button"
-              onClick={() => {
-                const limpiarImpresion = () => {
-                  document.body.classList.remove(
-                    "imprimiendo-documento",
-                  );
-
-                  window.removeEventListener(
-                    "afterprint",
-                    limpiarImpresion,
-                  );
-                };
-
-                document.body.classList.add(
-                  "imprimiendo-documento",
-                );
-
-                window.addEventListener(
-                  "afterprint",
-                  limpiarImpresion,
-                );
-
-                window.requestAnimationFrame(() => {
-                  window.requestAnimationFrame(() => {
-                    window.print();
-                  });
-                });
-              }}
+              onClick={iniciarImpresionDocumento}
             >
               🖨️ Guardar presupuesto en PDF
             </button>
@@ -2834,6 +2828,7 @@ function DocumentoEditor({
             editarDocumento={editarDocumento}
             duplicarDocumento={duplicarDocumento}
             eliminarDocumento={eliminarDocumento}
+            imprimirDocumento={imprimirDocumento}
           />
 
           <div className="titulo-seccion documentos-subtitulo documentos-subtitulo-clientes">
@@ -2880,6 +2875,7 @@ function DocumentoEditor({
                         editarDocumento={editarDocumento}
                         duplicarDocumento={duplicarDocumento}
                         eliminarDocumento={eliminarDocumento}
+                        imprimirDocumento={imprimirDocumento}
                       />
                     )}
                   </section>
@@ -2899,6 +2895,7 @@ function TablaDocumentos({
   editarDocumento,
   duplicarDocumento,
   eliminarDocumento,
+  imprimirDocumento,
 }) {
   return (
     <div className="tabla-responsive">
@@ -2976,6 +2973,14 @@ function TablaDocumentos({
                         disabled={abriendo}
                       >
                         👁 Abrir
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => imprimirDocumento(documento)}
+                        disabled={abriendo}
+                      >
+                        🖨️ Imprimir
                       </button>
 
                       <button

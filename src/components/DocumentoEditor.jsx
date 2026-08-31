@@ -789,15 +789,6 @@ function DocumentoEditor({
   }
 
   async function editarDocumento(documento) {
-    if (
-      documento.factura_id &&
-      !window.confirm(
-        "Este presupuesto ya está facturado. Puedes modificar el presupuesto, pero la factura emitida no cambiará automáticamente. ¿Quieres continuar?",
-      )
-    ) {
-      return;
-    }
-
     setAbriendo(true);
     setError("");
     setMensaje("");
@@ -1013,156 +1004,16 @@ function DocumentoEditor({
     }
   }
 
-  async function generarFactura(documento = documentoAbierto) {
+  async function marcarEnviadoAFacturar(documento = documentoAbierto) {
     if (!documento) return;
-
-    if (documento.factura_id) {
-      setError("Este presupuesto ya está facturado.");
-      return;
-    }
-
-    const confirmar = window.confirm(
-      `¿Deseas generar la factura del presupuesto ${documento.numero}?`,
-    );
-
-    if (!confirmar) return;
 
     setFacturando(true);
     setError("");
     setMensaje("");
 
     try {
-      const { data: existente, error: errorExistente } = await supabase
-        .from("facturas")
-        .select("id, numero")
-        .eq("origen", "presupuesto")
-        .eq("origen_id", documento.id)
-        .maybeSingle();
-
-      if (errorExistente) throw errorExistente;
-      if (existente) {
-        throw new Error(
-          `Este presupuesto ya tiene la factura ${existente.numero}.`,
-        );
-      }
-
-      let lineasFactura = lineasAbiertas;
-
-      if (!lineasFactura.length) {
-        const { data, error } = await supabase
-          .from("presupuesto_lineas")
-          .select(`
-            *,
-            productos (
-              id,
-              nombre,
-              nombre_ca,
-              nombre_en
-            )
-          `)
-          .eq("presupuesto_id", documento.id)
-          .order("created_at");
-
-        if (error) throw error;
-        lineasFactura = data ?? [];
-      }
-
-      if (!lineasFactura.length) {
-        throw new Error("El presupuesto no contiene líneas para facturar.");
-      }
-
-      const cliente = documento.clientes ?? {};
-      const numeroFactura = generarNumeroFactura();
-
-      const direccionCompleta = [
-        cliente.direccion,
-        [cliente.codigo_postal, cliente.poblacion].filter(Boolean).join(" "),
-        cliente.provincia,
-        cliente.pais,
-      ]
-        .filter(Boolean)
-        .join(", ");
-
-      const concepto = lineasFactura
-        .map((linea) => `${linea.cantidad} × ${linea.descripcion}`)
-        .join("\n");
-
-      const tiposIva = [
-        ...new Set(
-          lineasFactura
-            .map((linea) => Number(linea.iva))
-            .filter((iva) => Number.isFinite(iva) && iva >= 0),
-        ),
-      ];
-
-      const tipoIvaFactura =
-        tiposIva.length === 1
-          ? tiposIva[0]
-          : Number(documento.tipo_iva || 10);
-
-      const baseImponible = Number(documento.subtotal || 0);
-      const importeIva = Number(documento.iva_total || 0);
-      const totalFactura = Number(
-        documento.total || baseImponible + importeIva,
-      );
-
-      const datosFactura = {
-        numero: numeroFactura,
-        origen: "presupuesto",
-        origen_id: documento.id,
-        presupuesto_id: documento.id,
-        cliente_id: documento.cliente_id,
-        nombre_cliente: cliente.empresa || cliente.nombre || "Cliente",
-        cif: cliente.nif_cif || null,
-        direccion: direccionCompleta || null,
-        email: cliente.email || null,
-        fecha_factura: fechaActual(),
-        detalle_concepto: concepto,
-        importe: baseImponible,
-        iva_incluido: false,
-        tipo_iva: tipoIvaFactura,
-        base_imponible: baseImponible,
-        importe_iva: importeIva,
-        total: totalFactura,
-        forma_pago: "transferencia",
-        estado: "pendiente",
-        fecha_pago: null,
-        observaciones: documento.observaciones || null,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data: factura, error: errorFactura } = await supabase
-        .from("facturas")
-        .insert(datosFactura)
-        .select("*")
-        .single();
-
-      if (errorFactura) throw errorFactura;
-
-      const filasFactura = lineasFactura.map((linea, indice) => ({
-        factura_id: factura.id,
-        orden: indice + 1,
-        producto_id: linea.producto_id || null,
-        descripcion: linea.descripcion,
-        cantidad: Number(linea.cantidad || 0),
-        precio_unitario: Number(linea.precio_unitario || 0),
-        iva: Number(linea.iva || 0),
-        subtotal: Number(linea.subtotal || 0),
-        importe_iva: Number(linea.importe_iva || 0),
-        total: Number(linea.total || 0),
-      }));
-
-      const { error: errorLineas } = await supabase
-        .from("factura_lineas")
-        .insert(filasFactura);
-
-      if (errorLineas) {
-        await supabase.from("facturas").delete().eq("id", factura.id);
-        throw errorLineas;
-      }
-
       const cambiosPresupuesto = {
-        factura_id: factura.id,
+        facturado_externamente: true,
         fecha_facturacion: fechaActual(),
         updated_at: new Date().toISOString(),
       };
@@ -1180,17 +1031,10 @@ function DocumentoEditor({
           : anterior,
       );
 
-      setMensaje(`Factura ${numeroFactura} creada correctamente.`);
+      setMensaje("✅ Presupuesto marcado como enviado a facturar.");
       await cargarDatos();
-
-      window.open(
-        `${import.meta.env.BASE_URL}#/facturacion?imprimir=${factura.id}`,
-        "_blank",
-        "noopener,noreferrer",
-      );
     } catch (err) {
-      console.error("Error al generar la factura:", err);
-      setError(err?.message || "No se ha podido generar la factura.");
+      setError(err?.message || "No se ha podido marcar como enviado a facturar.");
     } finally {
       setFacturando(false);
     }
@@ -2923,11 +2767,14 @@ function DocumentoEditor({
             <button
               type="button"
               onClick={() =>
-                generarFactura(documentoAbierto)
+                marcarEnviadoAFacturar(documentoAbierto)
               }
               disabled={
                 facturando ||
-                Boolean(documentoAbierto.factura_id) ||
+                Boolean(
+                  documentoAbierto.facturado_externamente ||
+                    documentoAbierto.factura_id,
+                ) ||
                 documentoAbierto.estado !== "Aceptado"
               }
               title={
@@ -2936,13 +2783,14 @@ function DocumentoEditor({
                   : ""
               }
             >
-              {documentoAbierto.factura_id
-                ? "✅ Facturado"
+              {documentoAbierto.facturado_externamente ||
+              documentoAbierto.factura_id
+                ? "✅ Enviado a facturar"
                 : facturando
-                  ? "Generando factura..."
+                  ? "Marcando..."
                   : documentoAbierto.estado !== "Aceptado"
-                    ? "🧾 Acepta para facturar"
-                    : "🧾 Generar factura"}
+                    ? "Acepta para enviar a facturar"
+                    : "Enviado a facturar"}
             </button>
           </div>
         </div>
@@ -3482,25 +3330,6 @@ function generarNumeroDocumento(tipoDocumento) {
     prefijos[tipoDocumento] || "DOC";
 
   return `${prefijo}-${año}${mes}${dia}-${hora}${minutos}${segundos}`;
-}
-
-function generarNumeroFactura() {
-  const ahora = new Date();
-  const año = ahora.getFullYear();
-
-  const marca = [
-    ahora.getMonth() + 1,
-    ahora.getDate(),
-    ahora.getHours(),
-    ahora.getMinutes(),
-    ahora.getSeconds(),
-  ]
-    .map((valor) =>
-      String(valor).padStart(2, "0"),
-    )
-    .join("");
-
-  return `F-${año}-${marca}`;
 }
 
 function formatearEuros(valor) {

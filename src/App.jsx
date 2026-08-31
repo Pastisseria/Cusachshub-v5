@@ -116,6 +116,8 @@ function App() {
             {/* VISITADORES */}
             <Route path="/visitadores" element={<VisitadoresMedicos />} />
             <Route path="/visitadores/:id" element={<FichaVisitador />} />
+            <Route path="/visitadores-medicos" element={<VisitadoresMedicos />} />
+            <Route path="/visitadores-medicos/:id" element={<FichaVisitador />} />
 
             {/* ADMINISTRACIÓN */}
             <Route path="/importar-emails" element={<ImportadorEmails />} />

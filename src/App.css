@@ -4869,3 +4869,46 @@ albaran-input-oculto {
     flex-direction: column;
   }
 }
+.visitador-dashboard {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 24px 0;
+}
+
+.visitador-indicador {
+  padding: 18px;
+  border: 1px solid #ded2e5;
+  border-radius: 16px;
+  background: #f8f3fa;
+}
+
+.visitador-indicador span,
+.visitador-indicador strong {
+  display: block;
+}
+
+.visitador-indicador span {
+  color: #756d7a;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.visitador-indicador strong {
+  margin-top: 8px;
+  color: #642a87;
+  font-size: 24px;
+}
+
+@media (max-width: 900px) {
+  .visitador-dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .visitador-dashboard {
+    grid-template-columns: 1fr;
+  }
+}

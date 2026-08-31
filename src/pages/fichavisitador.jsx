@@ -52,6 +52,7 @@ function FichaVisitador() {
 
       setVisitador(data);
       cargarFormulario(data);
+      await cargarPedidos(data);
     } catch (err) {
       setVisitador(null);
       setError(
@@ -63,14 +64,23 @@ function FichaVisitador() {
     }
   }
 
-  async function cargarPedidos() {
+  async function cargarPedidos(datosVisitador) {
     setCargandoPedidos(true);
 
     try {
+      const nombreCompleto = [
+        datosVisitador?.nombre,
+        datosVisitador?.apellidos,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
       const { data, error: supabaseError } = await supabase
         .from("presupuestos")
         .select("*")
-        .eq("visitador_id", id)
+        .eq("tipo_documento", "Visitador médico")
+        .ilike("visitador_nombre", nombreCompleto)
         .order("created_at", { ascending: false });
 
       if (supabaseError) {
@@ -92,7 +102,6 @@ function FichaVisitador() {
 
   useEffect(() => {
     cargarVisitador();
-    cargarPedidos();
   }, [id]);
 
   function cargarFormulario(datosVisitador) {
@@ -241,6 +250,16 @@ function FichaVisitador() {
   ]
     .filter(Boolean)
     .join(" ");
+  const pedidosAceptados = pedidos.filter(
+    (pedido) => pedido.estado === "Aceptado",
+  ).length;
+  const pedidosPendientes = pedidos.filter(
+    (pedido) => !["Aceptado", "Cancelado"].includes(pedido.estado),
+  ).length;
+  const importeTotal = pedidos.reduce(
+    (total, pedido) => total + Number(pedido.total || 0),
+    0,
+  );
 
   return (
     <section className="panel">
@@ -532,6 +551,25 @@ function FichaVisitador() {
       )}
 
       <div className="separador" />
+
+      <div className="visitador-dashboard">
+        <div className="visitador-indicador">
+          <span>Presupuestos</span>
+          <strong>{pedidos.length}</strong>
+        </div>
+        <div className="visitador-indicador pendiente">
+          <span>Pendientes</span>
+          <strong>{pedidosPendientes}</strong>
+        </div>
+        <div className="visitador-indicador aceptado">
+          <span>Aceptados</span>
+          <strong>{pedidosAceptados}</strong>
+        </div>
+        <div className="visitador-indicador">
+          <span>Total presupuestado</span>
+          <strong>{formatearImporte(importeTotal)}</strong>
+        </div>
+      </div>
 
       <div className="titulo-seccion">
         <div>

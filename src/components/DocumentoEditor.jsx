@@ -380,6 +380,17 @@ function DocumentoEditor({
       );
       setProductos(respuestaProductos.data ?? []);
       setDocumentos(respuestaDocumentos.data ?? []);
+
+      const parametros = new URLSearchParams(
+        String(window.location.hash || "").split("?")[1] || "",
+      );
+      const presupuestoId = parametros.get("presupuesto_id");
+      const documentoSolicitado = (respuestaDocumentos.data ?? []).find(
+        (documento) => String(documento.id) === String(presupuestoId),
+      );
+      if (documentoSolicitado) {
+        await abrirDocumento(documentoSolicitado);
+      }
     } catch (err) {
       setError(err.message || "No se han podido cargar los documentos.");
     } finally {

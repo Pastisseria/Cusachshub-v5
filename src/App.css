@@ -5022,6 +5022,22 @@ albaran-input-oculto {
   cursor: pointer;
 }
 
+.sidebar-higiene {
+  background: linear-gradient(180deg, #315f43 0%, #244b34 58%, #173523 100%);
+}
+
+.sidebar .menu-item-pendiente {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 10px 15px;
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: default;
+}
+
 .formulario-acceso button {
   min-height: 52px;
   border: 0;

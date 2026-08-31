@@ -1,13 +1,52 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/useAuth.js";
 
 function Sidebar({ abierto = false, onCerrar }) {
   const { perfil, usuario, esAdministrador, cerrarSesion } = useAuth();
+  const location = useLocation();
+  const esEspacioHigiene = location.pathname.startsWith("/higiene");
   const claseEnlace = ({ isActive }) =>
     isActive ? "menu-item active" : "menu-item";
 
   function mostrarListadoPresupuestos() {
     window.dispatchEvent(new CustomEvent("cusachs:mostrar-listado-presupuestos"));
+  }
+
+  if (esEspacioHigiene && esAdministrador) {
+    return (
+      <aside
+        className={`sidebar sidebar-higiene${abierto ? " sidebar-abierta" : ""}`}
+        aria-label="Menú de higiene"
+        onClick={(event) => {
+          if (event.target.closest("a")) onCerrar?.();
+        }}
+      >
+        <div className="logo">
+          <h2>CUSACHS HUB</h2>
+          <button type="button" className="cerrar-menu-tablet" aria-label="Cerrar menú" onClick={onCerrar}>×</button>
+        </div>
+
+        <div className="menu-section">
+          <h4>ESPACIOS</h4>
+          <NavLink to="/espacios" className={claseEnlace}>← Cambiar de espacio</NavLink>
+        </div>
+
+        <div className="menu-section">
+          <h4>HIGIENE</h4>
+          <NavLink to="/higiene" end className={claseEnlace}>🧼 Panel de higiene</NavLink>
+          <span className="menu-item menu-item-pendiente">🌡️ Temperaturas</span>
+          <span className="menu-item menu-item-pendiente">🧹 Limpieza</span>
+          <span className="menu-item menu-item-pendiente">📦 Trazabilidad</span>
+          <span className="menu-item menu-item-pendiente">⚠️ Incidencias</span>
+        </div>
+
+        <div className="sesion-sidebar">
+          <strong>{perfil?.nombre || usuario?.email}</strong>
+          <span>Administrador · Higiene</span>
+          <button type="button" onClick={cerrarSesion}>Cerrar sesión</button>
+        </div>
+      </aside>
+    );
   }
 
   return (

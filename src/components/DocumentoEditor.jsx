@@ -1551,7 +1551,9 @@ function DocumentoEditor({
   }
 
   const esVisitador = tipoDocumento === "Visitador médico";
-  const idiomaDocumento = documentoAbierto?.idioma || idioma || "es";
+  const idiomaDocumento = normalizarIdiomaDocumento(
+    documentoAbierto?.idioma || idioma || "es",
+  );
   const textos =
     TEXTOS_DOCUMENTO[idiomaDocumento] || TEXTOS_DOCUMENTO.es;
 
@@ -3043,6 +3045,22 @@ function obtenerNombreProducto(producto, idioma = "es") {
   return producto.nombre || "";
 }
 
+function normalizarIdiomaDocumento(valor) {
+  const idiomaNormalizado = String(valor || "es")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (["ca", "cat", "catala", "catalan"].includes(idiomaNormalizado)) {
+    return "ca";
+  }
+  if (["en", "eng", "english", "ingles"].includes(idiomaNormalizado)) {
+    return "en";
+  }
+  return "es";
+}
+
 function obtenerDescripcionTraducida(
   linea,
   idioma,
@@ -3059,6 +3077,18 @@ function obtenerDescripcionTraducida(
       (elemento) =>
         String(elemento.id) ===
         String(linea.producto_id),
+    );
+  }
+
+  if (!producto && descripcionActual) {
+    const descripcionNormalizada = normalizarTextoProducto(descripcionActual);
+    producto = productos.find((elemento) =>
+      [elemento.nombre, elemento.nombre_ca, elemento.nombre_en]
+        .filter(Boolean)
+        .some(
+          (nombre) =>
+            normalizarTextoProducto(nombre) === descripcionNormalizada,
+        ),
     );
   }
 

@@ -411,8 +411,11 @@ function DietarioAnual() {
 
     evento.preventDefault();
 
+    const nombreCampo = evento.currentTarget.dataset.campo;
     const campos = Array.from(
-      document.querySelectorAll(".dietario-input"),
+      document.querySelectorAll(
+        `.dietario-input[data-campo="${nombreCampo}"]`,
+      ),
     );
 
     const indice = campos.indexOf(evento.currentTarget);
@@ -854,6 +857,7 @@ function TablaGrupo({
             <td style={estiloCelda}>
               <input
                 className="dietario-input"
+                data-campo="manana"
                 type="number"
                 min="0"
                 step="1"
@@ -873,6 +877,7 @@ function TablaGrupo({
             <td style={estiloCelda}>
               <input
                 className="dietario-input"
+                data-campo="tarde"
                 type="number"
                 min="0"
                 step="1"
@@ -899,6 +904,7 @@ function TablaGrupo({
             >
               <input
                 className="dietario-input"
+                data-campo="sobrante"
                 type="number"
                 min="0"
                 step="1"

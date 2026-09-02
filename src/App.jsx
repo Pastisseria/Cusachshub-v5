@@ -44,6 +44,7 @@ import Higiene from "./pages/higiene.jsx";
 import RestablecerClave from "./pages/restablecerClave.jsx";
 
 import "./App.css";
+import "./presupuesto-print-overrides.css";
 
 function Inicio() {
   const { usuario, rol, cargando, recuperandoClave } = useAuth();

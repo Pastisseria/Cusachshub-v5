@@ -2180,7 +2180,7 @@ function DocumentoEditor({
                     </label>
 
                     <label>
-                      Precio
+                      Precio sin IVA
                       <input
                         type="number"
                         min="0"
@@ -2197,29 +2197,9 @@ function DocumentoEditor({
                       />
                     </label>
 
-                    <label>
-                      IVA
-                      <select
-                        value={linea.iva}
-                        onChange={(event) =>
-                          modificarLinea(
-                            linea.temporalId,
-                            "iva",
-                            event.target.value,
-                          )
-                        }
-                        disabled={guardando}
-                      >
-                        <option value="0">0 %</option>
-                        <option value="4">4 %</option>
-                        <option value="10">10 %</option>
-                        <option value="21">21 %</option>
-                      </select>
-                    </label>
-
                     <div className="total-linea">
-                      <span>Total</span>
-                      <strong>{formatearEuros(calculo.total)}</strong>
+                      <span>Total sin IVA</span>
+                      <strong>{formatearEuros(calculo.subtotal)}</strong>
                     </div>
 
                     <button
@@ -2280,7 +2260,7 @@ function DocumentoEditor({
               </label>
 
               <label>
-                IVA del transporte
+                IVA aplicado al total
                 <select
                   value={transporteIva}
                   onChange={(event) =>
@@ -3258,15 +3238,9 @@ function calcularTotales(
     ) / 20,
   );
 
-  /*
-   * Ajustamos tambien la base para que el IVA mostrado sea
-   * exactamente el porcentaje indicado. Ejemplo al 10 %:
-   * 521,75 -> IVA 52,20 -> base ajustada 522,00.
-   */
-  const baseImponible =
-    tipoIva > 0
-      ? redondear(ivaTotal * (100 / tipoIva))
-      : baseImponibleOriginal;
+  // La base imponible siempre coincide con la suma de las líneas
+  // sin IVA y el transporte. El redondeo del impuesto nunca la altera.
+  const baseImponible = baseImponibleOriginal;
 
   /*
    * El TOTAL siempre se obtiene sumando:

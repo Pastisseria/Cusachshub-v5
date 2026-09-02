@@ -107,6 +107,7 @@ function App() {
             <Route path="/higiene" element={protegida(<Higiene />, true)} />
             <Route path="/higiene/proveedores" element={protegida(<Proveedores />, true)} />
             <Route path="/higiene/catalogo-proveedores" element={protegida(<CatalogoProveedores />, true)} />
+            <Route path="/higiene/comparador-precios" element={protegida(<ComparadorPrecios />, true)} />
             <Route path="/higiene/compras" element={protegida(<Compras />, true)} />
             <Route path="/higiene/importar-albaranes" element={protegida(<ImportadorAlbaranes />, true)} />
             <Route path="/higiene/importador-albaranes-v3" element={protegida(<ImportadorAlbaranesV3 />, true)} />

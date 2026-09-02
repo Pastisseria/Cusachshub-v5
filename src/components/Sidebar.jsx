@@ -44,6 +44,7 @@ function Sidebar({ abierto = false, onCerrar }) {
           <h4>TRAZABILIDAD Y COMPRAS</h4>
           <NavLink to="/higiene/proveedores" className={claseEnlace}>🚚 Proveedores</NavLink>
           <NavLink to="/higiene/catalogo-proveedores" className={claseEnlace}>📚 Catálogo proveedores</NavLink>
+          <NavLink to="/higiene/comparador-precios" className={claseEnlace}>💶 Comparador de precios</NavLink>
           <NavLink to="/higiene/compras" className={claseEnlace}>🛒 Compras</NavLink>
           <NavLink to="/higiene/importador-albaranes-v3" className={claseEnlace}>🧠 Importar albaranes</NavLink>
           <NavLink to="/higiene/albaranes" className={claseEnlace}>🗂️ Historial de albaranes</NavLink>
@@ -175,58 +176,6 @@ function Sidebar({ abierto = false, onCerrar }) {
           className={claseEnlace}
         >
           👥 Horario de personal
-        </NavLink>
-      </div>
-
-      {/* COMPRAS */}
-      <div className="menu-section">
-        <h4>COMPRAS</h4>
-
-        <NavLink to="/proveedores" className={claseEnlace}>
-          🚚 Proveedores
-        </NavLink>
-
-        <NavLink
-          to="/catalogo-proveedores"
-          className={claseEnlace}
-        >
-          📚 Catálogo proveedores
-        </NavLink>
-
-        <NavLink
-          to="/comparador-precios"
-          className={claseEnlace}
-        >
-          💶 Comparador precios
-        </NavLink>
-
-        <NavLink to="/compras" className={claseEnlace}>
-          🛒 Compras
-        </NavLink>
-
-        <hr
-          style={{
-            margin: "12px 0",
-            opacity: 0.25,
-          }}
-        />
-
-        <NavLink
-          to="/importar-albaranes"
-          className={claseEnlace}
-        >
-          📄 Lector clásico
-        </NavLink>
-
-        <NavLink
-          to="/importador-albaranes-v3"
-          className={claseEnlace}
-        >
-          🧠 Lector Inteligente V3
-        </NavLink>
-
-        <NavLink to="/albaranes" className={claseEnlace}>
-          🗂️ Historial de albaranes
         </NavLink>
       </div>
 

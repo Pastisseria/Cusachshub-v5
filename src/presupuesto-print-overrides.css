@@ -1,0 +1,28 @@
+/* Mejora de legibilidad en presupuestos: cliente y fecha destacados */
+
+.presupuesto-print-cliente > strong {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.presupuesto-print-detalles p:first-child span {
+  color: #17131a;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+@media print {
+  body.imprimiendo-documento .presupuesto-print-cliente > strong {
+    font-size: 14pt !important;
+    font-weight: 900 !important;
+    line-height: 1.25 !important;
+  }
+
+  body.imprimiendo-documento .presupuesto-print-detalles p:first-child span {
+    font-size: 13pt !important;
+    font-weight: 900 !important;
+    line-height: 1.2 !important;
+  }
+}

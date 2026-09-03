@@ -7,6 +7,21 @@ function redondear(valor, decimales = 6) { return Number(numero(valor).toFixed(d
 function ivaDecimal(valor) { const iva = numero(valor); return iva > 1 ? redondear(iva / 100, 4) : redondear(iva, 4); }
 function textoONull(valor) { const t = String(valor ?? "").trim(); return t || null; }
 
+function limpiarLectorTrasImportacion(mensaje = "") {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem("cusachs:borrador-albaran-v3:v1");
+    if (mensaje) window.sessionStorage.setItem("cusachs:mensaje-albaran-v3", mensaje);
+  } catch {
+    // Si el navegador bloquea el almacenamiento, seguimos igualmente.
+  }
+
+  window.setTimeout(() => {
+    window.location.reload();
+  }, 450);
+}
+
 function prepararArticuloNuevo(linea, proveedorId, fechaDocumento) {
   const precioSinIva = redondear(linea.precio_unitario);
   const iva = ivaDecimal(linea.iva);
@@ -88,7 +103,37 @@ async function actualizarPrecio({ linea, articulo, proveedorId, fechaDocumento, 
   return data;
 }
 
+async function buscarImportacionExistente({ proveedorId, numeroAlbaran }) {
+  const numeroDocumento = textoONull(numeroAlbaran);
+  if (!proveedorId || !numeroDocumento) return null;
+
+  const { data, error } = await supabase
+    .from("importaciones_albaran_v3")
+    .select("id, proveedor_id, proveedor_nombre, numero_albaran, fecha_albaran, estado")
+    .eq("proveedor_id", proveedorId)
+    .eq("numero_albaran", numeroDocumento)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
 async function crearImportacion({ archivo, proveedorId, proveedorNombre, lectura, analisis, lineas }) {
+  const existente = await buscarImportacionExistente({
+    proveedorId,
+    numeroAlbaran: analisis.numero_albaran,
+  });
+
+  if (existente) {
+    limpiarLectorTrasImportacion(
+      `El albarán ${analisis.numero_albaran || ""} ya estaba guardado. Se ha limpiado el lector para evitar duplicados.`,
+    );
+    const errorDuplicado = new Error("Este albarán ya estaba guardado. No se ha duplicado.");
+    errorDuplicado.codigo = "ALBARAN_DUPLICADO";
+    throw errorDuplicado;
+  }
+
   const { data, error } = await supabase.from("importaciones_albaran_v3").insert({
     proveedor_id: proveedorId || null,
     proveedor_nombre: proveedorNombre || null,
@@ -110,6 +155,16 @@ async function crearImportacion({ archivo, proveedorId, proveedorNombre, lectura
     estado: "procesando_catalogo",
     version_lector: lectura?.version || "3.1.0",
   }).select().single();
+
+  if (error?.code === "23505") {
+    limpiarLectorTrasImportacion(
+      `El albarán ${analisis.numero_albaran || ""} ya estaba guardado. Se ha limpiado el lector para evitar duplicados.`,
+    );
+    const errorDuplicado = new Error("Este albarán ya estaba guardado. No se ha duplicado.");
+    errorDuplicado.codigo = "ALBARAN_DUPLICADO";
+    throw errorDuplicado;
+  }
+
   if (error) throw error;
   return data;
 }
@@ -146,6 +201,11 @@ export async function importarAlbaranCompletoIA({ archivo, proveedorId, proveedo
     errores: resumen.errores,
   }).eq("id", importacion.id).select().single();
   if (errorFinal) throw errorFinal;
+
+  limpiarLectorTrasImportacion(
+    `Albarán ${analisis.numero_albaran || ""} guardado correctamente. El lector está listo para el siguiente.`,
+  );
+
   return { importacion: final, resumen };
 }
 

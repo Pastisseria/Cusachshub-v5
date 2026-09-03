@@ -35,7 +35,7 @@ import Albaranes from "./pages/albaranes.jsx";
 import VisitadoresMedicos from "./pages/visitadoresmedicos.jsx";
 import FichaVisitador from "./pages/fichavisitador.jsx";
 import ImportadorEmails from "./pages/ImportadorEmails.jsx";
-import Facturacion from "./pages/facturacion.jsx";
+import DatosFactura from "./pages/datosfactura.jsx";
 import Estadisticas from "./pages/estadisticas.jsx";
 import ModuloPendiente from "./pages/modulopendiente.jsx";
 import Acceso from "./pages/acceso.jsx";
@@ -160,7 +160,7 @@ function App() {
 
             {/* ADMINISTRACIÓN */}
             <Route path="/importar-emails" element={protegida(<ImportadorEmails />, true)} />
-            <Route path="/facturacion" element={protegida(<Facturacion />, true)} />
+            <Route path="/facturacion" element={protegida(<DatosFactura />, true)} />
             <Route path="/estadisticas" element={protegida(<Estadisticas />, true)} />
             <Route
               path="/configuracion"

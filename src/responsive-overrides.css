@@ -1,0 +1,158 @@
+/* =========================================================
+   CORRECCIÓN GLOBAL DE MOVILIDAD HORIZONTAL Y RESPONSIVE
+   Se aplica a todas las pantallas de Cusachs Hub.
+   ========================================================= */
+
+html,
+body,
+#root,
+.app,
+.contenido {
+  max-width: 100%;
+}
+
+.contenido {
+  min-width: 0 !important;
+  overflow-x: auto !important;
+}
+
+.panel,
+.formulario,
+.modal-contenido,
+.factura-vista-completa,
+.presupuesto-print,
+.albaranes-archivo {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Todas las tablas deben poder desplazarse lateralmente. */
+.tabla-responsive,
+.tabla-responsive-proveedores,
+[class*="tabla-responsive"] {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  padding-bottom: 8px;
+}
+
+.tabla-responsive > table,
+.tabla-responsive-proveedores > table,
+[class*="tabla-responsive"] > table {
+  width: max-content !important;
+  min-width: 100% !important;
+  max-width: none !important;
+  table-layout: auto !important;
+}
+
+/* Evita que las columnas se aplasten hasta quedar ilegibles. */
+table th,
+table td {
+  min-width: max-content;
+}
+
+/* Los campos dentro de tablas mantienen un ancho utilizable. */
+table input,
+table select,
+table textarea {
+  min-width: 92px;
+}
+
+table td:nth-child(2) input,
+table td:nth-child(3) input,
+table td:nth-child(2) select,
+table td:nth-child(3) select {
+  min-width: 170px;
+}
+
+/* Barra horizontal más visible en escritorio. */
+.tabla-responsive::-webkit-scrollbar,
+.tabla-responsive-proveedores::-webkit-scrollbar,
+[class*="tabla-responsive"]::-webkit-scrollbar,
+.contenido::-webkit-scrollbar {
+  height: 12px;
+}
+
+.tabla-responsive::-webkit-scrollbar-track,
+.tabla-responsive-proveedores::-webkit-scrollbar-track,
+[class*="tabla-responsive"]::-webkit-scrollbar-track,
+.contenido::-webkit-scrollbar-track {
+  background: #eee8f1;
+  border-radius: 999px;
+}
+
+.tabla-responsive::-webkit-scrollbar-thumb,
+.tabla-responsive-proveedores::-webkit-scrollbar-thumb,
+[class*="tabla-responsive"]::-webkit-scrollbar-thumb,
+.contenido::-webkit-scrollbar-thumb {
+  background: #7b6285;
+  border-radius: 999px;
+  border: 2px solid #eee8f1;
+}
+
+/* En pantallas medianas y tablet, reducimos márgenes sin cortar contenido. */
+@media (max-width: 1200px) {
+  .contenido {
+    padding: 20px !important;
+  }
+
+  .panel {
+    padding: 22px !important;
+  }
+
+  .titulo-seccion,
+  .cabecera-seccion,
+  .facturacion-cabecera,
+  .import-lines-header {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 900px) {
+  .contenido {
+    width: 100%;
+    padding: 14px !important;
+    overflow-x: auto !important;
+  }
+
+  .panel,
+  .formulario,
+  .modal-contenido {
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  .rejilla-formulario,
+  .factura-manual-grid,
+  .albaranes-filtros,
+  .facturacion-filtros {
+    grid-template-columns: 1fr !important;
+  }
+
+  .grupo-botones,
+  .acciones,
+  .modal-acciones {
+    flex-wrap: wrap !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .contenido {
+    padding: 10px !important;
+  }
+
+  table th,
+  table td {
+    white-space: nowrap;
+  }
+
+  table td input,
+  table td select {
+    min-width: 105px;
+  }
+}

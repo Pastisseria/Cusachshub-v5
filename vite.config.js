@@ -30,14 +30,15 @@ function mejorasCusachs() {
   const baseTransporte = convertirNumero(transporte);
   const tipoIva = convertirNumero(transporteIva) || 10;
 
-  const baseImponible = redondear(
-    Math.round(baseProductos + baseTransporte),
-  );
+  // La base imponible es exactamente la suma de productos + transporte.
+  const baseImponible = redondear(baseProductos + baseTransporte);
 
+  // El IVA se calcula sobre esa base y se redondea a céntimos.
   const ivaTotal = redondear(
     baseImponible * (tipoIva / 100),
   );
 
+  // El total siempre coincide con base + IVA.
   const total = redondear(baseImponible + ivaTotal);
 
   return {
@@ -56,6 +57,18 @@ function mejorasCusachs() {
           nuevoCodigo =
             nuevoCodigo.slice(0, inicio) + nuevaFuncion + nuevoCodigo.slice(fin);
         }
+
+        // Corrige también la visualización de presupuestos antiguos guardados
+        // con el anterior redondeo del IVA. Al volver a editar y guardar,
+        // los valores corregidos quedan persistidos en Supabase.
+        nuevoCodigo = nuevoCodigo.replace(
+          `{formatearEuros(documentoAbierto.iva_total)}`,
+          `{formatearEuros(redondear(Number(documentoAbierto.subtotal || 0) * ((Number(documentoAbierto.transporte_iva) || 10) / 100)))}`,
+        );
+        nuevoCodigo = nuevoCodigo.replace(
+          `{formatearEuros(documentoAbierto.total)}`,
+          `{formatearEuros(redondear(Number(documentoAbierto.subtotal || 0) + redondear(Number(documentoAbierto.subtotal || 0) * ((Number(documentoAbierto.transporte_iva) || 10) / 100))))}`,
+        );
 
         const marcadorComponente = "function DocumentoEditor({";
         if (

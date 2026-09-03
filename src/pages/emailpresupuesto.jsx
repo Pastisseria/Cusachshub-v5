@@ -16,6 +16,30 @@ function crearTemporalId() {
   return `${Date.now()}-${Math.random()}`;
 }
 
+function crearDescripcionSolicitud(texto = "") {
+  const lineas = String(texto)
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((linea) => linea.trim())
+    .filter(Boolean)
+    .filter((linea) => !/^(asunto|de|para|cc|fecha|enviado|sent|from|to|subject)\s*:/i.test(linea))
+    .filter((linea) => !/^(hola|buenos dias|buenas tardes|bon dia|bona tarda|gracias|saludos|salutacions|atentamente|muchas gracias)[,!. ]*$/i.test(linea))
+    .filter((linea) => !/^[-_]{3,}$/.test(linea))
+    .filter((linea) => !/^>/.test(linea))
+    .filter((linea) => !/^(tel|telf|telefono|m[oó]vil|email|correo)\s*[:]/i.test(linea))
+    .filter((linea) => linea.length >= 5);
+
+  const relevantes = lineas.filter((linea) =>
+    /(catering|coffee|break|desayuno|esmorzar|almuerzo|dinar|comida|berenar|merienda|cocktail|c[oó]ctel|finger|aperitivo|personas|persones|pax|entrega|lliurament|necesitamos|necessitem|queremos|voldriem|solicitamos|pressupost|presupuesto|men[uú]|bandeja|surtido|pastas|bocadillos|entrepans|croissant|canap[eé]|ensalada|amanida|tortilla|croqueta|dulce|salado)/i.test(linea),
+  );
+
+  const elegidas = (relevantes.length ? relevantes : lineas).slice(0, 6);
+  const descripcion = elegidas.join(" · ").replace(/\s+/g, " ").trim();
+
+  if (!descripcion) return "Solicitud de catering recibida por email";
+  return descripcion.length > 600 ? `${descripcion.slice(0, 597)}...` : descripcion;
+}
+
 function EmailPresupuesto() {
   const navigate = useNavigate();
   const [textoEmail, setTextoEmail] = useState("");
@@ -69,6 +93,10 @@ function EmailPresupuesto() {
         productos,
       });
 
+      const descripcionSolicitud = crearDescripcionSolicitud(
+        resultado.observaciones || textoEmail,
+      );
+
       setAnalisis({
         ...resultado,
         cliente_id: resultado.cliente_id || "",
@@ -76,12 +104,13 @@ function EmailPresupuesto() {
         hora_evento: resultado.hora_evento || "",
         numero_personas: resultado.numero_personas || "",
         telefono: resultado.telefono || "",
+        descripcion_solicitud: descripcionSolicitud,
       });
 
       setMensaje(
         resultado.lineas?.length
-          ? `He encontrado ${resultado.lineas.length} producto(s) del catálogo. Revisa los datos y prepara el presupuesto.`
-          : "He leído el email. No he encontrado productos exactos del catálogo; puedes abrir igualmente el presupuesto y completar las líneas allí.",
+          ? `He encontrado ${resultado.lineas.length} producto(s) del catálogo y he preparado la descripción del pedido.`
+          : "He leído el email y he preparado una descripción para el presupuesto. Revísala antes de continuar.",
       );
     } catch (err) {
       setError(err.message || "No se ha podido analizar el email.");
@@ -123,7 +152,7 @@ function EmailPresupuesto() {
     const lineas = (analisis.lineas || []).map((linea) => ({
       temporalId: crearTemporalId(),
       producto_id: linea.producto_id || "",
-      descripcion: linea.nombre || "",
+      descripcion: linea.nombre || analisis.descripcion_solicitud || "",
       cantidad: String(linea.cantidad || 1),
       precio_unitario: String(linea.precio_unitario ?? ""),
       iva: "10",
@@ -133,8 +162,10 @@ function EmailPresupuesto() {
       lineas.push({
         temporalId: crearTemporalId(),
         producto_id: "",
-        descripcion: "",
-        cantidad: "1",
+        descripcion:
+          analisis.descripcion_solicitud ||
+          crearDescripcionSolicitud(analisis.observaciones || textoEmail),
+        cantidad: String(analisis.numero_personas || 1),
         precio_unitario: "",
         iva: "10",
       });
@@ -207,7 +238,7 @@ function EmailPresupuesto() {
           <p className="etiqueta">CATERING</p>
           <h1>📧 Email → Presupuesto</h1>
           <p className="texto-secundario">
-            Pega el email del cliente. Cusachs Hub detectará cliente, fecha, hora, personas y productos del catálogo para dejarte el presupuesto preparado.
+            Pega el email del cliente. Cusachs Hub detectará los datos y preparará también la descripción del presupuesto.
           </p>
         </div>
       </div>
@@ -231,16 +262,7 @@ function EmailPresupuesto() {
           <button type="button" onClick={analizarTexto} disabled={procesando}>
             {procesando ? "Analizando..." : "🧠 Analizar email"}
           </button>
-          <button
-            type="button"
-            className="boton-secundario"
-            onClick={() => {
-              setTextoEmail("");
-              setAnalisis(null);
-              setError("");
-              setMensaje("");
-            }}
-          >
+          <button type="button" className="boton-secundario" onClick={() => { setTextoEmail(""); setAnalisis(null); setError(""); setMensaje(""); }}>
             Limpiar
           </button>
         </div>
@@ -253,109 +275,41 @@ function EmailPresupuesto() {
           <div className="rejilla-formulario">
             <label>
               Cliente
-              <select
-                value={analisis.cliente_id}
-                onChange={(event) => cambiarAnalisis("cliente_id", event.target.value)}
-              >
+              <select value={analisis.cliente_id} onChange={(event) => cambiarAnalisis("cliente_id", event.target.value)}>
                 <option value="">— Seleccionar cliente —</option>
-                {clientes.map((cliente) => (
-                  <option key={cliente.id} value={cliente.id}>
-                    {cliente.empresa || cliente.nombre || "Cliente"}
-                  </option>
-                ))}
+                {clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.empresa || cliente.nombre || "Cliente"}</option>)}
               </select>
             </label>
-
-            <label>
-              Fecha del catering
-              <input
-                type="date"
-                value={analisis.fecha_evento || ""}
-                onChange={(event) => cambiarAnalisis("fecha_evento", event.target.value)}
-              />
-            </label>
-
-            <label>
-              Hora
-              <input
-                type="time"
-                value={analisis.hora_evento || ""}
-                onChange={(event) => cambiarAnalisis("hora_evento", event.target.value)}
-              />
-            </label>
-
-            <label>
-              Nº personas
-              <input
-                type="number"
-                min="0"
-                value={analisis.numero_personas || ""}
-                onChange={(event) => cambiarAnalisis("numero_personas", event.target.value)}
-              />
-            </label>
-
-            <label>
-              Teléfono
-              <input
-                value={analisis.telefono || ""}
-                onChange={(event) => cambiarAnalisis("telefono", event.target.value)}
-              />
-            </label>
-
-            <label>
-              Email contacto
-              <input
-                value={analisis.email || ""}
-                onChange={(event) => cambiarAnalisis("email", event.target.value)}
+            <label>Fecha del catering<input type="date" value={analisis.fecha_evento || ""} onChange={(event) => cambiarAnalisis("fecha_evento", event.target.value)} /></label>
+            <label>Hora<input type="time" value={analisis.hora_evento || ""} onChange={(event) => cambiarAnalisis("hora_evento", event.target.value)} /></label>
+            <label>Nº personas<input type="number" min="0" value={analisis.numero_personas || ""} onChange={(event) => cambiarAnalisis("numero_personas", event.target.value)} /></label>
+            <label>Teléfono<input value={analisis.telefono || ""} onChange={(event) => cambiarAnalisis("telefono", event.target.value)} /></label>
+            <label>Email contacto<input value={analisis.email || ""} onChange={(event) => cambiarAnalisis("email", event.target.value)} /></label>
+            <label className="campo-completo">
+              Descripción para el presupuesto
+              <textarea
+                value={analisis.descripcion_solicitud || ""}
+                onChange={(event) => cambiarAnalisis("descripcion_solicitud", event.target.value)}
+                placeholder="Aquí aparecerá lo que solicita el cliente..."
+                style={{ minHeight: 120 }}
               />
             </label>
           </div>
 
-          {clienteSeleccionado && (
-            <p className="texto-secundario" style={{ marginTop: 12 }}>
-              Cliente detectado: <strong>{clienteSeleccionado.empresa || clienteSeleccionado.nombre}</strong>
-            </p>
-          )}
+          {clienteSeleccionado && <p className="texto-secundario" style={{ marginTop: 12 }}>Cliente detectado: <strong>{clienteSeleccionado.empresa || clienteSeleccionado.nombre}</strong></p>}
 
           <h3 style={{ marginTop: 24 }}>Productos detectados</h3>
           <div className="tabla-responsive">
             <table>
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th>Cantidad</th>
-                  <th>Precio</th>
-                  <th></th>
-                </tr>
-              </thead>
+              <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th></th></tr></thead>
               <tbody>
-                {(analisis.lineas || []).length === 0 && (
-                  <tr>
-                    <td colSpan="4">No se han encontrado productos exactos del catálogo.</td>
-                  </tr>
-                )}
+                {(analisis.lineas || []).length === 0 && <tr><td colSpan="4">No hay productos exactos del catálogo. La solicitud se pasará igualmente a la descripción del presupuesto.</td></tr>}
                 {(analisis.lineas || []).map((linea) => (
                   <tr key={linea.producto_id}>
                     <td><strong>{linea.nombre}</strong></td>
-                    <td>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={linea.cantidad}
-                        onChange={(event) => cambiarCantidad(linea.producto_id, event.target.value)}
-                      />
-                    </td>
+                    <td><input type="number" min="0" step="0.01" value={linea.cantidad} onChange={(event) => cambiarCantidad(linea.producto_id, event.target.value)} /></td>
                     <td>{Number(linea.precio_unitario || 0).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="boton-peligro"
-                        onClick={() => eliminarLinea(linea.producto_id)}
-                      >
-                        ×
-                      </button>
-                    </td>
+                    <td><button type="button" className="boton-peligro" onClick={() => eliminarLinea(linea.producto_id)}>×</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -363,9 +317,7 @@ function EmailPresupuesto() {
           </div>
 
           <div className="grupo-botones" style={{ marginTop: 24 }}>
-            <button type="button" className="boton-exito" onClick={prepararPresupuesto}>
-              📄 Preparar presupuesto
-            </button>
+            <button type="button" className="boton-exito" onClick={prepararPresupuesto}>📄 Preparar presupuesto</button>
           </div>
         </div>
       )}

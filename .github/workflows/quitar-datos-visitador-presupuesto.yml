@@ -1,0 +1,78 @@
+name: Quitar datos visitador presupuesto
+
+on:
+  push:
+    paths:
+      - '.github/workflows/quitar-datos-visitador-presupuesto.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Modificar DocumentoEditor
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/DocumentoEditor.jsx')
+          s = p.read_text(encoding='utf-8')
+
+          viejo_nombre = '''                  {documentoAbierto.tipo_documento === "Visitador médico"
+                    ? documentoAbierto.visitador_nombre || "—"
+                    : documentoAbierto.clientes?.empresa ||
+                      documentoAbierto.clientes?.nombre ||
+                      "Cliente"}'''
+
+          nuevo_nombre = '''                  {documentoAbierto.clientes?.empresa ||
+                    documentoAbierto.clientes?.nombre ||
+                    documentoAbierto.visitador_nombre ||
+                    "Cliente"}'''
+
+          if viejo_nombre in s:
+              s = s.replace(viejo_nombre, nuevo_nombre, 1)
+
+          bloque_visitador = '''
+            {documentoAbierto.tipo_documento === "Visitador médico" && (
+              <section className="presupuesto-print-bloque-extra">
+                <p>
+                  <strong>{textos.nombre}</strong>{" "}
+                  {documentoAbierto.visitador_nombre || "—"}
+                </p>
+
+                <p>
+                  <strong>{textos.laboratorio}</strong>{" "}
+                  {documentoAbierto.laboratorio || "—"}
+                </p>
+
+                <p>
+                  <strong>{textos.centroMedico}</strong>{" "}
+                  {documentoAbierto.centro_medico || "—"}
+                </p>
+              </section>
+            )}
+'''
+
+          if bloque_visitador not in s:
+              raise SystemExit('No se encontró el bloque de Laboratorio/Centro médico')
+
+          s = s.replace(bloque_visitador, '\n', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Eliminar workflow temporal
+        run: rm .github/workflows/quitar-datos-visitador-presupuesto.yml
+
+      - name: Guardar cambios
+        run: |
+          git config user.name "Cusachs Hub"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/components/DocumentoEditor.jsx .github/workflows/quitar-datos-visitador-presupuesto.yml
+          git commit -m "Eliminar laboratorio y centro médico del presupuesto"
+          git push origin main

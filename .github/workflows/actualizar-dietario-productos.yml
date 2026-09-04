@@ -1,0 +1,61 @@
+name: Actualizar productos dietario
+
+on:
+  push:
+    paths:
+      - '.github/workflows/actualizar-dietario-productos.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Añadir productos al dietario
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/pages/dietarioanual.jsx')
+          s = p.read_text(encoding='utf-8')
+
+          nuevos = [
+              'Brioix con piñones',
+              'Mini croissant',
+              'Mini croissants de chocolate',
+              'Mini ensaimada',
+              'Mini chucho',
+              'Croissant salat',
+              'Croissants xoco blanca',
+              'Croissant Nutella',
+              'Palmera choco',
+              'Palmera choco blanca',
+          ]
+
+          bloque = ''.join(f'      "{x}",\n' for x in nuevos)
+          marcador = '      "Xuixo",\n'
+
+          # Hay dos bloques Pastisseria: laborables y fin de semana.
+          partes = s.split(marcador)
+          if len(partes) < 3:
+              raise SystemExit('No se han encontrado los dos bloques Pastisseria esperados')
+
+          resultado = partes[0] + marcador + bloque + partes[1] + marcador + bloque + marcador.join(partes[2:])
+          p.write_text(resultado, encoding='utf-8')
+          PY
+
+      - name: Eliminar workflow temporal
+        run: rm .github/workflows/actualizar-dietario-productos.yml
+
+      - name: Guardar cambios
+        run: |
+          git config user.name "Cusachs Hub"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/pages/dietarioanual.jsx .github/workflows/actualizar-dietario-productos.yml
+          git commit -m "Añadir bollería nueva al dietario"
+          git push origin main

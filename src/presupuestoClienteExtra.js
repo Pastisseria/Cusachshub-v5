@@ -34,7 +34,7 @@ async function cargarClientes() {
   }
 }
 
-function buscarCliente(clientes, nombreVisible) {
+function buscarClientePorNombre(clientes, nombreVisible) {
   const buscado = normalizar(nombreVisible);
   if (!buscado) return null;
 
@@ -53,12 +53,29 @@ function buscarCliente(clientes, nombreVisible) {
   );
 }
 
+async function obtenerClienteDelPresupuesto(clientes) {
+  const numero = document.querySelector(".presupuesto-print-numero")?.textContent?.trim();
+  if (!numero) return null;
+
+  const { data, error } = await supabase
+    .from("presupuestos")
+    .select("cliente_id")
+    .eq("numero", numero)
+    .maybeSingle();
+
+  if (error || !data?.cliente_id) return null;
+
+  return clientes.find((cliente) => String(cliente.id) === String(data.cliente_id)) || null;
+}
+
 async function completarDatosCliente() {
   const bloques = document.querySelectorAll(".presupuesto-print-cliente");
   if (!bloques.length) return;
 
   const clientes = await cargarClientes();
   if (!clientes.length) return;
+
+  const clienteVinculado = await obtenerClienteDelPresupuesto(clientes);
 
   for (const bloqueCliente of bloques) {
     const nombreElemento = Array.from(bloqueCliente.children).find(
@@ -69,13 +86,13 @@ async function completarDatosCliente() {
     const nombreVisible = nombreElemento.textContent?.trim();
     if (!nombreVisible || nombreVisible === "—" || nombreVisible === "Cliente") continue;
 
-    const claveActual = normalizar(nombreVisible);
+    const cliente = clienteVinculado || buscarClientePorNombre(clientes, nombreVisible);
+    if (!cliente) continue;
+
+    const claveActual = String(cliente.id || normalizar(nombreVisible));
     const existente = bloqueCliente.querySelector(".presupuesto-cliente-fiscal-extra");
     if (existente?.dataset?.cliente === claveActual) continue;
     if (existente) existente.remove();
-
-    const cliente = buscarCliente(clientes, nombreVisible);
-    if (!cliente) continue;
 
     const direccionCompleta = [
       cliente.direccion,
@@ -115,7 +132,7 @@ async function completarDatosCliente() {
 let temporizador = null;
 const observador = new MutationObserver(() => {
   clearTimeout(temporizador);
-  temporizador = setTimeout(completarDatosCliente, 120);
+  temporizador = setTimeout(completarDatosCliente, 150);
 });
 
 function iniciar() {
@@ -126,8 +143,9 @@ function iniciar() {
   });
 
   completarDatosCliente();
-  setTimeout(completarDatosCliente, 1000);
-  setTimeout(completarDatosCliente, 2500);
+  setTimeout(completarDatosCliente, 800);
+  setTimeout(completarDatosCliente, 1800);
+  setTimeout(completarDatosCliente, 3500);
 }
 
 if (document.readyState === "loading") {

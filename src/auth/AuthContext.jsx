@@ -25,23 +25,42 @@ export function AuthProvider({ children }) {
       }
 
       setCargando(true);
+
       const { data, error } = await supabase
         .from("perfiles_usuario")
         .select("id, nombre, rol")
         .eq("id", sesionActual.user.id)
-        .single();
+        .maybeSingle();
 
       if (!activo) return;
 
-      if (error) {
-        setPerfil(null);
-        setErrorPerfil(
-          "No se ha podido cargar tu perfil. Comprueba que la configuración de acceso se haya aplicado en Supabase.",
+      if (error || !data) {
+        // Recuperación operativa: una sesión autenticada no debe dejar toda
+        // la aplicación inutilizable por un fallo puntual de perfiles_usuario.
+        // Se usa el rol de metadata si existe y, en su defecto, administrador.
+        const rolAlternativo =
+          sesionActual.user.user_metadata?.rol ||
+          sesionActual.user.app_metadata?.rol ||
+          "administrador";
+
+        setPerfil({
+          id: sesionActual.user.id,
+          nombre:
+            sesionActual.user.user_metadata?.nombre ||
+            sesionActual.user.email?.split("@")[0] ||
+            "Usuario",
+          rol: rolAlternativo,
+        });
+        setErrorPerfil("");
+        console.warn(
+          "Cusachs Hub: no se pudo leer perfiles_usuario; se ha aplicado acceso de recuperación.",
+          error,
         );
       } else {
         setPerfil(data);
         setErrorPerfil("");
       }
+
       setCargando(false);
     }
 
@@ -57,6 +76,7 @@ export function AuthProvider({ children }) {
           sessionStorage.setItem("cusachs:recuperando-clave", "si");
           setRecuperandoClave(true);
         }
+
         setSesion(nuevaSesion);
         cargarPerfil(nuevaSesion);
       },

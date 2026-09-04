@@ -9,30 +9,29 @@ function normalizar(texto = "") {
     .trim();
 }
 
-let clientesCache = null;
 let cargandoClientes = null;
 
 async function cargarClientes() {
-  if (clientesCache) return clientesCache;
   if (cargandoClientes) return cargandoClientes;
 
-  cargandoClientes = supabase
-    .from("clientes")
-    .select("id, nombre, empresa, nif_cif, direccion, codigo_postal, poblacion, provincia")
-    .then(({ data, error }) => {
-      if (error) throw error;
-      clientesCache = data || [];
-      return clientesCache;
-    })
-    .catch((error) => {
+  cargandoClientes = (async () => {
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("id, nombre, empresa, nif_cif, direccion, codigo_postal, poblacion, provincia");
+
+    if (error) {
       console.warn("No se han podido cargar los datos fiscales del cliente", error);
       return [];
-    })
-    .finally(() => {
-      cargandoClientes = null;
-    });
+    }
 
-  return cargandoClientes;
+    return data || [];
+  })();
+
+  try {
+    return await cargandoClientes;
+  } finally {
+    cargandoClientes = null;
+  }
 }
 
 function buscarCliente(clientes, nombreVisible) {
@@ -55,58 +54,68 @@ function buscarCliente(clientes, nombreVisible) {
 }
 
 async function completarDatosCliente() {
-  const bloqueCliente = document.querySelector(".presupuesto-print-cliente");
-  if (!bloqueCliente) return;
-
-  const nombreElemento = bloqueCliente.querySelector(":scope > strong");
-  if (!nombreElemento) return;
-
-  const nombreVisible = nombreElemento.textContent?.trim();
-  if (!nombreVisible || nombreVisible === "—" || nombreVisible === "Cliente") return;
-
-  const claveActual = normalizar(nombreVisible);
-  const existente = bloqueCliente.querySelector(".presupuesto-cliente-fiscal-extra");
-  if (existente?.dataset?.cliente === claveActual) return;
-  if (existente) existente.remove();
+  const bloques = document.querySelectorAll(".presupuesto-print-cliente");
+  if (!bloques.length) return;
 
   const clientes = await cargarClientes();
-  const cliente = buscarCliente(clientes, nombreVisible);
-  if (!cliente) return;
+  if (!clientes.length) return;
 
-  const direccionCompleta = [
-    cliente.direccion,
-    cliente.codigo_postal,
-    cliente.poblacion,
-    cliente.provincia,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  for (const bloqueCliente of bloques) {
+    const nombreElemento = Array.from(bloqueCliente.children).find(
+      (elemento) => elemento.tagName === "STRONG",
+    );
+    if (!nombreElemento) continue;
 
-  if (!cliente.nif_cif && !direccionCompleta) return;
+    const nombreVisible = nombreElemento.textContent?.trim();
+    if (!nombreVisible || nombreVisible === "—" || nombreVisible === "Cliente") continue;
 
-  const contenedor = document.createElement("div");
-  contenedor.className = "presupuesto-cliente-fiscal-extra";
-  contenedor.dataset.cliente = claveActual;
+    const claveActual = normalizar(nombreVisible);
+    const existente = bloqueCliente.querySelector(".presupuesto-cliente-fiscal-extra");
+    if (existente?.dataset?.cliente === claveActual) continue;
+    if (existente) existente.remove();
 
-  if (cliente.nif_cif) {
-    const nif = document.createElement("div");
-    nif.className = "presupuesto-cliente-fiscal-linea";
-    nif.innerHTML = `<strong>DNI / CIF:</strong> ${String(cliente.nif_cif)}`;
-    contenedor.appendChild(nif);
+    const cliente = buscarCliente(clientes, nombreVisible);
+    if (!cliente) continue;
+
+    const direccionCompleta = [
+      cliente.direccion,
+      cliente.codigo_postal,
+      cliente.poblacion,
+      cliente.provincia,
+    ]
+      .filter((valor) => String(valor || "").trim())
+      .join(" · ");
+
+    const contenedor = document.createElement("div");
+    contenedor.className = "presupuesto-cliente-fiscal-extra";
+    contenedor.dataset.cliente = claveActual;
+    contenedor.style.marginTop = "10px";
+    contenedor.style.fontSize = "15px";
+    contenedor.style.lineHeight = "1.5";
+    contenedor.style.fontWeight = "500";
+
+    if (cliente.nif_cif) {
+      const nif = document.createElement("div");
+      nif.textContent = `DNI / CIF: ${String(cliente.nif_cif)}`;
+      contenedor.appendChild(nif);
+    }
+
+    if (direccionCompleta) {
+      const direccion = document.createElement("div");
+      direccion.textContent = `Dirección: ${direccionCompleta}`;
+      contenedor.appendChild(direccion);
+    }
+
+    if (contenedor.children.length) {
+      nombreElemento.insertAdjacentElement("afterend", contenedor);
+    }
   }
-
-  if (direccionCompleta) {
-    const direccion = document.createElement("div");
-    direccion.className = "presupuesto-cliente-fiscal-linea";
-    direccion.innerHTML = `<strong>Dirección:</strong> ${direccionCompleta}`;
-    contenedor.appendChild(direccion);
-  }
-
-  nombreElemento.insertAdjacentElement("afterend", contenedor);
 }
 
+let temporizador = null;
 const observador = new MutationObserver(() => {
-  completarDatosCliente();
+  clearTimeout(temporizador);
+  temporizador = setTimeout(completarDatosCliente, 120);
 });
 
 function iniciar() {
@@ -115,7 +124,10 @@ function iniciar() {
     subtree: true,
     characterData: true,
   });
+
   completarDatosCliente();
+  setTimeout(completarDatosCliente, 1000);
+  setTimeout(completarDatosCliente, 2500);
 }
 
 if (document.readyState === "loading") {

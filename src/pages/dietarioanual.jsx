@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase.js";
 
+// Productos del dietario actualizados el 04/09/2026.
 const PRODUCTOS_LABORABLES = [
   {
     titulo: "Pastisseria",

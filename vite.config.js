@@ -30,19 +30,14 @@ function mejorasCusachs() {
   const baseTransporte = convertirNumero(transporte);
   const tipoIva = convertirNumero(transporteIva) || 10;
 
-  // La base imponible se redondea siempre al múltiplo de 0,05 € más cercano.
-  // Ejemplo: 893,74 -> 893,75.
   const baseImponible = redondear(
     Math.round((baseProductos + baseTransporte + Number.EPSILON) * 20) / 20,
   );
 
-  // El IVA se calcula sobre esa base y se redondea a céntimos.
-  // Ejemplo: 893,75 × 10 % = 89,375 -> 89,38.
   const ivaTotal = redondear(
     baseImponible * (tipoIva / 100),
   );
 
-  // El total siempre coincide con base + IVA.
   const total = redondear(baseImponible + ivaTotal);
 
   return {
@@ -62,7 +57,6 @@ function mejorasCusachs() {
             nuevoCodigo.slice(0, inicio) + nuevaFuncion + nuevoCodigo.slice(fin);
         }
 
-        // Corrige también la visualización de presupuestos antiguos guardados.
         nuevoCodigo = nuevoCodigo.replace(
           `{formatearEuros(documentoAbierto.iva_total)}`,
           `{formatearEuros(redondear(Number(documentoAbierto.subtotal || 0) * ((Number(documentoAbierto.transporte_iva) || 10) / 100)))}`,
@@ -71,6 +65,14 @@ function mejorasCusachs() {
           `{formatearEuros(documentoAbierto.total)}`,
           `{formatearEuros(redondear(Number(documentoAbierto.subtotal || 0) + redondear(Number(documentoAbierto.subtotal || 0) * ((Number(documentoAbierto.transporte_iva) || 10) / 100))))}`,
         );
+
+        const bloqueClienteOriginal = `                <strong>\n                  {documentoAbierto.tipo_documento === "Visitador médico"\n                    ? documentoAbierto.visitador_nombre || "—"\n                    : documentoAbierto.clientes?.empresa ||\n                      documentoAbierto.clientes?.nombre ||\n                      "Cliente"}\n                </strong>\n\n                {documentoAbierto.tipo_documento !== "Visitador médico" &&\n                  documentoAbierto.clientes?.empresa &&\n                  documentoAbierto.clientes?.nombre && (\n                    <p>{documentoAbierto.clientes.nombre}</p>\n                  )}`;
+
+        const bloqueClienteNuevo = `                <strong>\n                  {documentoAbierto.clientes?.empresa ||\n                    documentoAbierto.clientes?.nombre ||\n                    documentoAbierto.visitador_nombre ||\n                    "Cliente"}\n                </strong>\n\n                {documentoAbierto.clientes?.nif_cif && (\n                  <p><strong>DNI / CIF:</strong> {documentoAbierto.clientes.nif_cif}</p>\n                )}\n\n                {(documentoAbierto.clientes?.direccion ||\n                  documentoAbierto.clientes?.codigo_postal ||\n                  documentoAbierto.clientes?.poblacion ||\n                  documentoAbierto.clientes?.provincia) && (\n                  <p>\n                    <strong>Dirección:</strong>{" "}\n                    {[\n                      documentoAbierto.clientes?.direccion,\n                      documentoAbierto.clientes?.codigo_postal,\n                      documentoAbierto.clientes?.poblacion,\n                      documentoAbierto.clientes?.provincia,\n                    ].filter(Boolean).join(" · ")}\n                  </p>\n                )}\n\n                {documentoAbierto.clientes?.empresa &&\n                  documentoAbierto.clientes?.nombre && (\n                    <p>{documentoAbierto.clientes.nombre}</p>\n                  )}`;
+
+        if (nuevoCodigo.includes(bloqueClienteOriginal)) {
+          nuevoCodigo = nuevoCodigo.replace(bloqueClienteOriginal, bloqueClienteNuevo);
+        }
 
         const marcadorComponente = "function DocumentoEditor({";
         if (
@@ -94,7 +96,6 @@ function borrarBorradorPresupuesto() {
   try {
     window.localStorage.removeItem(CLAVE_BORRADOR_PRESUPUESTO);
   } catch {
-    // El navegador puede bloquear el almacenamiento; no impedimos trabajar.
   }
 }
 
@@ -196,7 +197,7 @@ function borrarBorradorPresupuesto() {
           !nuevoCodigo.includes("Guardado automático del presupuesto") &&
           nuevoCodigo.includes(marcadorEfecto)
         ) {
-          const efecto = `  // Guardado automático del presupuesto para no perderlo al cambiar de pantalla.\n  useEffect(() => {\n    if (!mostrarFormulario) return;\n\n    try {\n      window.localStorage.setItem(\n        CLAVE_BORRADOR_PRESUPUESTO,\n        JSON.stringify({\n          activo: true,\n          documentoEditando,\n          visitadorSeleccionadoId,\n          tipoDocumento,\n          clienteId,\n          fecha,\n          validezHasta,\n          estado,\n          idioma,\n          horaEntrega,\n          direccionEntrega,\n          personaContacto,\n          telefonoContacto,\n          visitadorNombre,\n          laboratorio,\n          centroMedico,\n          observaciones,\n          transporte,\n          transporteIva,\n          lineas,\n          actualizadoEn: new Date().toISOString(),\n        }),\n      );\n    } catch {\n      // El presupuesto sigue funcionando aunque el navegador bloquee localStorage.\n    }\n  }, [\n    mostrarFormulario,\n    documentoEditando,\n    visitadorSeleccionadoId,\n    tipoDocumento,\n    clienteId,\n    fecha,\n    validezHasta,\n    estado,\n    idioma,\n    horaEntrega,\n    direccionEntrega,\n    personaContacto,\n    telefonoContacto,\n    visitadorNombre,\n    laboratorio,\n    centroMedico,\n    observaciones,\n    transporte,\n    transporteIva,\n    lineas,\n  ]);\n\n`;
+          const efecto = `  // Guardado automático del presupuesto para no perderlo al cambiar de pantalla.\n  useEffect(() => {\n    if (!mostrarFormulario) return;\n\n    try {\n      window.localStorage.setItem(\n        CLAVE_BORRADOR_PRESUPUESTO,\n        JSON.stringify({\n          activo: true,\n          documentoEditando,\n          visitadorSeleccionadoId,\n          tipoDocumento,\n          clienteId,\n          fecha,\n          validezHasta,\n          estado,\n          idioma,\n          horaEntrega,\n          direccionEntrega,\n          personaContacto,\n          telefonoContacto,\n          visitadorNombre,\n          laboratorio,\n          centroMedico,\n          observaciones,\n          transporte,\n          transporteIva,\n          lineas,\n          actualizadoEn: new Date().toISOString(),\n        }),\n      );\n    } catch {\n    }\n  }, [\n    mostrarFormulario,\n    documentoEditando,\n    visitadorSeleccionadoId,\n    tipoDocumento,\n    clienteId,\n    fecha,\n    validezHasta,\n    estado,\n    idioma,\n    horaEntrega,\n    direccionEntrega,\n    personaContacto,\n    telefonoContacto,\n    visitadorNombre,\n    laboratorio,\n    centroMedico,\n    observaciones,\n    transporte,\n    transporteIva,\n    lineas,\n  ]);\n\n`;
           nuevoCodigo = nuevoCodigo.replace(marcadorEfecto, efecto + marcadorEfecto);
         }
 
@@ -218,7 +219,7 @@ function borrarBorradorPresupuesto() {
 
         if (!nuevoCodigo.includes("CLAVE_BORRADOR_ALBARAN_V3")) {
           const marcador = "function crearIdTemporal() {";
-          const helpers = `const CLAVE_BORRADOR_ALBARAN_V3 = "cusachs:borrador-albaran-v3:v1";\n\nfunction leerBorradorAlbaranV3() {\n  try {\n    const texto = window.localStorage.getItem(CLAVE_BORRADOR_ALBARAN_V3);\n    if (!texto) return null;\n    const datos = JSON.parse(texto);\n    return datos && datos.resultado ? datos : null;\n  } catch {\n    return null;\n  }\n}\n\nfunction borrarBorradorAlbaranV3() {\n  try {\n    window.localStorage.removeItem(CLAVE_BORRADOR_ALBARAN_V3);\n  } catch {\n    // No bloqueamos el lector si el navegador impide localStorage.\n  }\n}\n\n`;
+          const helpers = `const CLAVE_BORRADOR_ALBARAN_V3 = "cusachs:borrador-albaran-v3:v1";\n\nfunction leerBorradorAlbaranV3() {\n  try {\n    const texto = window.localStorage.getItem(CLAVE_BORRADOR_ALBARAN_V3);\n    if (!texto) return null;\n    const datos = JSON.parse(texto);\n    return datos && datos.resultado ? datos : null;\n  } catch {\n    return null;\n  }\n}\n\nfunction borrarBorradorAlbaranV3() {\n  try {\n    window.localStorage.removeItem(CLAVE_BORRADOR_ALBARAN_V3);\n  } catch {\n  }\n}\n\n`;
           nuevoCodigo = nuevoCodigo.replace(marcador, helpers + marcador);
         }
 
@@ -248,7 +249,7 @@ function borrarBorradorPresupuesto() {
           !nuevoCodigo.includes("Guardado automático del albarán") &&
           nuevoCodigo.includes(marcadorCarga)
         ) {
-          const efecto = `  // Guardado automático del albarán para poder cambiar de pantalla sin perder datos.\n  useEffect(() => {\n    if (!lectura && (!resultado?.lineas || resultado.lineas.length === 0)) return;\n\n    try {\n      window.localStorage.setItem(\n        CLAVE_BORRADOR_ALBARAN_V3,\n        JSON.stringify({\n          archivoActual: archivoActual\n            ? {\n                name: archivoActual.name || "albaran",\n                type: archivoActual.type || "",\n                size: Number(archivoActual.size || 0),\n              }\n            : null,\n          lectura,\n          resultado,\n          actualizadoEn: new Date().toISOString(),\n        }),\n      );\n    } catch {\n      // El lector sigue funcionando aunque no pueda persistir el borrador.\n    }\n  }, [archivoActual, lectura, resultado]);\n\n`;
+          const efecto = `  // Guardado automático del albarán para poder cambiar de pantalla sin perder datos.\n  useEffect(() => {\n    if (!lectura && (!resultado?.lineas || resultado.lineas.length === 0)) return;\n\n    try {\n      window.localStorage.setItem(\n        CLAVE_BORRADOR_ALBARAN_V3,\n        JSON.stringify({\n          archivoActual: archivoActual\n            ? {\n                name: archivoActual.name || "albaran",\n                type: archivoActual.type || "",\n                size: Number(archivoActual.size || 0),\n              }\n            : null,\n          lectura,\n          resultado,\n          actualizadoEn: new Date().toISOString(),\n        }),\n      );\n    } catch {\n    }\n  }, [archivoActual, lectura, resultado]);\n\n`;
           nuevoCodigo = nuevoCodigo.replace(marcadorCarga, efecto + marcadorCarga);
         }
 

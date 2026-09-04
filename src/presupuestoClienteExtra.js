@@ -54,6 +54,8 @@ function buscarClientePorNombre(clientes, nombreVisible) {
 }
 
 async function obtenerClienteDelPresupuesto(clientes) {
+  if (!clientes.length) return null;
+
   const numero = document.querySelector(".presupuesto-print-numero")?.textContent?.trim();
   if (!numero) return null;
 
@@ -68,14 +70,28 @@ async function obtenerClienteDelPresupuesto(clientes) {
   return clientes.find((cliente) => String(cliente.id) === String(data.cliente_id)) || null;
 }
 
+function obtenerCifDesdeBloqueVisitador() {
+  const bloque = document.querySelector(".presupuesto-print-bloque-extra");
+  if (!bloque) return "";
+
+  const lineas = Array.from(bloque.querySelectorAll("p"));
+  const laboratorio = lineas.find((linea) =>
+    normalizar(linea.textContent).startsWith("laboratorio:"),
+  );
+
+  if (!laboratorio) return "";
+
+  const texto = laboratorio.textContent || "";
+  return texto.replace(/^\s*Laboratorio:\s*/i, "").trim();
+}
+
 async function completarDatosCliente() {
   const bloques = document.querySelectorAll(".presupuesto-print-cliente");
   if (!bloques.length) return;
 
   const clientes = await cargarClientes();
-  if (!clientes.length) return;
-
   const clienteVinculado = await obtenerClienteDelPresupuesto(clientes);
+  const cifVisitador = obtenerCifDesdeBloqueVisitador();
 
   for (const bloqueCliente of bloques) {
     const nombreElemento = Array.from(bloqueCliente.children).find(
@@ -87,21 +103,30 @@ async function completarDatosCliente() {
     if (!nombreVisible || nombreVisible === "—" || nombreVisible === "Cliente") continue;
 
     const cliente = clienteVinculado || buscarClientePorNombre(clientes, nombreVisible);
-    if (!cliente) continue;
+    const cif = cliente?.nif_cif || cifVisitador || "";
 
-    const claveActual = String(cliente.id || normalizar(nombreVisible));
+    const direccionCompleta = cliente
+      ? [
+          cliente.direccion,
+          cliente.codigo_postal,
+          cliente.poblacion,
+          cliente.provincia,
+        ]
+          .filter((valor) => String(valor || "").trim())
+          .join(" · ")
+      : "";
+
+    if (!cif && !direccionCompleta) continue;
+
+    const claveActual = String(cliente?.id || normalizar(nombreVisible));
     const existente = bloqueCliente.querySelector(".presupuesto-cliente-fiscal-extra");
-    if (existente?.dataset?.cliente === claveActual) continue;
+    if (existente?.dataset?.cliente === claveActual) {
+      const textoExistente = existente.textContent || "";
+      if ((!cif || textoExistente.includes(cif)) && (!direccionCompleta || textoExistente.includes(direccionCompleta))) {
+        continue;
+      }
+    }
     if (existente) existente.remove();
-
-    const direccionCompleta = [
-      cliente.direccion,
-      cliente.codigo_postal,
-      cliente.poblacion,
-      cliente.provincia,
-    ]
-      .filter((valor) => String(valor || "").trim())
-      .join(" · ");
 
     const contenedor = document.createElement("div");
     contenedor.className = "presupuesto-cliente-fiscal-extra";
@@ -111,21 +136,19 @@ async function completarDatosCliente() {
     contenedor.style.lineHeight = "1.5";
     contenedor.style.fontWeight = "500";
 
-    if (cliente.nif_cif) {
+    if (cif) {
       const nif = document.createElement("div");
-      nif.textContent = `DNI / CIF: ${String(cliente.nif_cif)}`;
+      nif.innerHTML = `<strong>DNI / CIF:</strong> ${String(cif)}`;
       contenedor.appendChild(nif);
     }
 
     if (direccionCompleta) {
       const direccion = document.createElement("div");
-      direccion.textContent = `Dirección: ${direccionCompleta}`;
+      direccion.innerHTML = `<strong>Dirección:</strong> ${direccionCompleta}`;
       contenedor.appendChild(direccion);
     }
 
-    if (contenedor.children.length) {
-      nombreElemento.insertAdjacentElement("afterend", contenedor);
-    }
+    nombreElemento.insertAdjacentElement("afterend", contenedor);
   }
 }
 

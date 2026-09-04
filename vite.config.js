@@ -30,10 +30,14 @@ function mejorasCusachs() {
   const baseTransporte = convertirNumero(transporte);
   const tipoIva = convertirNumero(transporteIva) || 10;
 
-  // La base imponible es exactamente la suma de productos + transporte.
-  const baseImponible = redondear(baseProductos + baseTransporte);
+  // La base imponible se redondea siempre al múltiplo de 0,05 € más cercano.
+  // Ejemplo: 893,74 -> 893,75.
+  const baseImponible = redondear(
+    Math.round((baseProductos + baseTransporte + Number.EPSILON) * 20) / 20,
+  );
 
   // El IVA se calcula sobre esa base y se redondea a céntimos.
+  // Ejemplo: 893,75 × 10 % = 89,375 -> 89,38.
   const ivaTotal = redondear(
     baseImponible * (tipoIva / 100),
   );
@@ -58,9 +62,7 @@ function mejorasCusachs() {
             nuevoCodigo.slice(0, inicio) + nuevaFuncion + nuevoCodigo.slice(fin);
         }
 
-        // Corrige también la visualización de presupuestos antiguos guardados
-        // con el anterior redondeo del IVA. Al volver a editar y guardar,
-        // los valores corregidos quedan persistidos en Supabase.
+        // Corrige también la visualización de presupuestos antiguos guardados.
         nuevoCodigo = nuevoCodigo.replace(
           `{formatearEuros(documentoAbierto.iva_total)}`,
           `{formatearEuros(redondear(Number(documentoAbierto.subtotal || 0) * ((Number(documentoAbierto.transporte_iva) || 10) / 100)))}`,

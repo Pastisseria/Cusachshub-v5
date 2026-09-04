@@ -171,14 +171,10 @@ jobs:
             {documentoAbierto.tipo_documento === "Visitador médico" &&
               documentoAbierto.clientes && (
                 <section className="presupuesto-print-bloque-extra">
-                  {(documentoAbierto.clientes.nif_cif ||
-                    documentoAbierto.clientes.nif ||
-                    documentoAbierto.clientes.cif) && (
+                  {documentoAbierto.clientes.nif_cif && (
                     <p>
                       <strong>NIF / CIF:</strong>{" "}
-                      {documentoAbierto.clientes.nif_cif ||
-                        documentoAbierto.clientes.nif ||
-                        documentoAbierto.clientes.cif}
+                      {documentoAbierto.clientes.nif_cif}
                     </p>
                   )}
 
@@ -209,13 +205,6 @@ jobs:
           s2, n = patron_extra.subn(nuevo_extra, s, count=1)
           if n != 1:
               raise SystemExit('No se encontró el bloque Laboratorio/Centro médico en DocumentoEditor.jsx')
-
-          # La consulta de documentos ya trae datos de clientes; añadimos posibles aliases de NIF/CIF.
-          s2 = s2.replace(
-            '''            nif_cif,\n            direccion,''',
-            '''            nif_cif,\n            nif,\n            cif,\n            direccion,''',
-            1,
-          )
 
           p.write_text(s2, encoding='utf-8')
           PY

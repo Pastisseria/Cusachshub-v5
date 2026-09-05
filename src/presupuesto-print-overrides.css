@@ -19,6 +19,64 @@
   display: none !important;
 }
 
+/* Presupuestos: producto más compacto y descripción más ancha. */
+.linea-presupuesto {
+  grid-template-columns:
+    44px
+    minmax(145px, 0.72fr)
+    minmax(340px, 1.8fr)
+    minmax(92px, 0.48fr)
+    minmax(110px, 0.58fr)
+    minmax(105px, 0.55fr)
+    48px
+    48px !important;
+}
+
+.linea-presupuesto .campo-producto {
+  min-width: 0;
+}
+
+.linea-presupuesto .campo-descripcion {
+  min-width: 0;
+}
+
+.linea-presupuesto .campo-descripcion input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.boton-duplicar-linea {
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  align-self: end;
+  border-radius: 12px;
+  border: 1px solid #d9cde0;
+  background: #ffffff;
+  color: #3f214a;
+  font-size: 20px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.boton-duplicar-linea:hover {
+  background: #f7f1fa;
+}
+
+@media (max-width: 1400px) {
+  .linea-presupuesto {
+    grid-template-columns:
+      42px
+      minmax(130px, 0.7fr)
+      minmax(300px, 1.7fr)
+      minmax(88px, 0.48fr)
+      minmax(105px, 0.58fr)
+      minmax(100px, 0.55fr)
+      46px
+      46px !important;
+  }
+}
+
 @media print {
   body.imprimiendo-documento .presupuesto-print-cliente > strong {
     font-size: 14pt !important;
@@ -33,6 +91,10 @@
   }
 
   body.imprimiendo-documento .presupuesto-print-bloque-extra {
+    display: none !important;
+  }
+
+  .boton-duplicar-linea {
     display: none !important;
   }
 }

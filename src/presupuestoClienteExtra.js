@@ -85,6 +85,17 @@ function obtenerCifDesdeBloqueVisitador() {
   return texto.replace(/^\s*Laboratorio:\s*/i, "").trim();
 }
 
+function obtenerDireccionEntregaVisible() {
+  const filas = Array.from(document.querySelectorAll(".presupuesto-print-detalles p"));
+  const filaDireccion = filas.find((fila) => {
+    const etiqueta = normalizar(fila.querySelector("strong")?.textContent || "");
+    return etiqueta.includes("direccion") || etiqueta.includes("adreca") || etiqueta.includes("address");
+  });
+
+  const valor = filaDireccion?.querySelector("span")?.textContent?.trim() || "";
+  return valor && valor !== "—" ? valor : "";
+}
+
 async function completarDatosCliente() {
   const bloques = document.querySelectorAll(".presupuesto-print-cliente");
   if (!bloques.length) return;
@@ -92,6 +103,7 @@ async function completarDatosCliente() {
   const clientes = await cargarClientes();
   const clienteVinculado = await obtenerClienteDelPresupuesto(clientes);
   const cifVisitador = obtenerCifDesdeBloqueVisitador();
+  const direccionEntrega = obtenerDireccionEntregaVisible();
 
   for (const bloqueCliente of bloques) {
     const nombreElemento = Array.from(bloqueCliente.children).find(
@@ -105,7 +117,7 @@ async function completarDatosCliente() {
     const cliente = clienteVinculado || buscarClientePorNombre(clientes, nombreVisible);
     const cif = cliente?.nif_cif || cifVisitador || "";
 
-    const direccionCompleta = cliente
+    const direccionFiscal = cliente
       ? [
           cliente.direccion,
           cliente.codigo_postal,
@@ -116,39 +128,42 @@ async function completarDatosCliente() {
           .join(" · ")
       : "";
 
+    const direccionCompleta = direccionFiscal || direccionEntrega;
     if (!cif && !direccionCompleta) continue;
 
     const claveActual = String(cliente?.id || normalizar(nombreVisible));
-    const existente = bloqueCliente.querySelector(".presupuesto-cliente-fiscal-extra");
-    if (existente?.dataset?.cliente === claveActual) {
-      const textoExistente = existente.textContent || "";
-      if ((!cif || textoExistente.includes(cif)) && (!direccionCompleta || textoExistente.includes(direccionCompleta))) {
-        continue;
-      }
-    }
-    if (existente) existente.remove();
+    const textoBloque = bloqueCliente.textContent || "";
+    const yaTieneCif = cif && textoBloque.includes(cif);
+    const yaTieneDireccion = direccionCompleta && textoBloque.includes(direccionCompleta);
 
-    const contenedor = document.createElement("div");
+    let contenedor = bloqueCliente.querySelector(".presupuesto-cliente-fiscal-extra");
+    if (contenedor) contenedor.remove();
+
+    if (yaTieneCif && yaTieneDireccion) continue;
+
+    contenedor = document.createElement("div");
     contenedor.className = "presupuesto-cliente-fiscal-extra";
     contenedor.dataset.cliente = claveActual;
-    contenedor.style.marginTop = "10px";
+    contenedor.style.marginTop = "8px";
     contenedor.style.fontSize = "15px";
     contenedor.style.lineHeight = "1.5";
     contenedor.style.fontWeight = "500";
 
-    if (cif) {
+    if (cif && !yaTieneCif) {
       const nif = document.createElement("div");
       nif.innerHTML = `<strong>DNI / CIF:</strong> ${String(cif)}`;
       contenedor.appendChild(nif);
     }
 
-    if (direccionCompleta) {
+    if (direccionCompleta && !yaTieneDireccion) {
       const direccion = document.createElement("div");
       direccion.innerHTML = `<strong>Dirección:</strong> ${direccionCompleta}`;
       contenedor.appendChild(direccion);
     }
 
-    nombreElemento.insertAdjacentElement("afterend", contenedor);
+    if (contenedor.children.length) {
+      nombreElemento.insertAdjacentElement("afterend", contenedor);
+    }
   }
 }
 
@@ -166,9 +181,9 @@ function iniciar() {
   });
 
   completarDatosCliente();
-  setTimeout(completarDatosCliente, 800);
-  setTimeout(completarDatosCliente, 1800);
-  setTimeout(completarDatosCliente, 3500);
+  setTimeout(completarDatosCliente, 700);
+  setTimeout(completarDatosCliente, 1600);
+  setTimeout(completarDatosCliente, 3200);
 }
 
 if (document.readyState === "loading") {

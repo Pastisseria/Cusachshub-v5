@@ -10,6 +10,7 @@ function normalizar(texto = "") {
 }
 
 let cargandoClientes = null;
+let cargandoVisitadores = null;
 
 async function cargarClientes() {
   if (cargandoClientes) return cargandoClientes;
@@ -34,6 +35,29 @@ async function cargarClientes() {
   }
 }
 
+async function cargarVisitadores() {
+  if (cargandoVisitadores) return cargandoVisitadores;
+
+  cargandoVisitadores = (async () => {
+    const { data, error } = await supabase
+      .from("visitadores_medicos")
+      .select("id, nombre, apellidos, laboratorio, direccion");
+
+    if (error) {
+      console.warn("No se han podido cargar los datos del visitador", error);
+      return [];
+    }
+
+    return data || [];
+  })();
+
+  try {
+    return await cargandoVisitadores;
+  } finally {
+    cargandoVisitadores = null;
+  }
+}
+
 function buscarClientePorNombre(clientes, nombreVisible) {
   const buscado = normalizar(nombreVisible);
   if (!buscado) return null;
@@ -47,6 +71,30 @@ function buscarClientePorNombre(clientes, nombreVisible) {
       return (
         (empresa && (empresa.includes(buscado) || buscado.includes(empresa))) ||
         (nombre && (nombre.includes(buscado) || buscado.includes(nombre)))
+      );
+    }) ||
+    null
+  );
+}
+
+function buscarVisitadorPorNombre(visitadores, nombreVisible) {
+  const buscado = normalizar(nombreVisible);
+  if (!buscado) return null;
+
+  return (
+    visitadores.find((visitador) => {
+      const nombreCompleto = normalizar(
+        [visitador.nombre, visitador.apellidos].filter(Boolean).join(" "),
+      );
+      return nombreCompleto === buscado;
+    }) ||
+    visitadores.find((visitador) => {
+      const nombreCompleto = normalizar(
+        [visitador.nombre, visitador.apellidos].filter(Boolean).join(" "),
+      );
+      return (
+        nombreCompleto &&
+        (nombreCompleto.includes(buscado) || buscado.includes(nombreCompleto))
       );
     }) ||
     null
@@ -100,9 +148,12 @@ async function completarDatosCliente() {
   const bloques = document.querySelectorAll(".presupuesto-print-cliente");
   if (!bloques.length) return;
 
-  const clientes = await cargarClientes();
+  const [clientes, visitadores] = await Promise.all([
+    cargarClientes(),
+    cargarVisitadores(),
+  ]);
   const clienteVinculado = await obtenerClienteDelPresupuesto(clientes);
-  const cifVisitador = obtenerCifDesdeBloqueVisitador();
+  const cifVisitadorOculto = obtenerCifDesdeBloqueVisitador();
   const direccionEntrega = obtenerDireccionEntregaVisible();
 
   for (const bloqueCliente of bloques) {
@@ -115,9 +166,11 @@ async function completarDatosCliente() {
     if (!nombreVisible || nombreVisible === "—" || nombreVisible === "Cliente") continue;
 
     const cliente = clienteVinculado || buscarClientePorNombre(clientes, nombreVisible);
-    const cif = cliente?.nif_cif || cifVisitador || "";
+    const visitador = buscarVisitadorPorNombre(visitadores, nombreVisible);
 
-    const direccionFiscal = cliente
+    const cif = cliente?.nif_cif || visitador?.laboratorio || cifVisitadorOculto || "";
+
+    const direccionFiscalCliente = cliente
       ? [
           cliente.direccion,
           cliente.codigo_postal,
@@ -128,10 +181,12 @@ async function completarDatosCliente() {
           .join(" · ")
       : "";
 
-    const direccionCompleta = direccionFiscal || direccionEntrega;
+    const direccionEmpresaVisitador = String(visitador?.direccion || "").trim();
+    const direccionCompleta =
+      direccionFiscalCliente || direccionEmpresaVisitador || direccionEntrega;
+
     if (!cif && !direccionCompleta) continue;
 
-    const claveActual = String(cliente?.id || normalizar(nombreVisible));
     const textoBloque = bloqueCliente.textContent || "";
     const yaTieneCif = cif && textoBloque.includes(cif);
     const yaTieneDireccion = direccionCompleta && textoBloque.includes(direccionCompleta);
@@ -143,7 +198,6 @@ async function completarDatosCliente() {
 
     contenedor = document.createElement("div");
     contenedor.className = "presupuesto-cliente-fiscal-extra";
-    contenedor.dataset.cliente = claveActual;
     contenedor.style.marginTop = "8px";
     contenedor.style.fontSize = "15px";
     contenedor.style.lineHeight = "1.5";

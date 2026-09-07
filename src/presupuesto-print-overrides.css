@@ -32,10 +32,7 @@
     48px !important;
 }
 
-.linea-presupuesto .campo-producto {
-  min-width: 0;
-}
-
+.linea-presupuesto .campo-producto,
 .linea-presupuesto .campo-descripcion {
   min-width: 0;
 }
@@ -63,6 +60,61 @@
   background: #f7f1fa;
 }
 
+/* Listado de presupuestos: permitir desplazamiento lateral y dejar Acciones siempre visibles. */
+.documentos-listado .tabla-responsive {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+.documentos-listado .tabla-facturas {
+  min-width: 1120px !important;
+}
+
+.documentos-listado .tabla-facturas th:last-child,
+.documentos-listado .tabla-facturas td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  min-width: 225px;
+  background: #ffffff !important;
+  box-shadow: -10px 0 18px rgba(40, 0, 53, 0.08);
+}
+
+.documentos-listado .tabla-facturas thead th:last-child {
+  z-index: 4;
+  background: #f3eaf6 !important;
+}
+
+.documentos-listado .tabla-facturas td:last-child .acciones {
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-top: 0;
+}
+
+.documentos-listado .tabla-facturas td:last-child .acciones button {
+  min-height: 38px;
+  padding: 7px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.documentos-listado .tabla-responsive::-webkit-scrollbar {
+  height: 12px;
+}
+
+.documentos-listado .tabla-responsive::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #8f63a8;
+}
+
+.documentos-listado .tabla-responsive::-webkit-scrollbar-track {
+  background: #eee7f1;
+}
+
 @media (max-width: 1400px) {
   .linea-presupuesto {
     grid-template-columns:
@@ -74,6 +126,16 @@
       minmax(100px, 0.55fr)
       46px
       46px !important;
+  }
+
+  .documentos-listado .tabla-facturas th:last-child,
+  .documentos-listado .tabla-facturas td:last-child {
+    min-width: 205px;
+  }
+
+  .documentos-listado .tabla-facturas td:last-child .acciones button {
+    padding: 7px 8px;
+    font-size: 12px;
   }
 }
 

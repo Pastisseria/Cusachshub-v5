@@ -127,6 +127,38 @@ async function pintarVisitadores() {
   }
 }
 
+function imprimirMes() {
+  document.body.classList.add("imprimiendo-mes-catering");
+  const limpiar = () => {
+    document.body.classList.remove("imprimiendo-mes-catering");
+    window.removeEventListener("afterprint", limpiar);
+  };
+  window.addEventListener("afterprint", limpiar);
+  window.print();
+  setTimeout(limpiar, 1500);
+}
+
+function asegurarBotonImprimir() {
+  if (!location.hash.includes("/catering")) return;
+  if (document.getElementById("boton-imprimir-mes-catering")) return;
+
+  const acciones = document.querySelector(".catering-acciones-cabecera");
+  if (!acciones) return;
+
+  const boton = document.createElement("button");
+  boton.id = "boton-imprimir-mes-catering";
+  boton.type = "button";
+  boton.className = "boton-secundario";
+  boton.textContent = "🖨 Imprimir mes";
+  boton.addEventListener("click", imprimirMes);
+
+  const nuevo = Array.from(acciones.querySelectorAll("button")).find((b) =>
+    normalizar(b.textContent).includes("nuevo catering"),
+  );
+  if (nuevo) acciones.insertBefore(boton, nuevo);
+  else acciones.appendChild(boton);
+}
+
 function instalarEstilos() {
   if (document.getElementById("estilos-catering-visitadores")) return;
   const estilo = document.createElement("style");
@@ -141,13 +173,156 @@ function instalarEstilos() {
     .calendario-evento-visitador-inyectado strong {
       color: #4f176f !important;
     }
+
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 8mm;
+      }
+
+      body.imprimiendo-mes-catering {
+        background: #fff !important;
+      }
+
+      body.imprimiendo-mes-catering .sidebar,
+      body.imprimiendo-mes-catering aside,
+      body.imprimiendo-mes-catering .catering-acciones-cabecera,
+      body.imprimiendo-mes-catering .catering-navegacion,
+      body.imprimiendo-mes-catering .catering-contador,
+      body.imprimiendo-mes-catering .catering-leyenda,
+      body.imprimiendo-mes-catering .catering-error,
+      body.imprimiendo-mes-catering .catering-mensaje,
+      body.imprimiendo-mes-catering .catering-semana,
+      body.imprimiendo-mes-catering .no-imprimir {
+        display: none !important;
+      }
+
+      body.imprimiendo-mes-catering main,
+      body.imprimiendo-mes-catering .main-content,
+      body.imprimiendo-mes-catering .contenido,
+      body.imprimiendo-mes-catering .app-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+      }
+
+      body.imprimiendo-mes-catering .catering-panel {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+      }
+
+      body.imprimiendo-mes-catering .catering-cabecera {
+        display: block !important;
+        margin: 0 0 5mm !important;
+      }
+
+      body.imprimiendo-mes-catering .catering-cabecera h2 {
+        margin: 0 !important;
+        font-size: 18pt !important;
+      }
+
+      body.imprimiendo-mes-catering .catering-descripcion,
+      body.imprimiendo-mes-catering .catering-etiqueta {
+        display: none !important;
+      }
+
+      body.imprimiendo-mes-catering .catering-barra {
+        display: flex !important;
+        justify-content: center !important;
+        margin: 0 0 4mm !important;
+      }
+
+      body.imprimiendo-mes-catering .catering-barra h3 {
+        display: block !important;
+        font-size: 17pt !important;
+      }
+
+      body.imprimiendo-mes-catering .calendario-contenedor {
+        display: block !important;
+        width: 100% !important;
+        overflow: visible !important;
+        border: 1px solid #bbb !important;
+        border-radius: 0 !important;
+      }
+
+      body.imprimiendo-mes-catering .calendario-semana,
+      body.imprimiendo-mes-catering .calendario-rejilla {
+        display: grid !important;
+        grid-template-columns: repeat(7, 1fr) !important;
+        min-width: 0 !important;
+        width: 100% !important;
+      }
+
+      body.imprimiendo-mes-catering .calendario-nombre-dia {
+        padding: 2.5mm 1mm !important;
+        font-size: 9pt !important;
+        background: #f2eaf6 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      body.imprimiendo-mes-catering .calendario-nombre-dia span {
+        display: inline !important;
+      }
+
+      body.imprimiendo-mes-catering .calendario-nombre-dia::after {
+        display: none !important;
+      }
+
+      body.imprimiendo-mes-catering .calendario-dia {
+        min-height: 27mm !important;
+        height: 27mm !important;
+        padding: 8mm 1.5mm 1.5mm !important;
+        overflow: hidden !important;
+        page-break-inside: avoid !important;
+        background: #fff !important;
+      }
+
+      body.imprimiendo-mes-catering .calendario-numero {
+        top: 1.5mm !important;
+        left: 1.5mm !important;
+        width: 6mm !important;
+        height: 6mm !important;
+        font-size: 8pt !important;
+      }
+
+      body.imprimiendo-mes-catering .calendario-eventos {
+        gap: 1mm !important;
+      }
+
+      body.imprimiendo-mes-catering .calendario-evento {
+        padding: 1mm !important;
+        border-radius: 1.5mm !important;
+        font-size: 7.2pt !important;
+        line-height: 1.15 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      body.imprimiendo-mes-catering .calendario-evento strong {
+        font-size: 7.2pt !important;
+      }
+
+      body.imprimiendo-mes-catering .calendario-mas {
+        font-size: 7pt !important;
+      }
+    }
   `;
   document.head.appendChild(estilo);
 }
 
 function programar() {
   clearTimeout(temporizador);
-  temporizador = setTimeout(pintarVisitadores, 180);
+  temporizador = setTimeout(() => {
+    asegurarBotonImprimir();
+    pintarVisitadores();
+  }, 180);
 }
 
 function iniciar() {

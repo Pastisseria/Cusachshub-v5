@@ -127,7 +127,28 @@ async function pintarVisitadores() {
   }
 }
 
+function activarPaginaHorizontalCatering() {
+  let estilo = document.getElementById("pagina-horizontal-catering");
+  if (!estilo) {
+    estilo = document.createElement("style");
+    estilo.id = "pagina-horizontal-catering";
+    estilo.textContent = `@media print { @page { size: A4 landscape; margin: 7mm; } }`;
+    document.head.appendChild(estilo);
+  }
+
+  const limpiar = () => {
+    document.getElementById("pagina-horizontal-catering")?.remove();
+    window.removeEventListener("afterprint", limpiar);
+  };
+
+  window.addEventListener("afterprint", limpiar);
+  setTimeout(() => {
+    if (!window.matchMedia("print").matches) limpiar();
+  }, 4000);
+}
+
 function imprimirMes() {
+  activarPaginaHorizontalCatering();
   document.body.classList.add("imprimiendo-mes-catering");
   const limpiar = () => {
     document.body.classList.remove("imprimiendo-mes-catering");
@@ -175,11 +196,6 @@ function instalarEstilos() {
     }
 
     @media print {
-      @page {
-        size: A4 landscape;
-        margin: 8mm;
-      }
-
       body.imprimiendo-mes-catering {
         background: #fff !important;
       }
@@ -327,10 +343,25 @@ function programar() {
 
 function iniciar() {
   instalarEstilos();
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (!location.hash.includes("/catering")) return;
+      const boton = event.target?.closest?.("button");
+      if (!boton) return;
+      if (normalizar(boton.textContent).includes("imprimir semana")) {
+        activarPaginaHorizontalCatering();
+      }
+    },
+    true,
+  );
+
   const observador = new MutationObserver(programar);
   observador.observe(document.body, { childList: true, subtree: true, characterData: true });
   window.addEventListener("hashchange", () => {
     firmaAnterior = "";
+    document.getElementById("pagina-horizontal-catering")?.remove();
     programar();
   });
   programar();

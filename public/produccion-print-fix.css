@@ -1,0 +1,6 @@
+/* Producción: ocultar las observaciones en las hojas impresas */
+@media print {
+  body.imprimiendo-zona-diaria .zona-diaria-linea-print small {
+    display: none !important;
+  }
+}

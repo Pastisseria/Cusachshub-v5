@@ -1,0 +1,139 @@
+.facturacion-page .factura-vista-completa {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  overflow-y: auto;
+  padding: 28px;
+  background: rgba(24, 10, 31, 0.68);
+}
+
+.facturacion-page .factura-vista-completa .factura-barra-acciones {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: min(1100px, calc(100vw - 56px));
+  margin: 0 auto;
+  padding: 14px 18px;
+  border-radius: 16px 16px 0 0;
+  background: #3d004f;
+  color: #fff;
+}
+
+.facturacion-page .factura-vista-completa .factura-barra-acciones > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.facturacion-page .factura-vista-completa .factura-barra-acciones span {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.facturacion-page .factura-vista-completa .factura-barra-acciones button {
+  background: #fff;
+  color: #3d004f;
+}
+
+.facturacion-page .factura-vista-completa .factura-documento {
+  width: min(1100px, calc(100vw - 56px));
+  min-height: 600px;
+  margin: 0 auto 30px;
+  padding: 34px;
+  border-radius: 0 0 16px 16px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.facturacion-page .factura-vista-completa .factura-documento h1 {
+  margin: 0 0 8px;
+  color: #3d004f;
+}
+
+.facturacion-page .factura-vista-completa .factura-documento h2 {
+  margin: 0 0 18px;
+}
+
+.facturacion-page .factura-vista-completa .tabla-facturas {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 22px;
+}
+
+.facturacion-page .factura-vista-completa .tabla-facturas th,
+.facturacion-page .factura-vista-completa .tabla-facturas td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #ded5e3;
+  text-align: left;
+  vertical-align: top;
+}
+
+.facturacion-page .factura-vista-completa .tabla-facturas th {
+  color: #3d004f;
+  background: #f5eef7;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  body:has(.facturacion-page .factura-vista-completa) * {
+    visibility: hidden !important;
+  }
+
+  body:has(.facturacion-page .factura-vista-completa) .factura-vista-completa,
+  body:has(.facturacion-page .factura-vista-completa) .factura-vista-completa * {
+    visibility: visible !important;
+  }
+
+  body:has(.facturacion-page .factura-vista-completa) .factura-vista-completa {
+    position: absolute !important;
+    inset: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  body:has(.facturacion-page .factura-vista-completa) .factura-barra-acciones,
+  body:has(.facturacion-page .factura-vista-completa) .no-imprimir {
+    display: none !important;
+  }
+
+  body:has(.facturacion-page .factura-vista-completa) .factura-documento {
+    width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body:has(.facturacion-page .factura-vista-completa) .tabla-facturas {
+    font-size: 10pt !important;
+  }
+
+  body:has(.facturacion-page .factura-vista-completa) .tabla-facturas tr {
+    break-inside: avoid;
+  }
+}
+
+@media (max-width: 800px) {
+  .facturacion-page .factura-vista-completa {
+    padding: 10px;
+  }
+
+  .facturacion-page .factura-vista-completa .factura-barra-acciones,
+  .facturacion-page .factura-vista-completa .factura-documento {
+    width: calc(100vw - 20px);
+  }
+
+  .facturacion-page .factura-vista-completa .factura-documento {
+    padding: 18px;
+  }
+}

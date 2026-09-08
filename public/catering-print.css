@@ -1,11 +1,4 @@
 @media print {
-  /* Regla general de la aplicación: los presupuestos y documentos imprimen en vertical.
-     La orientación horizontal de Catering se aplica dinámicamente solo al pulsar sus botones de impresión. */
-  @page {
-    size: A4 portrait;
-    margin: 12mm;
-  }
-
   body.imprimiendo-mes-catering,
   body.imprimiendo-semana-catering {
     background: #fff !important;
@@ -91,6 +84,7 @@
   }
 
   body.imprimiendo-mes-catering .calendario-nombre-dia {
+    display: block !important;
     padding: 2mm 1mm !important;
     font-size: 9pt !important;
     background: #f2eaf6 !important;
@@ -98,16 +92,57 @@
     print-color-adjust: exact !important;
   }
 
-  body.imprimiendo-mes-catering .calendario-dia {
+  /* Los días del calendario son botones. El CSS general de impresión
+     oculta todos los botones; aquí los volvemos a mostrar solo en Catering. */
+  body.imprimiendo-mes-catering button.calendario-dia {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    min-width: 0 !important;
     min-height: 28mm !important;
     height: 28mm !important;
+    margin: 0 !important;
     padding: 7mm 1.2mm 1.2mm !important;
     overflow: hidden !important;
+    border: 1px solid #d6cddd !important;
+    border-radius: 0 !important;
     background: #fff !important;
+    color: #111 !important;
+    text-align: left !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.imprimiendo-mes-catering button.calendario-dia.calendario-dia-otro-mes {
+    background: #f8f6f9 !important;
+  }
+
+  body.imprimiendo-mes-catering .calendario-numero {
+    display: inline-flex !important;
+    visibility: visible !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 6mm !important;
+    height: 6mm !important;
+    font-size: 8pt !important;
+  }
+
+  body.imprimiendo-mes-catering .calendario-eventos,
+  body.imprimiendo-mes-catering .calendario-evento,
+  body.imprimiendo-mes-catering .calendario-evento *,
+  body.imprimiendo-mes-catering .calendario-mas {
+    visibility: visible !important;
+  }
+
+  body.imprimiendo-mes-catering .calendario-eventos {
+    display: grid !important;
+    gap: 1mm !important;
+    margin-top: 1mm !important;
   }
 
   body.imprimiendo-mes-catering .calendario-evento {
+    display: block !important;
     padding: 1mm !important;
+    border-radius: 1.5mm !important;
     font-size: 7.5pt !important;
     line-height: 1.15 !important;
     -webkit-print-color-adjust: exact !important;
@@ -116,6 +151,11 @@
 
   body.imprimiendo-mes-catering .calendario-evento strong {
     font-size: 7.5pt !important;
+  }
+
+  body.imprimiendo-mes-catering .calendario-mas {
+    display: block !important;
+    font-size: 7pt !important;
   }
 
   body.imprimiendo-semana-catering * {

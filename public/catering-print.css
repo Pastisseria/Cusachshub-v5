@@ -1,7 +1,9 @@
 @media print {
+  /* Regla general de la aplicación: los presupuestos y documentos imprimen en vertical.
+     La orientación horizontal de Catering se aplica dinámicamente solo al pulsar sus botones de impresión. */
   @page {
-    size: A4 landscape;
-    margin: 7mm;
+    size: A4 portrait;
+    margin: 12mm;
   }
 
   body.imprimiendo-mes-catering,

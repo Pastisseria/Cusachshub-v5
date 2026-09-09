@@ -47,6 +47,7 @@ function Sidebar({ abierto = false, onCerrar }) {
           <NavLink to="/higiene/incidencias" className={claseEnlace}>⚠️ Incidencias</NavLink>
           <NavLink to="/higiene/aceite" className={claseEnlace}>🛢️ Aceite usado</NavLink>
           <NavLink to="/higiene/agua" className={claseEnlace}>💧 Facturas de agua</NavLink>
+          <NavLink to="/higiene/ibertrac" className={claseEnlace}>🛡️ Ibertrac</NavLink>
         </div>
         <div className="menu-section">
           <h4>FICHAS Y PRODUCCIÓN</h4>

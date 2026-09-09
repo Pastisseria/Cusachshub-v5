@@ -43,6 +43,7 @@ import Incidencias from "./pages/incidencias.jsx";
 import Aceite from "./pages/aceite.jsx";
 import Agua from "./pages/agua.jsx";
 import Ibertrac from "./pages/ibertrac.jsx";
+import ControlRecepcion from "./pages/controlrecepcion.jsx";
 import RestablecerClave from "./pages/restablecerClave.jsx";
 import "./App.css";
 import "./responsive-overrides.css";
@@ -108,6 +109,7 @@ function App() {
         <Route path="/higiene/aceite" element={protegida(<Aceite />, true)} />
         <Route path="/higiene/agua" element={protegida(<Agua />, true)} />
         <Route path="/higiene/ibertrac" element={protegida(<Ibertrac />, true)} />
+        <Route path="/higiene/control-recepcion" element={protegida(<ControlRecepcion />, true)} />
         <Route path="/higiene/ingredientes" element={protegida(<Ingredientes />, true)} />
         <Route path="/higiene/escandallos" element={protegida(<Escandallos />, true)} />
         <Route path="/higiene/recetas" element={protegida(<Recetas />, true)} />

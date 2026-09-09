@@ -21,6 +21,10 @@ const productoInicial = {
   fecha_revision: new Date().toISOString().slice(0, 10),
   observaciones: "",
 };
+const PLAN_LIMPIEZA = [
+  ["Cocina", "Suelo", "VOLVONE", "ASEPVIX", "Diaria", "1 parte de Volvone y 3 partes de agua"], ["Cocina", "Techos", "VOLVONE", "ASEPVIX", "Mensual", "1 parte de Volvone y 3 partes de agua"], ["Cocina", "Superficies de trabajo", "DETERNET", "ASEPVIX", "A cada uso", ""], ["Cocina", "Freidora", "", "", "Semanal", ""], ["Cocina", "Suelo del cuarto frío", "VOLVONE", "ASEPVIX", "Diaria", "1 parte de Volvone y 3 partes de agua"], ["Cocina", "Paredes del cuarto frío", "VOLVONE", "ASEPVIX", "Mensual", "1 parte de Volvone y 3 partes de agua"], ["Cocina", "Nevera del cuarto frío", "DETERNET", "ASEPVIX", "Semanal", ""], ["Cocina", "Picas", "DETERNET", "ASEPVIX", "Diaria", ""], ["Cocina", "Cajones", "DETERNET", "ASEPVIX", "Semanal", ""], ["Cocina", "Luces", "VOLVONE", "ASEPVIX", "Mensual", "1-2 pulsaciones en un cubo de 5-10 litros"], ["Cocina", "Paredes", "VOLVONE", "ASEPVIX", "Mensual", "1-2 pulsaciones en un cubo de 5-10 litros"], ["Cocina", "Nevera", "DETERNET", "ASEPVIX", "Semanal", ""], ["Cocina", "Cortadora", "DETERNET", "ASEPVIX", "Diaria", ""], ["Cocina", "Microondas", "DETERNET", "ASEPVIX", "Diaria", ""], ["Cocina", "Detrás de congeladores", "VOLVONE", "ASEPVIX", "Semanal", "1-2 pulsaciones en un cubo de 5-10 litros"], ["Cocina", "Estanterías", "VOLVONE", "ASEPVIX", "Semanal", "1 parte de Volvone y 3 partes de agua"], ["Cocina", "Campana extractora", "SUPERVIX", "", "Semanal", ""],
+  ["Obrador", "Suelo", "VOLVONE", "ASEPVIX", "Diaria", "1 parte de Volvone y 3 partes de agua"], ["Obrador", "Techos", "VOLVONE", "ASEPVIX", "Mensual", "1 parte de Volvone y 3 partes de agua"], ["Obrador", "Superficies de trabajo", "DETERNET", "ASEPVIX", "A cada uso", ""], ["Obrador", "Neveras", "DETERNET", "ASEPVIX", "Semanal", ""], ["Obrador", "Pica", "DETERNET", "ASEPVIX", "Diaria", ""], ["Obrador", "Cajones", "DETERNET", "ASEPVIX", "Semanal", ""], ["Obrador", "Luces", "VOLVONE", "ASEPVIX", "Mensual", "1-2 pulsaciones en un cubo de 5-10 litros"], ["Obrador", "Paredes", "VOLVONE", "ASEPVIX", "Mensual", "1-2 pulsaciones en un cubo de 5-10 litros"], ["Obrador", "Estanterías", "VOLVONE", "ASEPVIX", "Semanal", "1 parte de Volvone y 3 partes de agua"], ["Obrador", "Campana extractora", "SUPERVIX", "", "Semanal", ""],
+].map(([zona, superficie, limpieza, desinfeccion, frecuencia, metodo], id) => ({ id, zona, superficie, limpieza, desinfeccion, frecuencia, metodo }));
 
 export default function Limpieza() {
   const [datos, setDatos] = useState([]),
@@ -31,6 +35,8 @@ export default function Limpieza() {
     [pdf, setPdf] = useState(null),
     [mensajeProducto, setMensajeProducto] = useState(""),
     [leyendoFicha, setLeyendoFicha] = useState(false);
+  const [zonaPlan, setZonaPlan] = useState("Cocina");
+  const [controlesPlan, setControlesPlan] = useState({});
   async function cargar() {
     const { data, error } = await supabase
       .from("higiene_limpieza")
@@ -68,6 +74,15 @@ export default function Limpieza() {
       })
       .eq("id", id);
     cargar();
+  }
+  async function registrarPlan(tarea) {
+    const control = controlesPlan[tarea.id] || {};
+    const fecha = control.fecha || new Date().toISOString().slice(0, 10);
+    if (!control.responsable?.trim()) return setMensaje("Indica el responsable antes de registrar la limpieza.");
+    const detalle = [tarea.superficie, tarea.limpieza && `Limpieza: ${tarea.limpieza}`, tarea.desinfeccion && `Desinfección: ${tarea.desinfeccion}`, tarea.metodo].filter(Boolean).join(" · ");
+    const { error } = await supabase.from("higiene_limpieza").insert({ zona: tarea.zona, tarea: detalle, frecuencia: tarea.frecuencia, responsable: control.responsable.trim(), fecha, estado: "Completada", completado_at: new Date().toISOString(), observaciones: control.observaciones || "" });
+    if (error) setMensaje(error.message);
+    else { setMensaje(`${tarea.superficie} registrada correctamente.`); setControlesPlan((actual) => ({ ...actual, [tarea.id]: { fecha, responsable: "" } })); cargar(); }
   }
   async function guardarProducto(e) {
     e.preventDefault();
@@ -130,7 +145,11 @@ export default function Limpieza() {
       titulo="Limpieza y desinfección"
       texto="Planifica las tareas y conserva las fichas técnicas de los productos."
     >
-      <h2>Plan de limpieza</h2>
+      <div className="control-titulo-fila"><h2>Plan de limpieza habitual</h2><select value={zonaPlan} onChange={(e) => setZonaPlan(e.target.value)}><option>Cocina</option><option>Obrador</option></select></div>
+      <div className="tabla-control-wrap"><table className="tabla-control plan-limpieza-tabla"><thead><tr><th>Superficie/equipo</th><th>Productos y método</th><th>Frecuencia</th><th>Fecha realizada</th><th>Responsable</th><th></th></tr></thead><tbody>{PLAN_LIMPIEZA.filter((t) => t.zona === zonaPlan).map((t) => { const c = controlesPlan[t.id] || {}; return <tr key={t.id}><td><strong>{t.superficie}</strong></td><td>{t.limpieza || "—"}{t.desinfeccion && <small>Desinfección: {t.desinfeccion}</small>}{t.metodo && <small>{t.metodo}</small>}</td><td>{t.frecuencia}</td><td><input type="date" value={c.fecha || new Date().toISOString().slice(0, 10)} onChange={(e) => setControlesPlan({ ...controlesPlan, [t.id]: { ...c, fecha: e.target.value } })}/></td><td><input placeholder="Nombre" value={c.responsable || ""} onChange={(e) => setControlesPlan({ ...controlesPlan, [t.id]: { ...c, responsable: e.target.value } })}/></td><td><button className="boton-tabla-control" onClick={() => registrarPlan(t)}>Registrar</button></td></tr>; })}</tbody></table></div>
+      {mensaje && <p className="mensaje-control">{mensaje}</p>}
+      <hr className="separador-control" />
+      <h2>Añadir otra tarea</h2>
       <form className="control-form" onSubmit={guardar}>
         <div className="control-grid">
           <Campo
@@ -171,7 +190,6 @@ export default function Limpieza() {
         </div>
         <button className="boton-control">Añadir tarea</button>
       </form>
-      {mensaje && <p className="mensaje-control">{mensaje}</p>}
       <Tabla
         cab={["Fecha", "Zona", "Tarea", "Responsable", "Frecuencia", "Estado"]}
         datos={datos}

@@ -9,7 +9,12 @@ const fechaIso = (texto) => {
   return partes ? `${partes[3]}-${partes[2]}-${partes[1]}` : "";
 };
 const numero = (texto) => {
-  const valor = Number(String(texto || "").replace(/\./g, "").replace(",", "."));
+  let limpio = String(texto || "").trim();
+  const ultimaComa = limpio.lastIndexOf(",");
+  const ultimoPunto = limpio.lastIndexOf(".");
+  if (ultimaComa > ultimoPunto) limpio = limpio.replace(/\./g, "").replace(",", ".");
+  else if (ultimoPunto > ultimaComa) limpio = limpio.replace(/,/g, "");
+  const valor = Number(limpio);
   return Number.isFinite(valor) ? Math.abs(valor) : "";
 };
 

@@ -2,7 +2,7 @@ import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 const iso = (v) => { const m = v?.match(/(\d{2})[\/-](\d{2})[\/-](\d{4})/); return m ? `${m[3]}-${m[2]}-${m[1]}` : ""; };
-const num = (v) => { const n = Number(String(v || "").replace(/\./g, "").replace(",", ".")); return Number.isFinite(n) ? n : ""; };
+const num = (v) => { let s = String(v || "").trim(); const c = s.lastIndexOf(","), p = s.lastIndexOf("."); if (c > p) s = s.replace(/\./g, "").replace(",", "."); else if (p > c) s = s.replace(/,/g, ""); const n = Number(s); return Number.isFinite(n) ? n : ""; };
 export async function leerFacturaAguaPdf(archivo) {
   const doc = await pdfjsLib.getDocument({ data: await archivo.arrayBuffer() }).promise; const partes = [];
   for (let i = 1; i <= doc.numPages; i += 1) { const c = await (await doc.getPage(i)).getTextContent(); partes.push(c.items.map((x) => x.str).join(" ")); }

@@ -40,6 +40,8 @@ import Temperaturas from "./pages/temperaturas.jsx";
 import Limpieza from "./pages/limpieza.jsx";
 import Trazabilidad from "./pages/trazabilidad.jsx";
 import Incidencias from "./pages/incidencias.jsx";
+import Aceite from "./pages/aceite.jsx";
+import Agua from "./pages/agua.jsx";
 import RestablecerClave from "./pages/restablecerClave.jsx";
 import "./App.css";
 import "./responsive-overrides.css";
@@ -102,6 +104,8 @@ function App() {
         <Route path="/higiene/limpieza" element={protegida(<Limpieza />, true)} />
         <Route path="/higiene/trazabilidad" element={protegida(<Trazabilidad />, true)} />
         <Route path="/higiene/incidencias" element={protegida(<Incidencias />, true)} />
+        <Route path="/higiene/aceite" element={protegida(<Aceite />, true)} />
+        <Route path="/higiene/agua" element={protegida(<Agua />, true)} />
         <Route
           path="/higiene/proveedores"
           element={protegida(<Proveedores />, true)}

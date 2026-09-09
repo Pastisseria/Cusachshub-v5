@@ -15,6 +15,8 @@ const modulosHigiene = [
   ],
   ["📦", "Trazabilidad", "Control de lotes, materias primas y destino.", "/higiene/trazabilidad"],
   ["⚠️", "Incidencias", "Desviaciones detectadas y medidas correctoras.", "/higiene/incidencias"],
+  ["🛢️", "Aceite usado", "Recogidas, cantidades y justificantes PDF del gestor.", "/higiene/aceite"],
+  ["💧", "Facturas de agua", "Facturas, periodos, consumo e importes.", "/higiene/agua"],
 ];
 
 export default function Higiene() {

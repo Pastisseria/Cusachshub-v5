@@ -1,0 +1,49 @@
+.proveedores-tabla-wrap {
+  overflow: auto;
+  border: 1px solid #ddd7e2;
+  border-radius: 15px;
+}
+
+.proveedores-tabla {
+  width: 100%;
+  min-width: 1050px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.proveedores-tabla th,
+.proveedores-tabla td {
+  padding: 13px;
+  border-bottom: 1px solid #e8e3eb;
+  text-align: left;
+  vertical-align: top;
+}
+
+.proveedores-tabla th {
+  background: #315d4c;
+  color: #fff;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.proveedores-tabla td small {
+  display: block;
+  margin-top: 5px;
+  color: #746c78;
+}
+
+.proveedores-tabla td .sanidad-ok {
+  color: #257046;
+  font-weight: 700;
+}
+
+.proveedores-tabla td .sanidad-pendiente {
+  color: #a86417;
+  font-weight: 700;
+}
+
+.proveedores-tabla td button {
+  min-height: 36px;
+  margin: 0 5px 5px 0;
+  padding: 7px 10px;
+}

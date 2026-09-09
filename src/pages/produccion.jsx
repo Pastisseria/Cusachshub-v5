@@ -488,12 +488,17 @@ function Produccion() {
   const produccionBarraSemana = useMemo(() => {
     const fechasSemana = new Set(diasSemanaBarra.map((dia) => dia.fecha));
 
-    const lineasBarra = producciones.filter(
-      (linea) =>
-        linea.zona === "Barra" &&
-        fechasSemana.has(linea.fecha) &&
-        linea.estado !== "Cancelado",
-    );
+    const lineasBarra = producciones
+      .filter(
+        (linea) =>
+          linea.zona === "Barra" &&
+          linea.estado !== "Cancelado",
+      )
+      .map((linea) => ({
+        ...linea,
+        fecha_preparacion: obtenerDiaAnterior(linea.fecha),
+      }))
+      .filter((linea) => fechasSemana.has(linea.fecha_preparacion));
 
     const agrupado = {};
 
@@ -508,8 +513,8 @@ function Produccion() {
           linea.pedido_nombre || "Pedido"
         }`;
 
-      if (!agrupado[linea.fecha][clavePedido]) {
-        agrupado[linea.fecha][clavePedido] = {
+      if (!agrupado[linea.fecha_preparacion][clavePedido]) {
+        agrupado[linea.fecha_preparacion][clavePedido] = {
           clave: clavePedido,
           cliente_nombre: linea.cliente_nombre || "Cliente",
           pedido_nombre: linea.pedido_nombre || "Pedido",
@@ -517,7 +522,7 @@ function Produccion() {
         };
       }
 
-      agrupado[linea.fecha][clavePedido].lineas.push(linea);
+      agrupado[linea.fecha_preparacion][clavePedido].lineas.push(linea);
     });
 
     return agrupado;
@@ -1903,6 +1908,15 @@ function obtenerFechaISO(fecha) {
   const dia = String(fecha.getDate()).padStart(2, "0");
 
   return `${año}-${mes}-${dia}`;
+}
+
+function obtenerDiaAnterior(fechaTexto) {
+  if (!fechaTexto) return "";
+
+  const fecha = new Date(`${fechaTexto}T12:00:00`);
+  fecha.setDate(fecha.getDate() - 1);
+
+  return obtenerFechaISO(fecha);
 }
 
 function formatearFecha(fechaTexto) {

@@ -9,11 +9,14 @@ create table if not exists public.higiene_ibertrac_documentos (
   numero_registro text,
   zona_aplicacion text,
   observaciones text,
+  productos_detectados jsonb not null default '[]'::jsonb,
   archivo_nombre text not null,
   archivo_ruta text not null,
   archivo_tipo text,
   created_at timestamptz not null default now()
 );
+alter table public.higiene_ibertrac_documentos
+  add column if not exists productos_detectados jsonb not null default '[]'::jsonb;
 create index if not exists higiene_ibertrac_fecha_idx on public.higiene_ibertrac_documentos (fecha_documento desc);
 alter table public.higiene_ibertrac_documentos enable row level security;
 drop policy if exists "ibertrac_administrador" on public.higiene_ibertrac_documentos;

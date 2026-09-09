@@ -14,6 +14,7 @@ const modulosHigiene = [
     "/higiene/limpieza",
   ],
   ["📦", "Trazabilidad", "Control de lotes, materias primas y destino.", "/higiene/trazabilidad"],
+  ["✅", "Control de recepción", "Fotos de albaranes convertidas y archivadas individualmente en PDF.", "/higiene/control-recepcion"],
   ["⚠️", "Incidencias", "Desviaciones detectadas y medidas correctoras.", "/higiene/incidencias"],
   ["🛢️", "Aceite usado", "Recogidas, cantidades y justificantes PDF del gestor.", "/higiene/aceite"],
   ["💧", "Facturas de agua", "Facturas, periodos, consumo e importes.", "/higiene/agua"],

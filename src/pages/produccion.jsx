@@ -2568,6 +2568,10 @@ const ESTILOS_PRODUCCION = `
     text-transform: capitalize;
   }
 
+  .barra-semanal-dia-cabecera strong {
+    font-size: 16px;
+  }
+
   .barra-semanal-dia-cabecera strong,
   .barra-semanal-dia-cabecera span {
     display: block;
@@ -2575,13 +2579,13 @@ const ESTILOS_PRODUCCION = `
 
   .barra-semanal-dia-cabecera span {
     margin-top: 3px;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .barra-semanal-vacio {
     padding: 28px 8px;
     color: #9b929f;
-    font-size: 12px;
+    font-size: 13px;
     text-align: center;
   }
 
@@ -2601,12 +2605,12 @@ const ESTILOS_PRODUCCION = `
 
   .barra-semanal-pedido-cabecera strong {
     color: #642a87;
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .barra-semanal-pedido-cabecera span {
     margin-top: 2px;
-    font-size: 11px;
+    font-size: 12px;
     color: #756d7a;
   }
 
@@ -2618,15 +2622,15 @@ const ESTILOS_PRODUCCION = `
 
   .barra-semanal-linea {
     display: grid;
-    grid-template-columns: 18px 30px 1fr;
-    gap: 4px;
+    grid-template-columns: 20px 36px 1fr;
+    gap: 5px;
     align-items: start;
-    font-size: 11px;
-    line-height: 1.25;
+    font-size: 13px;
+    line-height: 1.3;
   }
 
   .barra-check {
-    font-size: 14px;
+    font-size: 17px;
   }
 
   .barra-cantidad {

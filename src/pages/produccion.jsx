@@ -1394,6 +1394,18 @@ function Produccion() {
                   key={`print-${pedido.clave}`}
                   className="zona-diaria-pedido-print"
                 >
+                  <div className="zona-diaria-titulo-pedido-print">
+                    <div>
+                      <strong>PASTISSERIA CUSACHS</strong>
+                      <h2>
+                        {zonaImpresionDiaria === "Obrador"
+                          ? "🥐 Producción Obrador"
+                          : "🍳 Producción Cocina"}
+                      </h2>
+                    </div>
+                    <span>{formatearFecha(fechaSeleccionada)}</span>
+                  </div>
+
                   <div className="zona-diaria-pedido-cabecera-print">
                     <div>
                       <strong>{pedido.cliente_nombre}</strong>
@@ -2400,6 +2412,10 @@ const ESTILOS_PRODUCCION = `
     border: 1px solid #aaa;
   }
 
+  .zona-diaria-titulo-pedido-print {
+    display: none;
+  }
+
   .zona-diaria-pedido-cabecera-print {
     display: flex;
     justify-content: space-between;
@@ -2627,8 +2643,95 @@ const ESTILOS_PRODUCCION = `
       background: #ffffff;
     }
 
+    body.imprimiendo-zona-diaria .zona-diaria-titulo-print {
+      display: none;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-pedidos-print {
+      display: block;
+      padding-top: 0;
+    }
+
     body.imprimiendo-zona-diaria .zona-diaria-pedido-print {
+      display: block;
+      width: 100%;
+      min-height: 0;
+      margin: 0;
       page-break-inside: avoid;
+      break-inside: avoid-page;
+      page-break-after: always;
+      break-after: page;
+      border: 0;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-pedido-print:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #2f2932;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print strong {
+      font-size: 13px;
+      letter-spacing: 1.5px;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print h2 {
+      margin: 4px 0 0;
+      font-size: 27px;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print > span {
+      font-size: 17px;
+      font-weight: 800;
+      text-transform: capitalize;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print {
+      margin-top: 12px;
+      padding: 11px 12px;
+      border: 1px solid #999;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print strong {
+      font-size: 19px;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print div span {
+      font-size: 15px;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print .zona-diaria-hora-catering-print {
+      font-size: 17px;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-lineas-print {
+      padding: 6px 12px;
+      border: 1px solid #999;
+      border-top: 0;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-linea-print {
+      grid-template-columns: 26px 130px 1fr;
+      gap: 10px;
+      padding: 9px 0;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-linea-print small {
+      font-size: 14px;
+    }
+
+    body.imprimiendo-zona-diaria .zona-diaria-check-print {
+      font-size: 20px;
     }
 
     @page {

@@ -1,0 +1,13 @@
+create extension if not exists pgcrypto;
+create table if not exists public.higiene_temperaturas (id uuid primary key default gen_random_uuid(),numero_serie text not null,nombre_ubicacion text not null,tipo_equipo text not null default 'Otro',limite_minimo numeric,limite_maximo numeric,fecha_inicio timestamptz,fecha_fin timestamptz,temperatura_minima numeric,temperatura_maxima numeric,temperatura_media numeric,numero_registros integer,intervalo text,archivo_nombre text not null,archivo_ruta text not null,created_at timestamptz default now());
+create table if not exists public.higiene_limpieza (id uuid primary key default gen_random_uuid(),fecha date not null,zona text not null,tarea text not null,frecuencia text not null,responsable text not null,estado text not null default 'Pendiente',observaciones text,completado_at timestamptz,created_at timestamptz default now());
+create table if not exists public.higiene_trazabilidad (id uuid primary key default gen_random_uuid(),fecha date not null,producto text not null,lote_interno text not null,lote_proveedor text not null,proveedor text not null,cantidad text,destino text,observaciones text,created_at timestamptz default now());
+create table if not exists public.higiene_incidencias (id uuid primary key default gen_random_uuid(),fecha date not null,area text not null,descripcion text not null,medida_correctora text not null,responsable text not null,estado text not null default 'Abierta',cerrada_at timestamptz,created_at timestamptz default now());
+alter table public.higiene_temperaturas enable row level security;
+alter table public.higiene_limpieza enable row level security;
+alter table public.higiene_trazabilidad enable row level security;
+alter table public.higiene_incidencias enable row level security;
+do $$ declare t text; begin foreach t in array array['higiene_temperaturas','higiene_limpieza','higiene_trazabilidad','higiene_incidencias'] loop execute format('drop policy if exists "Usuarios autenticados" on public.%I',t);execute format('create policy "Usuarios autenticados" on public.%I for all to authenticated using (true) with check (true)',t);end loop;end $$;
+insert into storage.buckets(id,name,public) values('higiene-pdfs','higiene-pdfs',false) on conflict(id) do nothing;
+drop policy if exists "PDF higiene autenticados" on storage.objects;
+create policy "PDF higiene autenticados" on storage.objects for all to authenticated using(bucket_id='higiene-pdfs') with check(bucket_id='higiene-pdfs');

@@ -44,6 +44,7 @@ function Sidebar({ abierto = false, onCerrar }) {
           <NavLink to="/higiene/temperaturas" className={claseEnlace}>🌡️ Temperaturas</NavLink>
           <NavLink to="/higiene/limpieza" className={claseEnlace}>🧹 Limpieza</NavLink>
           <NavLink to="/higiene/trazabilidad" className={claseEnlace}>📦 Trazabilidad</NavLink>
+          <NavLink to="/higiene/control-recepcion" className={claseEnlace}>✅ Control recepción</NavLink>
           <NavLink to="/higiene/incidencias" className={claseEnlace}>⚠️ Incidencias</NavLink>
           <NavLink to="/higiene/aceite" className={claseEnlace}>🛢️ Aceite usado</NavLink>
           <NavLink to="/higiene/agua" className={claseEnlace}>💧 Facturas de agua</NavLink>

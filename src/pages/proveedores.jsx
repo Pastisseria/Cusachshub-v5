@@ -3,6 +3,7 @@ import { supabase } from "../supabase.js";
 
 const PROVEEDOR_VACIO = {
   nombre: "",
+  razon_social: "",
   cif: "",
   contacto: "",
   telefono: "",
@@ -14,6 +15,8 @@ const PROVEEDOR_VACIO = {
   dias_entrega: "",
   pedido_minimo: "",
   observaciones: "",
+  registro_sanitario: "",
+  descripcion_productos: "",
   activo: true,
 };
 
@@ -73,6 +76,9 @@ function Proveedores() {
         proveedor.telefono,
         proveedor.email,
         proveedor.poblacion,
+        proveedor.razon_social,
+        proveedor.registro_sanitario,
+        proveedor.descripcion_productos,
       ]
         .filter(Boolean)
         .join(" ")
@@ -109,6 +115,7 @@ function Proveedores() {
 
     setFormulario({
       nombre: proveedor.nombre ?? "",
+      razon_social: proveedor.razon_social ?? "",
       cif: proveedor.cif ?? "",
       contacto: proveedor.contacto ?? "",
       telefono: proveedor.telefono ?? "",
@@ -120,6 +127,8 @@ function Proveedores() {
       dias_entrega: proveedor.dias_entrega ?? "",
       pedido_minimo: proveedor.pedido_minimo ?? "",
       observaciones: proveedor.observaciones ?? "",
+      registro_sanitario: proveedor.registro_sanitario ?? "",
+      descripcion_productos: proveedor.descripcion_productos ?? "",
       activo: proveedor.activo ?? true,
     });
 
@@ -169,6 +178,7 @@ function Proveedores() {
 
     const datosProveedor = {
       nombre: nombreLimpio,
+      razon_social: formulario.razon_social.trim() || null,
       cif: formulario.cif.trim() || null,
       contacto: formulario.contacto.trim() || null,
       telefono: formulario.telefono.trim() || null,
@@ -180,6 +190,8 @@ function Proveedores() {
       dias_entrega: formulario.dias_entrega.trim() || null,
       pedido_minimo: pedidoMinimo,
       observaciones: formulario.observaciones.trim() || null,
+      registro_sanitario: formulario.registro_sanitario.trim() || null,
+      descripcion_productos: formulario.descripcion_productos.trim() || null,
       activo: formulario.activo,
       updated_at: new Date().toISOString(),
     };
@@ -253,6 +265,32 @@ function Proveedores() {
     }
   }
 
+  function descargarListaSanidad() {
+    const columnas = ["Proveedor", "Razón social", "CIF/NIF", "Registro sanitario", "Productos suministrados", "Dirección", "Población", "Teléfono", "Email", "Activo"];
+    const escapar = (valor) => `"${String(valor ?? "").replace(/"/g, '""')}"`;
+    const filas = proveedoresFiltrados.map((proveedor) => [
+      proveedor.nombre, proveedor.razon_social, proveedor.cif || proveedor.cif_nif,
+      proveedor.registro_sanitario, proveedor.descripcion_productos, proveedor.direccion,
+      proveedor.poblacion, proveedor.telefono, proveedor.email,
+      proveedor.activo === false ? "No" : "Sí",
+    ].map(escapar).join(";"));
+    const contenido = `\ufeff${columnas.map(escapar).join(";")}\n${filas.join("\n")}`;
+    const enlace = document.createElement("a");
+    enlace.href = URL.createObjectURL(new Blob([contenido], { type: "text/csv;charset=utf-8" }));
+    enlace.download = `lista-proveedores-sanidad-${new Date().toISOString().slice(0, 10)}.csv`;
+    enlace.click();
+    URL.revokeObjectURL(enlace.href);
+  }
+
+  function imprimirListaSanidad() {
+    const seguro = (valor) => String(valor ?? "").replace(/[&<>"']/g, (caracter) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[caracter]);
+    const ventana = window.open("", "_blank", "noopener,noreferrer");
+    if (!ventana) return;
+    const filas = proveedoresFiltrados.map((proveedor) => `<tr><td><b>${seguro(proveedor.nombre)}</b><br>${seguro(proveedor.razon_social)}</td><td>${seguro(proveedor.cif || proveedor.cif_nif)}</td><td>${seguro(proveedor.registro_sanitario || "Pendiente")}</td><td>${seguro(proveedor.descripcion_productos || "No indicado")}</td><td>${seguro([proveedor.direccion, proveedor.poblacion].filter(Boolean).join(" · "))}</td><td>${proveedor.activo === false ? "Inactivo" : "Activo"}</td></tr>`).join("");
+    ventana.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Lista de proveedores para Sanidad</title><style>@page{size:A4 landscape;margin:10mm}body{font-family:Arial,sans-serif;color:#222;margin:0}h1{font-size:21px;margin:0 0 5px}p{font-size:11px;margin:0 0 14px}table{width:100%;border-collapse:collapse;font-size:9px}th,td{border:1px solid #777;padding:6px;vertical-align:top;text-align:left}th{background:#315d4c;color:#fff}footer{margin-top:10px;font-size:9px;color:#555}</style></head><body><h1>PASTISSERIA CUSACHS — LLISTAT DE PROVEÏDORS</h1><p>Document de control de proveïdors per a inspecció sanitària · Data: ${new Date().toLocaleDateString("ca-ES")}</p><table><thead><tr><th>Proveïdor / Raó social</th><th>CIF/NIF</th><th>Registre sanitari</th><th>Productes subministrats</th><th>Adreça</th><th>Estat</th></tr></thead><tbody>${filas}</tbody></table><footer>Total: ${proveedoresFiltrados.length} proveïdors</footer><script>window.onload=()=>window.print()</script></body></html>`);
+    ventana.document.close();
+  }
+
   return (
     <section className="panel">
       <div className="titulo-seccion">
@@ -298,6 +336,8 @@ function Proveedores() {
         <button type="button" onClick={nuevoProveedor}>
           + Nuevo proveedor
         </button>
+        <button type="button" className="boton-secundario" onClick={descargarListaSanidad}>⬇️ Descargar lista</button>
+        <button type="button" className="boton-secundario" onClick={imprimirListaSanidad}>🖨️ PDF para Sanidad</button>
       </div>
 
       {mostrarFormulario && (
@@ -323,6 +363,14 @@ function Proveedores() {
               onChange={cambiarCampo}
               disabled={guardando}
               required
+            />
+
+            <Campo
+              etiqueta="Razón social"
+              name="razon_social"
+              value={formulario.razon_social}
+              onChange={cambiarCampo}
+              disabled={guardando}
             />
 
             <Campo
@@ -381,6 +429,24 @@ function Proveedores() {
               value={formulario.codigo_postal}
               onChange={cambiarCampo}
               disabled={guardando}
+            />
+
+            <Campo
+              etiqueta="Registro sanitario"
+              name="registro_sanitario"
+              value={formulario.registro_sanitario}
+              onChange={cambiarCampo}
+              disabled={guardando}
+              placeholder="N.º RGSEAA u otro registro"
+            />
+
+            <Campo
+              etiqueta="Productos suministrados"
+              name="descripcion_productos"
+              value={formulario.descripcion_productos}
+              onChange={cambiarCampo}
+              disabled={guardando}
+              placeholder="Harinas, lácteos, envases…"
             />
 
             <label>
@@ -504,65 +570,20 @@ function Proveedores() {
       )}
 
       {!cargando && proveedoresFiltrados.length > 0 && (
-        <div className="lista-clientes">
-          {proveedoresFiltrados.map((proveedor) => (
-            <article className="cliente" key={proveedor.id}>
-              <div className="avatar">🚚</div>
-
-              <div className="cliente-info">
-                <h3>{proveedor.nombre}</h3>
-
-                <p>
-                  {proveedor.cif
-                    ? `CIF: ${proveedor.cif}`
-                    : "CIF no indicado"}
-                  {proveedor.poblacion
-                    ? ` · ${proveedor.poblacion}`
-                    : ""}
-                </p>
-
-                <p>
-                  Contacto:{" "}
-                  {proveedor.contacto || "No indicado"}
-                </p>
-
-                <p>
-                  Teléfono: {proveedor.telefono || "No indicado"} ·
-                  Correo: {proveedor.email || "No indicado"}
-                </p>
-
-                <p>
-                  Forma de pago:{" "}
-                  {proveedor.forma_pago || "No indicada"} · Pedido
-                  mínimo: {formatearEuros(proveedor.pedido_minimo)}
-                </p>
-
-                <p>
-                  Entregas:{" "}
-                  {proveedor.dias_entrega || "No especificadas"} ·{" "}
-                  {proveedor.activo === false
-                    ? "Inactivo"
-                    : "Activo"}
-                </p>
-
-                <div className="acciones">
-                  <button
-                    type="button"
-                    onClick={() => editarProveedor(proveedor)}
-                  >
-                    ✏️ Editar
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => eliminarProveedor(proveedor)}
-                  >
-                    🗑️ Eliminar
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
+        <div className="proveedores-tabla-wrap">
+          <table className="proveedores-tabla">
+            <thead><tr><th>Proveedor</th><th>CIF / registro sanitario</th><th>Productos suministrados</th><th>Contacto</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody>{proveedoresFiltrados.map((proveedor) => (
+              <tr key={proveedor.id}>
+                <td><strong>{proveedor.nombre}</strong><small>{proveedor.razon_social || proveedor.poblacion || ""}</small></td>
+                <td>{proveedor.cif || proveedor.cif_nif || "Sin CIF"}<small className={proveedor.registro_sanitario ? "sanidad-ok" : "sanidad-pendiente"}>{proveedor.registro_sanitario || "Registro sanitario pendiente"}</small></td>
+                <td>{proveedor.descripcion_productos || "No indicado"}</td>
+                <td>{proveedor.contacto || "—"}<small>{[proveedor.telefono, proveedor.email].filter(Boolean).join(" · ")}</small></td>
+                <td>{proveedor.activo === false ? "Inactivo" : "Activo"}</td>
+                <td><button type="button" onClick={() => editarProveedor(proveedor)}>✏️ Editar</button><button type="button" className="boton-eliminar" onClick={() => eliminarProveedor(proveedor)}>🗑️</button></td>
+              </tr>
+            ))}</tbody>
+          </table>
         </div>
       )}
     </section>
@@ -618,13 +639,6 @@ function Campo({
 function convertirNumero(valor) {
   const numero = Number(String(valor || "0").replace(",", "."));
   return Number.isFinite(numero) ? numero : 0;
-}
-
-function formatearEuros(valor) {
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-  }).format(Number(valor || 0));
 }
 
 function emailValido(email) {

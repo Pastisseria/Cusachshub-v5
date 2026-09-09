@@ -49,6 +49,12 @@ function Sidebar({ abierto = false, onCerrar }) {
           <NavLink to="/higiene/agua" className={claseEnlace}>💧 Facturas de agua</NavLink>
         </div>
         <div className="menu-section">
+          <h4>FICHAS Y PRODUCCIÓN</h4>
+          <NavLink to="/higiene/ingredientes" className={claseEnlace}>🧂 Ingredientes</NavLink>
+          <NavLink to="/higiene/escandallos" className={claseEnlace}>📊 Escandallos</NavLink>
+          <NavLink to="/higiene/recetas" className={claseEnlace}>📖 Recetas</NavLink>
+        </div>
+        <div className="menu-section">
           <h4>TRAZABILIDAD Y COMPRAS</h4>
           <NavLink to="/higiene/proveedores" className={claseEnlace}>
             🚚 Proveedores
@@ -150,15 +156,6 @@ function Sidebar({ abierto = false, onCerrar }) {
         </NavLink>
         {esAdministrador && (
           <>
-            <NavLink to="/ingredientes" className={claseEnlace}>
-              🧂 Ingredientes
-            </NavLink>
-            <NavLink to="/escandallos" className={claseEnlace}>
-              📊 Escandallos
-            </NavLink>
-            <NavLink to="/recetas" className={claseEnlace}>
-              📖 Recetas
-            </NavLink>
             <NavLink to="/dietario" className={claseEnlace}>
               📅 Dietario
             </NavLink>

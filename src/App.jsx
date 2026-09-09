@@ -106,6 +106,9 @@ function App() {
         <Route path="/higiene/incidencias" element={protegida(<Incidencias />, true)} />
         <Route path="/higiene/aceite" element={protegida(<Aceite />, true)} />
         <Route path="/higiene/agua" element={protegida(<Agua />, true)} />
+        <Route path="/higiene/ingredientes" element={protegida(<Ingredientes />, true)} />
+        <Route path="/higiene/escandallos" element={protegida(<Escandallos />, true)} />
+        <Route path="/higiene/recetas" element={protegida(<Recetas />, true)} />
         <Route
           path="/higiene/proveedores"
           element={protegida(<Proveedores />, true)}
@@ -152,12 +155,9 @@ function App() {
         <Route path="/menaje" element={protegida(<Menaje />)} />
         <Route path="/bebidas" element={protegida(<Bebidas />)} />
         <Route path="/produccion" element={protegida(<Produccion />)} />
-        <Route
-          path="/ingredientes"
-          element={protegida(<Ingredientes />, true)}
-        />
-        <Route path="/escandallos" element={protegida(<Escandallos />, true)} />
-        <Route path="/recetas" element={protegida(<Recetas />, true)} />
+        <Route path="/ingredientes" element={<Navigate to="/higiene/ingredientes" replace />} />
+        <Route path="/escandallos" element={<Navigate to="/higiene/escandallos" replace />} />
+        <Route path="/recetas" element={<Navigate to="/higiene/recetas" replace />} />
         <Route path="/dietario" element={protegida(<DietarioAnual />, true)} />
         <Route
           path="/horario-personal"

@@ -131,10 +131,11 @@ function Catering() {
       .from("presupuestos")
       .select(`
         id, numero, cliente_id, fecha, hora_entrega, direccion_entrega, estado,
-        persona_contacto, telefono_contacto, observaciones,
+        persona_contacto, telefono_contacto, observaciones, tipo_documento,
+        visitador_nombre, laboratorio, centro_medico,
         clientes (nombre, empresa, direccion, poblacion, codigo_postal)
       `)
-      .eq("tipo_documento", "Catering");
+      .in("tipo_documento", ["Catering", "Visitador médico"]);
     if (errorPresupuestos) throw errorPresupuestos;
     if (!presupuestosCatering?.length) return;
 
@@ -185,19 +186,30 @@ function Catering() {
 
     const nuevosCaterings = pendientes.map((presupuesto) => {
       const cliente = presupuesto.clientes || {};
-      const nombre = cliente.empresa || cliente.nombre || "Cliente";
+      const esVisitador = presupuesto.tipo_documento === "Visitador médico";
+      const nombre = esVisitador
+        ? presupuesto.visitador_nombre || "Visitador médico"
+        : cliente.empresa || cliente.nombre || "Cliente";
+      const titulo = esVisitador && presupuesto.laboratorio
+        ? `${nombre} · ${presupuesto.laboratorio}`
+        : `${nombre} · ${presupuesto.numero || presupuesto.tipo_documento}`;
       return {
         cliente_id: presupuesto.cliente_id || null,
         presupuesto_id: presupuesto.id,
-        titulo: `${nombre} · ${presupuesto.numero || "Catering"}`,
+        titulo,
         fecha: presupuesto.fecha,
         hora_inicio: presupuesto.hora_entrega || null,
-        direccion: presupuesto.direccion_entrega || cliente.direccion || null,
+        direccion:
+          presupuesto.direccion_entrega ||
+          cliente.direccion ||
+          presupuesto.centro_medico ||
+          null,
         poblacion: cliente.poblacion || null,
         codigo_postal: cliente.codigo_postal || null,
         responsable: presupuesto.persona_contacto || null,
         telefono_contacto: presupuesto.telefono_contacto || null,
         estado: estadoCateringDesdePresupuesto(presupuesto.estado),
+        tipo_servicio: esVisitador ? "Visitador médico" : null,
         observaciones: presupuesto.observaciones || null,
         updated_at: new Date().toISOString(),
       };

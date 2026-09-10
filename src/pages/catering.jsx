@@ -39,6 +39,7 @@ const FORMULARIO_INICIAL = {
   codigo_postal: "",
   numero_personas: "0",
   responsable: "",
+  transporte_tipo: "",
   telefono_contacto: "",
   estado: "Pendiente",
   tipo_servicio: "",
@@ -227,7 +228,7 @@ function Catering() {
 
   const cateringsMes = useMemo(() => {
     return caterings.filter((catering) => {
-      if (!catering.fecha) return false;
+      if (!catering.fecha || esCateringCancelado(catering)) return false;
 
       const fecha = new Date(`${catering.fecha}T12:00:00`);
 
@@ -252,7 +253,7 @@ function Catering() {
     );
 
     return caterings
-      .filter((catering) => fechas.has(catering.fecha))
+      .filter((catering) => fechas.has(catering.fecha) && !esCateringCancelado(catering))
       .sort((a, b) => {
         const porFecha = String(a.fecha || "").localeCompare(
           String(b.fecha || ""),
@@ -395,6 +396,7 @@ function Catering() {
       codigo_postal: catering.codigo_postal || "",
       numero_personas: String(catering.numero_personas ?? 0),
       responsable: catering.responsable || "",
+      transporte_tipo: catering.transporte_tipo || "",
       telefono_contacto:
         catering.telefono_contacto || "",
       estado: catering.estado || "Pendiente",
@@ -454,6 +456,7 @@ function Catering() {
         formulario.numero_personas || 0,
       ),
       responsable: formulario.responsable.trim() || null,
+      transporte_tipo: formulario.transporte_tipo || null,
       telefono_contacto:
         formulario.telefono_contacto.trim() || null,
       estado: formulario.estado,
@@ -635,7 +638,6 @@ function Catering() {
         <div className="catering-leyenda no-imprimir">
           <span><i className="leyenda-confirmado" /> Confirmado</span>
           <span><i className="leyenda-pendiente" /> Pendiente de confirmar</span>
-          <span><i className="leyenda-cancelado" /> Anulado</span>
         </div>
 
         {error && (
@@ -753,6 +755,12 @@ function Catering() {
                               </small>
                             )}
 
+                            {evento.transporte_tipo && (
+                              <small>
+                                Transporte: {evento.transporte_tipo}
+                              </small>
+                            )}
+
                             {evento.telefono_contacto && (
                               <small>
                                 Tel.: {evento.telefono_contacto}
@@ -805,7 +813,8 @@ function Catering() {
                 const eventosDia = caterings
                   .filter(
                     (catering) =>
-                      catering.fecha === fechaDia,
+                      catering.fecha === fechaDia &&
+                      !esCateringCancelado(catering),
                   )
                   .sort((a, b) =>
                     String(a.hora_inicio || "").localeCompare(
@@ -848,6 +857,9 @@ function Catering() {
                               ? `Presupuesto: ${obtenerNumeroPresupuesto(evento)}`
                               : "",
                             evento.direccion || "",
+                            evento.transporte_tipo
+                              ? `Transporte: ${evento.transporte_tipo}`
+                              : "",
                           ]
                             .filter(Boolean)
                             .join(" · ")}
@@ -947,6 +959,9 @@ function Catering() {
                             ? `Presupuesto ${obtenerNumeroPresupuesto(evento)}`
                             : "",
                           evento.direccion || "",
+                          evento.transporte_tipo
+                            ? `Transporte: ${evento.transporte_tipo}`
+                            : "",
                         ]
                           .filter(Boolean)
                           .join(" · ")}
@@ -1192,6 +1207,23 @@ function Catering() {
                 </label>
 
                 <label>
+                  Quién lo lleva
+                  <select
+                    value={formulario.transporte_tipo}
+                    onChange={(event) =>
+                      modificarFormulario(
+                        "transporte_tipo",
+                        event.target.value,
+                      )
+                    }
+                  >
+                    <option value="">Sin asignar</option>
+                    <option value="Taxi">Taxi</option>
+                    <option value="Interno">Interno</option>
+                  </select>
+                </label>
+
+                <label>
                   Teléfono de contacto
                   <input
                     value={formulario.telefono_contacto}
@@ -1407,6 +1439,10 @@ function normalizarEstado(estado) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, "-");
+}
+
+function esCateringCancelado(catering) {
+  return normalizarEstado(catering?.estado) === "cancelado";
 }
 
 function estadoCateringDesdePresupuesto(estado) {

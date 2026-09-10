@@ -379,6 +379,58 @@ function Catering() {
     abrirCatering(catering);
   }
 
+  async function cambiarTransporteDesdeDia(catering, transporteTipo) {
+    setError("");
+    setMensaje("");
+
+    const nuevoTransporte = transporteTipo || null;
+    const { error: errorSupabase } = await supabase
+      .from("caterings")
+      .update({
+        transporte_tipo: nuevoTransporte,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", catering.id);
+
+    if (errorSupabase) {
+      setError(
+        errorSupabase.message ||
+          "No se ha podido guardar quién realiza el transporte.",
+      );
+      return;
+    }
+
+    const cateringActualizado = {
+      ...catering,
+      transporte_tipo: nuevoTransporte,
+    };
+
+    setCaterings((anteriores) =>
+      anteriores.map((elemento) =>
+        elemento.id === catering.id ? cateringActualizado : elemento,
+      ),
+    );
+
+    setDiaAbierto((anterior) =>
+      anterior
+        ? {
+            ...anterior,
+            eventos: anterior.eventos.map((elemento) =>
+              elemento.id === catering.id
+                ? cateringActualizado
+                : elemento,
+            ),
+          }
+        : anterior,
+    );
+
+    setMensaje(
+      nuevoTransporte
+        ? `Transporte asignado: ${nuevoTransporte}.`
+        : "Transporte dejado sin asignar.",
+    );
+  }
+
   function abrirCatering(catering) {
     setError("");
     setMensaje("");
@@ -935,13 +987,19 @@ function Catering() {
                 </div>
               ) : (
                 diaAbierto.eventos.map((evento) => (
-                  <button
-                    type="button"
+                  <div
                     key={evento.id}
                     className={`catering-dia-evento estado-${normalizarEstado(
                       evento.estado,
                     )}`}
                     onClick={() => editarDesdeDia(evento)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        editarDesdeDia(evento);
+                      }
+                    }}
                   >
                     <span className="catering-dia-hora">
                       {evento.hora_inicio
@@ -957,14 +1015,34 @@ function Catering() {
                             ? `Presupuesto ${obtenerNumeroPresupuesto(evento)}`
                             : "",
                           evento.direccion || "",
-                          `Transporte: ${evento.transporte_tipo || "Sin asignar"}`,
                         ]
                           .filter(Boolean)
                           .join(" · ")}
                       </small>
                     </span>
+
+                    <label
+                      className="catering-transporte-rapido"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <span>🚚 Quién lo lleva</span>
+                      <select
+                        value={evento.transporte_tipo || ""}
+                        onChange={(event) =>
+                          cambiarTransporteDesdeDia(
+                            evento,
+                            event.target.value,
+                          )
+                        }
+                      >
+                        <option value="">Sin asignar</option>
+                        <option value="Taxi">Taxi</option>
+                        <option value="Interno">Interno</option>
+                      </select>
+                    </label>
+
                     <span className="catering-dia-abrir">Abrir →</span>
-                  </button>
+                  </div>
                 ))
               )}
             </div>
@@ -1713,7 +1791,7 @@ const ESTILOS_CATERING = `
 
   .catering-dia-evento {
     display: grid;
-    grid-template-columns: 90px minmax(0, 1fr) auto;
+    grid-template-columns: 90px minmax(0, 1fr) 180px auto;
     gap: 16px;
     width: 100%;
     align-items: center;
@@ -1749,6 +1827,28 @@ const ESTILOS_CATERING = `
   .catering-dia-datos small {
     opacity: 0.82;
     overflow-wrap: anywhere;
+  }
+
+  .catering-transporte-rapido {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: default;
+  }
+
+  .catering-transporte-rapido select {
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid currentColor;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #25112f;
+    padding: 6px 9px;
+    font-weight: 800;
+    cursor: pointer;
   }
 
   .catering-dia-abrir {
@@ -1916,13 +2016,17 @@ const ESTILOS_CATERING = `
     }
 
     .catering-dia-evento {
-      grid-template-columns: 72px minmax(0, 1fr);
+      grid-template-columns: 72px minmax(0, 1fr) 150px;
       gap: 10px;
       padding: 13px;
     }
 
     .catering-dia-abrir {
       display: none;
+    }
+
+    .catering-transporte-rapido {
+      grid-column: 2;
     }
 
     .catering-dia-acciones {

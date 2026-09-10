@@ -171,6 +171,9 @@ function Sidebar({ abierto = false, onCerrar }) {
             <NavLink to="/horario-personal" className={claseEnlace}>
               👥 Horario de personal
             </NavLink>
+            <NavLink to="/personal-riesgos" className={claseEnlace}>
+              🦺 Personal y riesgos laborales
+            </NavLink>
           </div>
           <div className="menu-section">
             <h4>VISITADORES</h4>

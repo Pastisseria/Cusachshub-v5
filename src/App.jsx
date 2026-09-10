@@ -19,6 +19,7 @@ import Escandallos from "./pages/escandallos.jsx";
 import Recetas from "./pages/recetas.jsx";
 import DietarioAnual from "./pages/dietarioanual.jsx";
 import HorarioPersonal from "./pages/horariopersonal.jsx";
+import PersonalRiesgos from "./pages/personalriesgos.jsx";
 import Proveedores from "./pages/proveedores.jsx";
 import CatalogoProveedores from "./pages/catalogoproveedores.jsx";
 import ComparadorPrecios from "./pages/comparadorprecios.jsx";
@@ -166,6 +167,10 @@ function App() {
         <Route
           path="/horario-personal"
           element={protegida(<HorarioPersonal />, true)}
+        />
+        <Route
+          path="/personal-riesgos"
+          element={protegida(<PersonalRiesgos />, true)}
         />
         <Route path="/proveedores" element={protegida(<Proveedores />, true)} />
         <Route

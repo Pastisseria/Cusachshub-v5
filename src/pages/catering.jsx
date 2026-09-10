@@ -58,6 +58,7 @@ function Catering() {
 
   const [formulario, setFormulario] = useState(FORMULARIO_INICIAL);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [diaAbierto, setDiaAbierto] = useState(null);
 
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -337,6 +338,32 @@ function Catering() {
     });
 
     setModalAbierto(true);
+  }
+
+  function abrirDia(fecha, eventos) {
+    setDiaAbierto({
+      fecha,
+      eventos: [...eventos].sort((a, b) =>
+        String(a.hora_inicio || "").localeCompare(
+          String(b.hora_inicio || ""),
+        ),
+      ),
+    });
+  }
+
+  function cerrarDia() {
+    setDiaAbierto(null);
+  }
+
+  function crearDesdeDia() {
+    const fecha = diaAbierto?.fecha;
+    cerrarDia();
+    abrirNuevoCatering(fecha);
+  }
+
+  function editarDesdeDia(catering) {
+    cerrarDia();
+    abrirCatering(catering);
   }
 
   function abrirCatering(catering) {
@@ -789,9 +816,7 @@ function Catering() {
                     ]
                       .filter(Boolean)
                       .join(" ")}
-                    onClick={() =>
-                      abrirNuevoCatering(fechaDia)
-                    }
+                    onClick={() => abrirDia(fechaDia, eventosDia)}
                   >
                     <span className="calendario-numero">
                       {dia.getDate()}
@@ -833,7 +858,7 @@ function Catering() {
 
                       {eventosDia.length > 4 && (
                         <span className="calendario-mas">
-                          +{eventosDia.length - 4} más
+                          Ver los {eventosDia.length} caterings
                         </span>
                       )}
                     </div>
@@ -844,6 +869,98 @@ function Catering() {
           </div>
         )}
       </section>
+
+      {diaAbierto && (
+        <div
+          className="catering-modal-fondo"
+          onMouseDown={cerrarDia}
+        >
+          <section
+            className="catering-dia-modal"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="catering-dia-titulo"
+          >
+            <div className="catering-modal-cabecera">
+              <div>
+                <p className="catering-etiqueta">AGENDA DEL DÍA</p>
+                <h3 id="catering-dia-titulo">
+                  {formatearFechaCompleta(diaAbierto.fecha)}
+                </h3>
+                <p className="catering-dia-resumen">
+                  {diaAbierto.eventos.length}{" "}
+                  {diaAbierto.eventos.length === 1
+                    ? "catering"
+                    : "caterings"}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="catering-cerrar"
+                onClick={cerrarDia}
+                aria-label="Cerrar agenda del día"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="catering-dia-lista">
+              {diaAbierto.eventos.length === 0 ? (
+                <div className="catering-dia-vacio">
+                  No hay caterings previstos para este día.
+                </div>
+              ) : (
+                diaAbierto.eventos.map((evento) => (
+                  <button
+                    type="button"
+                    key={evento.id}
+                    className={`catering-dia-evento estado-${normalizarEstado(
+                      evento.estado,
+                    )}`}
+                    onClick={() => editarDesdeDia(evento)}
+                  >
+                    <span className="catering-dia-hora">
+                      {evento.hora_inicio
+                        ? cortarHora(evento.hora_inicio)
+                        : "Sin hora"}
+                    </span>
+                    <span className="catering-dia-datos">
+                      <strong>{obtenerClienteEvento(evento)}</strong>
+                      <small>
+                        {[
+                          evento.estado || "Pendiente",
+                          obtenerNumeroPresupuesto(evento)
+                            ? `Presupuesto ${obtenerNumeroPresupuesto(evento)}`
+                            : "",
+                          evento.direccion || "",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </small>
+                    </span>
+                    <span className="catering-dia-abrir">Abrir →</span>
+                  </button>
+                ))
+              )}
+            </div>
+
+            <div className="catering-dia-acciones">
+              <button type="button" onClick={crearDesdeDia}>
+                + Añadir catering este día
+              </button>
+              <button
+                type="button"
+                className="boton-cancelar"
+                onClick={cerrarDia}
+              >
+                Cerrar
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {modalAbierto && (
         <div
@@ -1254,6 +1371,15 @@ function formatearDiaCorto(fecha) {
   }).format(fecha);
 }
 
+function formatearFechaCompleta(fechaISO) {
+  return new Intl.DateTimeFormat("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(`${fechaISO}T12:00:00`));
+}
+
 function formatearRangoSemana(dias) {
   if (!dias.length) return "";
 
@@ -1505,10 +1631,100 @@ const ESTILOS_CATERING = `
   }
 
   .calendario-mas {
-    padding-left: 5px;
-    color: #756d7a;
+    padding: 5px;
+    border-radius: 6px;
+    background: #f3edf6;
+    color: #622984;
     font-size: 12px;
     font-weight: 700;
+  }
+
+  .catering-dia-modal {
+    width: min(920px, 100%);
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 28px;
+    border-radius: 20px;
+    background: #ffffff;
+    box-shadow: 0 24px 70px rgba(31, 20, 37, 0.28);
+  }
+
+  .catering-dia-modal h3 {
+    margin: 0;
+    font-size: 28px;
+    text-transform: capitalize;
+  }
+
+  .catering-dia-resumen {
+    margin: 6px 0 0;
+    color: #756d7a;
+    font-weight: 700;
+  }
+
+  .catering-dia-lista {
+    display: grid;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .catering-dia-evento {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr) auto;
+    gap: 16px;
+    width: 100%;
+    align-items: center;
+    padding: 16px 18px;
+    border: 1px solid #d7cce0;
+    border-radius: 13px;
+    text-align: left;
+    box-shadow: none;
+  }
+
+  .catering-dia-evento:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 7px 18px rgba(82, 43, 105, 0.12);
+  }
+
+  .catering-dia-hora {
+    font-size: 18px;
+    font-weight: 900;
+  }
+
+  .catering-dia-datos {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .catering-dia-datos strong {
+    overflow-wrap: anywhere;
+    font-size: 17px;
+  }
+
+  .catering-dia-datos small {
+    opacity: 0.82;
+    overflow-wrap: anywhere;
+  }
+
+  .catering-dia-abrir {
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .catering-dia-vacio {
+    padding: 38px 20px;
+    border: 2px dashed #d8cde0;
+    border-radius: 14px;
+    background: #faf7fc;
+    color: #756d7a;
+    text-align: center;
+  }
+
+  .catering-dia-acciones {
+    display: flex;
+    gap: 12px;
+    margin-top: 22px;
   }
 
   .catering-semana-evento {
@@ -1645,6 +1861,32 @@ const ESTILOS_CATERING = `
 
     .boton-eliminar {
       margin-left: 0;
+    }
+
+    .catering-dia-modal {
+      padding: 20px;
+    }
+
+    .catering-dia-modal h3 {
+      font-size: 22px;
+    }
+
+    .catering-dia-evento {
+      grid-template-columns: 72px minmax(0, 1fr);
+      gap: 10px;
+      padding: 13px;
+    }
+
+    .catering-dia-abrir {
+      display: none;
+    }
+
+    .catering-dia-acciones {
+      flex-direction: column;
+    }
+
+    .catering-dia-acciones button {
+      width: 100%;
     }
   }
 

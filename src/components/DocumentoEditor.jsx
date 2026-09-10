@@ -384,11 +384,16 @@ function DocumentoEditor({
         String(window.location.hash || "").split("?")[1] || "",
       );
       const presupuestoId = parametros.get("presupuesto_id");
+      const abrirEnEdicion = parametros.get("editar") === "1";
       const documentoSolicitado = (respuestaDocumentos.data ?? []).find(
         (documento) => String(documento.id) === String(presupuestoId),
       );
       if (documentoSolicitado) {
-        await abrirDocumento(documentoSolicitado);
+        if (abrirEnEdicion) {
+          await editarDocumento(documentoSolicitado);
+        } else {
+          await abrirDocumento(documentoSolicitado);
+        }
       }
     } catch (err) {
       setError(err.message || "No se han podido cargar los documentos.");

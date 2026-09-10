@@ -857,9 +857,7 @@ function Catering() {
                               ? `Presupuesto: ${obtenerNumeroPresupuesto(evento)}`
                               : "",
                             evento.direccion || "",
-                            evento.transporte_tipo
-                              ? `Transporte: ${evento.transporte_tipo}`
-                              : "",
+                            `Transporte: ${evento.transporte_tipo || "Sin asignar"}`,
                           ]
                             .filter(Boolean)
                             .join(" · ")}
@@ -959,9 +957,7 @@ function Catering() {
                             ? `Presupuesto ${obtenerNumeroPresupuesto(evento)}`
                             : "",
                           evento.direccion || "",
-                          evento.transporte_tipo
-                            ? `Transporte: ${evento.transporte_tipo}`
-                            : "",
+                          `Transporte: ${evento.transporte_tipo || "Sin asignar"}`,
                         ]
                           .filter(Boolean)
                           .join(" · ")}

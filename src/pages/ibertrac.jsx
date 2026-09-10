@@ -12,6 +12,8 @@ const TIPOS = [
   { valor: "producto", etiqueta: "Producto utilizado", icono: "🧴" },
   { valor: "ficha_tecnica", etiqueta: "Ficha técnica", icono: "📄" },
   { valor: "ficha_seguridad", etiqueta: "Ficha de seguridad", icono: "🛡️" },
+  { valor: "registro_sanitario", etiqueta: "Registro sanitario", icono: "🏥" },
+  { valor: "etiquetaje_producto", etiqueta: "Etiquetaje del producto", icono: "🏷️" },
 ];
 const formularioVacio = () => ({
   tipo: "parte",
@@ -203,7 +205,7 @@ export default function Ibertrac() {
     const producto = ficha.nombre_corto || ficha.nombre;
     if (
       !window.confirm(
-        `¿Marcar “${producto}” como elemento que no requiere fichas? Dejará de aparecer como pendiente.`,
+        `¿Marcar “${producto}” como elemento que no requiere documentación? Dejará de aparecer como pendiente.`,
       )
     )
       return;
@@ -218,7 +220,7 @@ export default function Ibertrac() {
       );
     if (error)
       return setMensaje(`No se pudo descartar el elemento: ${error.message}`);
-    setMensaje(`“${producto}” marcado como elemento sin fichas.`);
+    setMensaje(`“${producto}” marcado como elemento sin documentación.`);
     await cargar();
   }
 
@@ -267,12 +269,20 @@ export default function Ibertrac() {
       .map(([clave, producto]) => {
         const tecnicas = buscarDocumentos("ficha_tecnica", clave);
         const seguridad = buscarDocumentos("ficha_seguridad", clave);
+        const registrosSanitarios = buscarDocumentos("registro_sanitario", clave);
+        const etiquetajes = buscarDocumentos("etiquetaje_producto", clave);
         return {
           ...producto,
           clave,
           tecnicas,
           seguridad,
-          completa: tecnicas.length > 0 && seguridad.length > 0,
+          registrosSanitarios,
+          etiquetajes,
+          completa:
+            tecnicas.length > 0 &&
+            seguridad.length > 0 &&
+            registrosSanitarios.length > 0 &&
+            etiquetajes.length > 0,
         };
       })
       .sort(
@@ -336,8 +346,8 @@ export default function Ibertrac() {
             </h2>
             <p>
               {faltantes.length
-                ? "Sube la ficha técnica y la ficha de seguridad de cada producto, o indica que el elemento no requiere fichas."
-                : "Todos los productos detectados tienen sus dos fichas guardadas."}
+                ? "Sube la ficha técnica, la ficha de seguridad, el registro sanitario y el etiquetaje de cada producto, o indica que el elemento no requiere documentación."
+                : "Todos los productos detectados tienen sus cuatro documentos guardados."}
             </p>
           </div>
           <div className="ibertrac-lista-fichas">
@@ -365,6 +375,14 @@ export default function Ibertrac() {
                   <span className={ficha.seguridad.length ? "ok" : "falta"}>
                     Ficha de seguridad:{" "}
                     {ficha.seguridad.length ? "guardada" : "pendiente"}
+                  </span>
+                  <span className={ficha.registrosSanitarios.length ? "ok" : "falta"}>
+                    Registro sanitario:{" "}
+                    {ficha.registrosSanitarios.length ? "guardado" : "pendiente"}
+                  </span>
+                  <span className={ficha.etiquetajes.length ? "ok" : "falta"}>
+                    Etiquetaje del producto:{" "}
+                    {ficha.etiquetajes.length ? "guardado" : "pendiente"}
                   </span>
                 </div>
                 <div className="ibertrac-acciones-ficha">
@@ -416,12 +434,60 @@ export default function Ibertrac() {
                       + Subir ficha de seguridad
                     </button>
                   )}
+                  {ficha.registrosSanitarios.length ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => abrir(ficha.registrosSanitarios[0])}
+                      >
+                        Ver registro sanitario
+                      </button>
+                      <button
+                        type="button"
+                        className="peligro"
+                        onClick={() => eliminar(ficha.registrosSanitarios[0])}
+                      >
+                        Eliminar registro sanitario
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => prepararSubida(ficha, "registro_sanitario")}
+                    >
+                      + Subir registro sanitario
+                    </button>
+                  )}
+                  {ficha.etiquetajes.length ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => abrir(ficha.etiquetajes[0])}
+                      >
+                        Ver etiquetaje
+                      </button>
+                      <button
+                        type="button"
+                        className="peligro"
+                        onClick={() => eliminar(ficha.etiquetajes[0])}
+                      >
+                        Eliminar etiquetaje
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => prepararSubida(ficha, "etiquetaje_producto")}
+                    >
+                      + Subir etiquetaje producto
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="secundario"
                     onClick={() => marcarNoRequiere(ficha)}
                   >
-                    No requiere fichas
+                    No requiere documentación
                   </button>
                 </div>
               </article>
@@ -432,7 +498,7 @@ export default function Ibertrac() {
       {exclusiones.length > 0 && (
         <details className="ibertrac-exclusiones">
           <summary>
-            Elementos marcados como «No requiere fichas» ({exclusiones.length})
+            Elementos marcados como «No requiere documentación» ({exclusiones.length})
           </summary>
           {exclusiones.map((item) => (
             <div key={item.id}>

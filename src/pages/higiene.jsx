@@ -19,6 +19,7 @@ const modulosHigiene = [
   ["🛢️", "Aceite usado", "Recogidas, cantidades y justificantes PDF del gestor.", "/higiene/aceite"],
   ["💧", "Facturas de agua", "Facturas, periodos, consumo e importes.", "/higiene/agua"],
   ["🛡️", "Ibertrac", "Partes de servicio, productos utilizados y fichas técnicas.", "/higiene/ibertrac"],
+  ["🦺", "Personal y riesgos laborales", "Fichas del equipo, formaciones, EPIs, certificados y vigilancia de la salud.", "/personal-riesgos"],
   ["🧂", "Ingredientes", "Materias primas, alérgenos, costes y proveedores.", "/higiene/ingredientes"],
   ["📊", "Escandallos", "Costes de elaboración, márgenes y precios de venta.", "/higiene/escandallos"],
   ["📖", "Recetas", "Fichas de elaboración vinculadas con ingredientes y escandallos.", "/higiene/recetas"],

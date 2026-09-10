@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase.js";
 
 const ZONAS = ["Obrador", "Cocina", "Barra"];
@@ -30,6 +31,7 @@ const FORMULARIO_INICIAL = {
 };
 
 function Produccion() {
+  const navigate = useNavigate();
   const hoy = obtenerFechaISO(new Date());
 
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoy);
@@ -416,6 +418,10 @@ function Produccion() {
         grupos[clave] = {
           clave,
           catering_id: linea.catering_id,
+          presupuesto_id:
+            caterings.find(
+              (catering) => String(catering.id) === String(linea.catering_id),
+            )?.presupuesto_id || null,
           cliente_id: linea.cliente_id,
           cliente_nombre:
             linea.cliente_nombre || "Cliente sin indicar",
@@ -435,7 +441,7 @@ function Produccion() {
         String(b.hora_limite || ""),
       );
     });
-  }, [produccionesFecha]);
+  }, [produccionesFecha, caterings]);
 
   const resumen = useMemo(() => {
     const total = produccionesFecha.length;
@@ -1250,12 +1256,28 @@ function Produccion() {
                     </div>
                   </div>
 
-                  <span className="produccion-numero-lineas">
-                    {pedido.lineas.length}{" "}
-                    {pedido.lineas.length === 1
-                      ? "línea"
-                      : "líneas"}
-                  </span>
+                  <div className="produccion-pedido-acciones no-imprimir">
+                    {pedido.presupuesto_id && (
+                      <button
+                        type="button"
+                        className="boton-abrir-presupuesto"
+                        onClick={() =>
+                          navigate(
+                            `/presupuestos?presupuesto_id=${pedido.presupuesto_id}&editar=1`,
+                          )
+                        }
+                      >
+                        ✏️ Abrir presupuesto
+                      </button>
+                    )}
+
+                    <span className="produccion-numero-lineas">
+                      {pedido.lineas.length}{" "}
+                      {pedido.lineas.length === 1
+                        ? "línea"
+                        : "líneas"}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="produccion-zonas">
@@ -1979,6 +2001,28 @@ const ESTILOS_PRODUCCION = `
   .produccion-pedido h3,
   .produccion-modal h3 {
     margin: 0;
+  }
+
+  .produccion-pedido-acciones {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .boton-abrir-presupuesto {
+    border: 1px solid #6f2384;
+    border-radius: 12px;
+    background: #6f2384;
+    color: #ffffff;
+    padding: 10px 14px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .boton-abrir-presupuesto:hover {
+    background: #50135f;
   }
 
   .produccion-etiqueta {

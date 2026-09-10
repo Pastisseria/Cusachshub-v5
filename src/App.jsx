@@ -114,6 +114,7 @@ function App() {
         <Route path="/higiene/ingredientes" element={protegida(<Ingredientes />, true)} />
         <Route path="/higiene/escandallos" element={protegida(<Escandallos />, true)} />
         <Route path="/higiene/recetas" element={protegida(<Recetas />, true)} />
+        <Route path="/higiene/personal-riesgos" element={protegida(<PersonalRiesgos />, true)} />
         <Route
           path="/higiene/proveedores"
           element={protegida(<Proveedores />, true)}
@@ -168,10 +169,7 @@ function App() {
           path="/horario-personal"
           element={protegida(<HorarioPersonal />, true)}
         />
-        <Route
-          path="/personal-riesgos"
-          element={protegida(<PersonalRiesgos />, true)}
-        />
+        <Route path="/personal-riesgos" element={<Navigate to="/higiene/personal-riesgos" replace />} />
         <Route path="/proveedores" element={protegida(<Proveedores />, true)} />
         <Route
           path="/catalogo-proveedores"

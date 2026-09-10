@@ -1,7 +1,7 @@
 -- Ejecutar una sola vez en Supabase > SQL Editor.
 create table if not exists public.higiene_ibertrac_documentos (
   id uuid primary key default gen_random_uuid(),
-  tipo text not null check (tipo in ('parte', 'producto', 'ficha_tecnica', 'ficha_seguridad')),
+  tipo text not null check (tipo in ('parte', 'producto', 'ficha_tecnica', 'ficha_seguridad', 'registro_sanitario', 'etiquetaje_producto')),
   fecha_documento date not null default current_date,
   titulo text not null,
   numero_documento text,
@@ -21,7 +21,7 @@ alter table public.higiene_ibertrac_documentos
   drop constraint if exists higiene_ibertrac_documentos_tipo_check;
 alter table public.higiene_ibertrac_documentos
   add constraint higiene_ibertrac_documentos_tipo_check
-  check (tipo in ('parte', 'producto', 'ficha_tecnica', 'ficha_seguridad'));
+  check (tipo in ('parte', 'producto', 'ficha_tecnica', 'ficha_seguridad', 'registro_sanitario', 'etiquetaje_producto'));
 create index if not exists higiene_ibertrac_fecha_idx on public.higiene_ibertrac_documentos (fecha_documento desc);
 alter table public.higiene_ibertrac_documentos enable row level security;
 drop policy if exists "ibertrac_administrador" on public.higiene_ibertrac_documentos;

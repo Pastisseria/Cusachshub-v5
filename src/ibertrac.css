@@ -1,0 +1,104 @@
+.ibertrac-resumen {
+  grid-template-columns: repeat(4, 1fr);
+}
+.ibertrac-lista-fichas article {
+  display: grid;
+  gap: 10px;
+  padding: 15px;
+  border-radius: 12px;
+  background: #fff;
+  color: #43394a;
+}
+.ibertrac-lista-fichas article.guardada {
+  background: #e4f4e9;
+}
+.ibertrac-lista-fichas article.pendiente {
+  background: #fff0ca;
+}
+.ibertrac-lista-fichas h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.ibertrac-lista-fichas article > strong {
+  margin: 0;
+  color: #a02f25;
+  font-size: 12px;
+}
+.ibertrac-estados {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.ibertrac-estados span {
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.ibertrac-estados .ok {
+  color: #21653d;
+  background: #d5eddd;
+}
+.ibertrac-estados .falta {
+  color: #82500d;
+  background: #fff7e2;
+}
+.ibertrac-acciones-ficha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.ibertrac-acciones-ficha button,
+.ibertrac-exclusiones button {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #673383;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+.ibertrac-acciones-ficha button.peligro {
+  background: #fae7ea;
+  color: #8a2231;
+}
+.ibertrac-acciones-ficha button.secundario {
+  background: #fff;
+  color: #5f5364;
+  border: 1px solid #cfc5d3;
+}
+.ibertrac-exclusiones {
+  margin: -10px 0 28px;
+  padding: 14px 16px;
+  border: 1px solid #ded9e3;
+  border-radius: 12px;
+  background: #faf9fb;
+}
+.ibertrac-exclusiones summary {
+  font-weight: 800;
+  cursor: pointer;
+}
+.ibertrac-exclusiones div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid #e5e0e7;
+}
+.ibertrac-exclusiones div:first-of-type {
+  margin-top: 10px;
+}
+@media (max-width: 1000px) {
+  .ibertrac-resumen {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .ibertrac-resumen {
+    grid-template-columns: 1fr;
+  }
+  .ibertrac-acciones-ficha button {
+    width: 100%;
+  }
+}

@@ -379,8 +379,7 @@ function Produccion() {
     producciones
       .filter((linea) =>
         dias.includes(linea.fecha) &&
-        linea.estado !== "Cancelado" &&
-        ["Cocina", "Barra"].includes(linea.zona),
+        linea.estado !== "Cancelado",
       )
       .forEach((linea) => {
         const nombre = String(linea.producto_nombre || "Producto sin nombre").trim();
@@ -1293,12 +1292,12 @@ function Produccion() {
                   Semana del {new Date(`${resumenProductosSemana.dias[0]}T12:00:00`).getDate()} al{" "}
                   {new Date(`${resumenProductosSemana.dias[6]}T12:00:00`).getDate()}
                 </h3>
-                <small>Solo Cocina y Barra</small>
+                <small>Obrador, Cocina y Barra</small>
               </div>
               <div className="produccion-totales-acciones">
                 <span>Día seleccionado: {formatearFecha(fechaSeleccionada)}</span>
                 <button type="button" onClick={imprimirResumenProductos}>
-                  🖨️ Imprimir resumen Cocina y Barra
+                  🖨️ Imprimir resumen de productos
                 </button>
               </div>
             </div>
@@ -1333,8 +1332,31 @@ function Produccion() {
                     ))}
                   </tbody>
                 </table>
+
               </div>
             )}
+
+            <div className="produccion-totales-lista-print">
+              {resumenProductosSemana.productos.map((producto) => (
+                <article key={`print-resumen-${producto.clave}`}>
+                  <div>
+                    <strong>{producto.nombre}</strong>
+                    <small>{producto.unidad}</small>
+                  </div>
+                  <p>
+                    {resumenProductosSemana.dias
+                      .filter((fecha) => producto.dias[fecha])
+                      .map((fecha) => (
+                        <span key={fecha}>
+                          {new Intl.DateTimeFormat("es-ES", { weekday: "short", day: "numeric" }).format(new Date(`${fecha}T12:00:00`))}:{" "}
+                          <b>{formatearCantidad(producto.dias[fecha])}</b>
+                        </span>
+                      ))}
+                  </p>
+                  <em>Total semana: <b>{formatearCantidad(producto.total)}</b></em>
+                </article>
+              ))}
+            </div>
           </section>
         )}
 
@@ -2214,6 +2236,7 @@ const ESTILOS_PRODUCCION = `
   .produccion-totales-tabla td.dia-seleccionado { background: #e7f2ff; color: #155493; font-weight: 900; }
   .produccion-totales-tabla td.total-semana { background: #fff0ad; color: #6c5100; font-size: 17px; font-weight: 900; }
   .produccion-totales-vacio { margin: 0; color: #827788; }
+  .produccion-totales-lista-print { display: none; }
 
   .produccion-cabecera,
   .produccion-fecha-barra,
@@ -2960,19 +2983,62 @@ const ESTILOS_PRODUCCION = `
       display: none !important;
     }
 
-    body.imprimiendo-resumen-productos .produccion-totales-tabla {
-      min-width: 0;
-      font-size: 11px;
+    body.imprimiendo-resumen-productos .produccion-totales-tabla-contenedor {
+      display: none !important;
     }
 
-    body.imprimiendo-resumen-productos .produccion-totales-tabla th,
-    body.imprimiendo-resumen-productos .produccion-totales-tabla td {
-      padding: 7px 5px;
+    body.imprimiendo-resumen-productos .produccion-totales-lista-print {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-lista-print article {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 10px;
+      padding: 8px 10px;
+      border: 1px solid #bdb6c1;
+      break-inside: avoid;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-lista-print article > div {
+      min-width: 0;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-lista-print strong {
+      display: block;
+      font-size: 12px;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-lista-print small {
+      display: block;
+      color: #666;
+      font-size: 9px;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-lista-print p {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px 12px;
+      margin: 0;
+      font-size: 10px;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-lista-print em {
+      grid-column: 2;
+      grid-row: 1;
+      align-self: center;
+      color: #542168;
+      font-size: 11px;
+      font-style: normal;
+      white-space: nowrap;
     }
 
     @page {
-      size: A4 landscape;
-      margin: 8mm;
+      size: A4 portrait;
+      margin: 10mm;
     }
   }
 

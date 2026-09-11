@@ -147,6 +147,54 @@ async function leerImagen(archivo, onProgreso) {
   }
 }
 
+async function reconocerZonaInferior(canvasOrigen, onProgreso) {
+  const inicioY = Math.floor(canvasOrigen.height * 0.42);
+  const altoOrigen = canvasOrigen.height - inicioY;
+  const escala = Math.min(3, 3200 / Math.max(1, canvasOrigen.width));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(canvasOrigen.width * escala));
+  canvas.height = Math.max(1, Math.round(altoOrigen * escala));
+  const contexto = canvas.getContext("2d", { willReadFrequently: true });
+
+  contexto.drawImage(canvasOrigen, 0, inicioY, canvasOrigen.width, altoOrigen, 0, 0, canvas.width, canvas.height);
+  const datos = contexto.getImageData(0, 0, canvas.width, canvas.height);
+  for (let indice = 0; indice < datos.data.length; indice += 4) {
+    const gris = datos.data[indice] * 0.299 + datos.data[indice + 1] * 0.587 + datos.data[indice + 2] * 0.114;
+    const ajustado = gris < 190 ? Math.max(0, (gris - 35) * 1.35) : 255;
+    datos.data[indice] = ajustado;
+    datos.data[indice + 1] = ajustado;
+    datos.data[indice + 2] = ajustado;
+  }
+  contexto.putImageData(datos, 0, 0);
+
+  const worker = await crearWorker(onProgreso, 72, 98);
+  try {
+    await worker.setParameters({ tessedit_pageseg_mode: "11" });
+    const { data } = await worker.recognize(canvas);
+    return limpiarTextoOCR(data?.text || "");
+  } finally {
+    await worker.terminate();
+  }
+}
+
+export async function leerZonaInferiorDocumento(archivo, onProgreso) {
+  notificar(onProgreso, "Buscando el sello de recepción", 70);
+  if (esImagen(archivo)) {
+    return reconocerZonaInferior(await cargarImagenEnCanvas(archivo), onProgreso);
+  }
+  if (esPdf(archivo)) {
+    const pdf = await pdfjsLib.getDocument({ data: await archivo.arrayBuffer() }).promise;
+    const pagina = await pdf.getPage(1);
+    const viewport = pagina.getViewport({ scale: 2.6 });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    await pagina.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    return reconocerZonaInferior(canvas, onProgreso);
+  }
+  return "";
+}
+
 function reconstruirLineas(items = []) {
   const elementos = items
     .filter((item) => item?.str?.trim())

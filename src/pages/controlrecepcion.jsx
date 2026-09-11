@@ -17,10 +17,37 @@ export default function ControlRecepcion() {
   const [mensaje, setMensaje] = useState("");
   const [subiendo, setSubiendo] = useState(false);
   const input = useRef(null);
+  const relecturas = useRef(new Set());
 
-  async function cargar() {
+  async function actualizarLectura(registro) {
+    if (relecturas.current.has(registro.id)) return;
+    relecturas.current.add(registro.id);
+    try {
+      setMensaje(`Leyendo automáticamente ${registro.archivo_nombre}…`);
+      const descarga = await supabase.storage.from("higiene-pdfs").download(registro.archivo_ruta);
+      if (descarga.error) throw descarga.error;
+      const archivo = new File([descarga.data], registro.archivo_nombre, { type: "application/pdf" });
+      const lectura = await leerControlRecepcion(archivo, ({ estado, progreso }) => setMensaje(`${estado} · ${Math.round(progreso)}%`));
+      const cambios = { fecha_recepcion: lectura.fecha_recepcion || registro.fecha_recepcion, hora_recepcion: lectura.hora_recepcion || registro.hora_recepcion, proveedor: lectura.proveedor || registro.proveedor, responsable_recepcion: lectura.responsable_recepcion || registro.responsable_recepcion, temperatura: lectura.temperatura ?? registro.temperatura, estado_revision: lectura.estado_revision, controles: lectura.controles, sello_detectado: lectura.sello_detectado, lectura_automatica: lectura };
+      const { error } = await supabase.from("higiene_control_recepcion").update(cambios).eq("id", registro.id);
+      if (error) throw error;
+      setMensaje(lectura.sello_detectado ? "Sello existente leído automáticamente. El documento ya está revisado." : "No se ha detectado un sello existente.");
+      await cargar(false);
+    } catch (error) {
+      setMensaje(`No se pudo leer automáticamente: ${error.message}`);
+    }
+  }
+
+  async function cargar(releer = true) {
     const { data, error } = await supabase.from("higiene_control_recepcion").select("*").order("fecha_recepcion", { ascending: false }).order("created_at", { ascending: false });
-    if (error) setMensaje(`No se pudo cargar el control: ${error.message}`); else setRegistros(data || []);
+    if (error) setMensaje(`No se pudo cargar el control: ${error.message}`); else {
+      const lista = data || [];
+      setRegistros(lista);
+      if (releer) {
+        const pendiente = lista.find((registro) => registro.estado_revision === "pendiente" && !registro.sello_detectado);
+        if (pendiente) setTimeout(() => actualizarLectura(pendiente), 0);
+      }
+    }
   }
   useEffect(() => { cargar(); }, []);
   useEffect(() => {
@@ -116,6 +143,6 @@ export default function ControlRecepcion() {
     <section className="recepcion-upload"><label onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); setArchivos((actuales) => [...actuales, ...e.dataTransfer.files]); }}><input ref={input} type="file" multiple accept="image/*,application/pdf,.pdf" onChange={(e) => setArchivos([...e.target.files])} /><b>{archivos.length ? `${archivos.length} documentos seleccionados` : "Pegar, arrastrar o seleccionar fotos y PDF"}</b><small>Copia un adjunto del correo y pulsa Ctrl + V en esta pantalla.</small></label>{archivos.length > 0 && <div className="recepcion-seleccion">{archivos.map((archivo) => <span key={`${archivo.name}-${archivo.lastModified}`}>📄 {archivo.name}</span>)}</div>}<button onClick={subirTodos} disabled={subiendo}>{subiendo ? "Convirtiendo y guardando…" : "Guardar documentos"}</button></section>
     {mensaje && <p className="mensaje-control">{mensaje}</p>}
     {editando && <form className="recepcion-revision" onSubmit={guardarRevision}><div className="recepcion-form-title"><h2>Completar y pegar sello</h2><button type="button" onClick={() => setEditando(null)}>×</button></div><div className="recepcion-toolbar"><button type="button" onClick={todoConforme}>✓ Todo conforme</button><button type="button" onClick={() => abrir(editando, true)}>Ver albarán original</button></div><div className="recepcion-grid"><label>Fecha<input required type="date" value={form.fecha_recepcion} onChange={(e) => setForm({ ...form, fecha_recepcion: e.target.value })} /></label><label>Hora<input required type="time" value={form.hora_recepcion} onChange={(e) => setForm({ ...form, hora_recepcion: e.target.value })} /></label><label>Proveedor<input required value={form.proveedor} onChange={(e) => setForm({ ...form, proveedor: e.target.value })} /></label><label>Responsable<input required value={form.responsable_recepcion} onChange={(e) => setForm({ ...form, responsable_recepcion: e.target.value })} /></label><label>Temperatura °C<input type="number" step="0.1" value={form.temperatura} onChange={(e) => setForm({ ...form, temperatura: e.target.value })} /></label><label>Control temperatura<select value={form.temperatura_estado} onChange={(e) => setForm({ ...form, temperatura_estado: e.target.value })}><option value="conforme">Conforme</option><option value="no_conforme">No conforme</option></select></label><label>Resultado<select value={form.estado_revision} onChange={(e) => setForm({ ...form, estado_revision: e.target.value })}><option value="pendiente">Pendiente</option><option value="conforme">Aceptación</option><option value="incidencia">Devolución / incidencia</option></select></label><label>Posición del sello<select value={form.posicion_sello} onChange={(e) => setForm({ ...form, posicion_sello: e.target.value })}><option value="abajo_izquierda">Abajo izquierda</option><option value="abajo_derecha">Abajo derecha</option><option value="arriba_izquierda">Arriba izquierda</option><option value="arriba_derecha">Arriba derecha</option></select></label></div><div className="recepcion-checks">{CAMPOS_CONTROL.map(([clave, etiqueta]) => <label key={clave}>{etiqueta}<select value={form[clave]} onChange={(e) => setForm({ ...form, [clave]: e.target.value })}><option value="pendiente">Pendiente</option><option value="conforme">Conforme</option><option value="no_conforme">No conforme</option></select></label>)}</div><label>Observaciones<textarea rows="3" value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} /></label><button disabled={subiendo}>{subiendo ? "Creando PDF sellado…" : "Guardar control y PDF sellado"}</button></form>}
-    <section className="recepcion-lista"><h2>Documentos recibidos</h2>{registros.length === 0 ? <p>No hay documentos guardados.</p> : registros.map((registro) => <article key={registro.id}><div><span className={`recepcion-estado ${registro.estado_revision}`}>{registro.estado_revision}</span><strong>{registro.proveedor || "Proveedor pendiente"}</strong><small>{registro.fecha_recepcion} · {registro.archivo_sellado_nombre || registro.archivo_nombre}</small></div><div className="recepcion-acciones"><button onClick={() => abrir(registro)}>{registro.archivo_sellado_ruta ? "Ver PDF sellado" : "Ver PDF"}</button><button onClick={() => revisar(registro)}>{registro.archivo_sellado_ruta ? "Modificar sello" : "Completar sello"}</button><button className="peligro" onClick={() => eliminar(registro)}>Eliminar</button></div></article>)}</section>
+    <section className="recepcion-lista"><h2>Documentos recibidos</h2>{registros.length === 0 ? <p>No hay documentos guardados.</p> : registros.map((registro) => <article key={registro.id}><div><span className={`recepcion-estado ${registro.estado_revision}`}>{registro.sello_detectado ? "LEÍDO" : registro.estado_revision}</span><strong>{registro.proveedor || "Proveedor pendiente"}</strong><small>{registro.fecha_recepcion}{registro.hora_recepcion ? ` · ${registro.hora_recepcion.slice(0, 5)}` : ""}{registro.responsable_recepcion ? ` · ${registro.responsable_recepcion}` : ""} · {registro.archivo_sellado_nombre || registro.archivo_nombre}</small></div><div className="recepcion-acciones"><button onClick={() => abrir(registro)}>{registro.archivo_sellado_ruta ? "Ver PDF sellado" : "Ver PDF"}</button>{registro.sello_detectado ? <button onClick={() => revisar(registro)}>Ver lectura</button> : <button onClick={() => revisar(registro)}>{registro.archivo_sellado_ruta ? "Modificar sello" : "Completar sello"}</button>}<button className="peligro" onClick={() => eliminar(registro)}>Eliminar</button></div></article>)}</section>
   </main>;
 }

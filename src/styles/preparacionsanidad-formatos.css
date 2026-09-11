@@ -237,6 +237,29 @@
   color: #615b64;
 }
 
+.sanidad-mostrar-completados {
+  align-self: stretch;
+  border: 1px solid #6f347f;
+  border-radius: 14px;
+  padding: 10px 16px;
+  background: #fff;
+  color: #572066;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sanidad-todo-completo {
+  margin: 18px 0;
+  padding: 24px;
+  border: 1px solid #a7dfbd;
+  border-left: 6px solid #16a65a;
+  border-radius: 18px;
+  background: #effcf4;
+  color: #145c35;
+}
+
+.sanidad-todo-completo p { margin: 6px 0 0; }
+
 @media (max-width: 1150px) {
   .sanidad-formatos-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

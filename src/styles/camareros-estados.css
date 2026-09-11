@@ -1,0 +1,12 @@
+.camareros-evento.sin-definir,
+.camareros-evento.pendiente {
+  border: 1px solid #4b8fd8;
+  background: #dfefff;
+  color: #155493;
+}
+
+.camareros-evento.completo {
+  border: 1px solid #d7a922;
+  background: #fff0ad;
+  color: #755900;
+}

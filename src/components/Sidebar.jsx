@@ -142,6 +142,9 @@ function Sidebar({ abierto = false, onCerrar }) {
         <NavLink to="/catering" end className={claseEnlace}>
           🍽 Catering
         </NavLink>
+        <NavLink to="/servicio-camareros" className={claseEnlace}>
+          👥 Servicio de camareros
+        </NavLink>
         <NavLink to="/catering/email-presupuesto" className={claseEnlace}>
           📧 Email → Presupuesto
         </NavLink>

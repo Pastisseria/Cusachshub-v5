@@ -53,6 +53,7 @@ function Produccion() {
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [vistaBarraSemanal, setVistaBarraSemanal] = useState(false);
+  const [mostrarTotales, setMostrarTotales] = useState(true);
   const [fechaSemanaBarra, setFechaSemanaBarra] = useState(hoy);
   const [zonaImpresionDiaria, setZonaImpresionDiaria] = useState("");
 
@@ -362,6 +363,34 @@ function Produccion() {
     return producciones.filter(
       (linea) => linea.fecha === fechaSeleccionada,
     );
+  }, [producciones, fechaSeleccionada]);
+
+  const resumenProductosSemana = useMemo(() => {
+    const base = new Date(`${fechaSeleccionada}T12:00:00`);
+    const diferenciaLunes = base.getDay() === 0 ? -6 : 1 - base.getDay();
+    const lunes = new Date(base);
+    lunes.setDate(base.getDate() + diferenciaLunes);
+    const dias = Array.from({ length: 7 }, (_, indice) => {
+      const fecha = new Date(lunes);
+      fecha.setDate(lunes.getDate() + indice);
+      return obtenerFechaISO(fecha);
+    });
+    const mapa = {};
+    producciones
+      .filter((linea) => dias.includes(linea.fecha) && linea.estado !== "Cancelado")
+      .forEach((linea) => {
+        const nombre = String(linea.producto_nombre || "Producto sin nombre").trim();
+        const unidad = String(linea.unidad || "unidades").trim();
+        const clave = `${linea.producto_id || nombre.toLowerCase()}|${unidad.toLowerCase()}`;
+        if (!mapa[clave]) mapa[clave] = { clave, nombre, unidad, dias: {}, total: 0 };
+        const cantidad = Number(linea.cantidad || 0);
+        mapa[clave].dias[linea.fecha] = (mapa[clave].dias[linea.fecha] || 0) + cantidad;
+        mapa[clave].total += cantidad;
+      });
+    return {
+      dias,
+      productos: Object.values(mapa).sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    };
   }, [producciones, fechaSeleccionada]);
 
   const pedidosAgrupados = useMemo(() => {
@@ -1015,6 +1044,17 @@ function Produccion() {
                 : "☕ Vista semanal Barra"}
             </button>
 
+
+            {!vistaBarraSemanal && (
+              <button
+                type="button"
+                className="boton-secundario-produccion"
+                onClick={() => setMostrarTotales((anterior) => !anterior)}
+              >
+                {mostrarTotales ? "Ocultar totales" : "📊 Ver totales día y semana"}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => abrirNuevaLinea()}
@@ -1217,6 +1257,55 @@ function Produccion() {
             <strong>{resumen.terminados}</strong>
           </div>
         </div>
+
+
+        {mostrarTotales && (
+          <section className="produccion-totales-productos">
+            <div className="produccion-totales-cabecera">
+              <div>
+                <p className="produccion-etiqueta">RESUMEN DE PRODUCTOS</p>
+                <h3>
+                  Semana del {new Date(`${resumenProductosSemana.dias[0]}T12:00:00`).getDate()} al{" "}
+                  {new Date(`${resumenProductosSemana.dias[6]}T12:00:00`).getDate()}
+                </h3>
+              </div>
+              <span>Día seleccionado: {formatearFecha(fechaSeleccionada)}</span>
+            </div>
+
+            {resumenProductosSemana.productos.length === 0 ? (
+              <p className="produccion-totales-vacio">No hay productos esta semana.</p>
+            ) : (
+              <div className="produccion-totales-tabla-contenedor">
+                <table className="produccion-totales-tabla">
+                  <thead>
+                    <tr>
+                      <th>Producto</th>
+                      {resumenProductosSemana.dias.map((fecha) => (
+                        <th key={fecha}>
+                          {new Intl.DateTimeFormat("es-ES", { weekday: "short", day: "numeric" }).format(new Date(`${fecha}T12:00:00`))}
+                        </th>
+                      ))}
+                      <th>Total semana</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resumenProductosSemana.productos.map((producto) => (
+                      <tr key={producto.clave}>
+                        <th>{producto.nombre}<small>{producto.unidad}</small></th>
+                        {resumenProductosSemana.dias.map((fecha) => (
+                          <td key={fecha} className={fecha === fechaSeleccionada ? "dia-seleccionado" : ""}>
+                            {producto.dias[fecha] ? formatearCantidad(producto.dias[fecha]) : "—"}
+                          </td>
+                        ))}
+                        <td className="total-semana">{formatearCantidad(producto.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
 
         {error && (
           <div className="produccion-error">
@@ -2051,6 +2140,35 @@ const ESTILOS_PRODUCCION = `
   .produccion-panel {
     padding: 28px;
   }
+
+  .produccion-totales-productos {
+    margin: 0 0 22px;
+    padding: 20px;
+    border: 1px solid #d8cae0;
+    border-radius: 16px;
+    background: #fbf8fc;
+  }
+
+  .produccion-totales-cabecera {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 15px;
+  }
+
+  .produccion-totales-cabecera h3 { margin: 0; font-size: 22px; }
+  .produccion-totales-cabecera > span { color: #6c6072; font-weight: 700; text-transform: capitalize; }
+  .produccion-totales-tabla-contenedor { overflow-x: auto; }
+  .produccion-totales-tabla { width: 100%; min-width: 850px; border-collapse: collapse; background: #fff; }
+  .produccion-totales-tabla th,
+  .produccion-totales-tabla td { padding: 11px 10px; border: 1px solid #e2d9e7; text-align: center; }
+  .produccion-totales-tabla thead th { background: #eee3f3; color: #542168; text-transform: capitalize; }
+  .produccion-totales-tabla tbody th { min-width: 220px; text-align: left; color: #302738; }
+  .produccion-totales-tabla tbody th small { display: block; margin-top: 3px; color: #827788; font-weight: 600; }
+  .produccion-totales-tabla td.dia-seleccionado { background: #e7f2ff; color: #155493; font-weight: 900; }
+  .produccion-totales-tabla td.total-semana { background: #fff0ad; color: #6c5100; font-size: 17px; font-weight: 900; }
+  .produccion-totales-vacio { margin: 0; color: #827788; }
 
   .produccion-cabecera,
   .produccion-fecha-barra,

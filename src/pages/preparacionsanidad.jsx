@@ -209,6 +209,7 @@ export default function PreparacionSanidad() {
   const [cabeceraTrimestral, setCabeceraTrimestral] = useState({ fecha: "", responsable: "", ubicacion: "" });
   const [mensaje, setMensaje] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [mostrarCompletados, setMostrarCompletados] = useState(false);
   const [apartadoActivo, setApartadoActivo] = useState(APARTADOS_ALTA[0]);
   const [gestiones, setGestiones] = useState([]);
   const [gestion, setGestion] = useState(GESTION_VACIA);
@@ -294,12 +295,46 @@ export default function PreparacionSanidad() {
     a[valor] = (a[valor] || 0) + 1; return a;
   }, {}), [items, respuestas]);
 
+  const itemsVisibles = useMemo(() => {
+    if (vista !== "requisitos" || mostrarCompletados) return items;
+    return items.filter((item) => !["Sí", "No aplica"].includes(respuestas[item.codigo]?.respuesta));
+  }, [items, mostrarCompletados, respuestas, vista]);
+
   function cambiar(codigo, campo, valor) {
     setRespuestas((actual) => {
       const nuevas = { ...actual, [codigo]: { respuesta: actual[codigo]?.respuesta || "Pendiente", nota: actual[codigo]?.nota || "", [campo]: valor } };
       localStorage.setItem(claveLocal(tipo, periodoConsulta), JSON.stringify(nuevas));
       return nuevas;
     });
+  }
+
+  async function cambiarRespuesta(item, respuesta) {
+    const anterior = respuestas[item.codigo] || { respuesta: "Pendiente", nota: "" };
+    const siguiente = { ...anterior, respuesta };
+    const nuevas = { ...respuestas, [item.codigo]: siguiente };
+    setRespuestas(nuevas);
+    localStorage.setItem(claveLocal(tipo, periodoConsulta), JSON.stringify(nuevas));
+    setMensaje("Guardando respuesta…");
+
+    const fila = {
+      tipo,
+      periodo: periodoConsulta,
+      codigo: item.codigo,
+      seccion: item.seccion,
+      pregunta: item.texto,
+      respuesta,
+      nota: siguiente.nota?.trim() || null,
+      fecha_revision: tipo === "trimestral" ? cabeceraTrimestral.fecha || null : null,
+      responsable: tipo === "trimestral" ? cabeceraTrimestral.responsable.trim() || null : null,
+      ubicacion: tipo === "trimestral" ? cabeceraTrimestral.ubicacion || null : null,
+      actualizado_en: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("higiene_cuestionarios").upsert(fila, { onConflict: "tipo,periodo,codigo" });
+    setMensaje(error
+      ? `La respuesta queda guardada en este ordenador, pero Supabase no ha podido guardarla: ${error.message}`
+      : respuesta === "Sí" || respuesta === "No aplica"
+        ? "Guardado. El punto completado se ha retirado de la lista pendiente."
+        : "Respuesta guardada automáticamente.");
   }
 
   function cambiarCabecera(campo, valor) {
@@ -370,10 +405,11 @@ export default function PreparacionSanidad() {
       </section>
     </> : <>
       <section className="sanidad-toolbar"><div><strong>{vista === "requisitos" ? "Implantación inicial y revisión" : "Registro trimestral oficial"}</strong><p>{items.length} puntos · cada “No” debe anotarse en Incidencias y tener medida correctora.</p></div>{vista === "trimestral" && <div className="sanidad-cabecera-trimestral"><label>Periodo<input value={periodo} onChange={(e) => setPeriodo(e.target.value)} placeholder="2026-T3" /></label><label>Fecha<input type="date" value={cabeceraTrimestral.fecha || ""} onChange={(e) => cambiarCabecera("fecha", e.target.value)} /></label><label>Responsable<input value={cabeceraTrimestral.responsable || ""} onChange={(e) => cambiarCabecera("responsable", e.target.value)} placeholder="Nombre y apellidos" /></label><fieldset><legend>Zona</legend><label><input type="radio" name="ubicacion-trimestral" value="Obrador" checked={cabeceraTrimestral.ubicacion === "Obrador"} onChange={(e) => cambiarCabecera("ubicacion", e.target.value)} /> Obrador</label><label><input type="radio" name="ubicacion-trimestral" value="Botiga" checked={cabeceraTrimestral.ubicacion === "Botiga"} onChange={(e) => cambiarCabecera("ubicacion", e.target.value)} /> Botiga</label></fieldset></div>}</section>
-      <div className="sanidad-resumen">{RESPUESTAS.map((r) => <span key={r}><b>{resumen[r] || 0}</b>{r}</span>)}</div>
-      <section className="sanidad-cuestionario">{items.map((item) => <article key={item.codigo} className={`respuesta-${(respuestas[item.codigo]?.respuesta || "Pendiente").toLowerCase().replace(" ", "-")}`}>
+      <div className="sanidad-resumen">{RESPUESTAS.map((r) => <span key={r}><b>{resumen[r] || 0}</b>{r}</span>)}{vista === "requisitos" && <button type="button" className="sanidad-mostrar-completados" onClick={() => setMostrarCompletados((actual) => !actual)}>{mostrarCompletados ? "Ocultar los completados" : `Ver completados (${(resumen["Sí"] || 0) + (resumen["No aplica"] || 0)})`}</button>}</div>
+      {vista === "requisitos" && itemsVisibles.length === 0 && <section className="sanidad-todo-completo"><strong>✓ No queda ningún punto pendiente</strong><p>Puedes volver a consultar las respuestas con “Ver completados”.</p></section>}
+      <section className="sanidad-cuestionario">{itemsVisibles.map((item) => <article key={item.codigo} className={`respuesta-${(respuestas[item.codigo]?.respuesta || "Pendiente").toLowerCase().replace(" ", "-")}`}>
         <div className="sanidad-pregunta"><span>{item.codigo}</span><div><small>{item.seccion}</small><p>{item.texto}</p>{enlaceModulo[item.seccion] && <Link to={enlaceModulo[item.seccion]}>Abrir módulo relacionado →</Link>}</div></div>
-        <div className="sanidad-opciones" role="group" aria-label={`Respuesta ${item.codigo}`}>{RESPUESTAS.map((r) => <button type="button" key={r} className={(respuestas[item.codigo]?.respuesta || "Pendiente") === r ? "seleccionada" : ""} data-respuesta={r} onClick={() => cambiar(item.codigo, "respuesta", r)}>{r === "Sí" ? "✓ " : r === "No" ? "✕ " : r === "Pendiente" ? "⏳ " : "— "}{r}</button>)}</div>
+        <div className="sanidad-opciones" role="group" aria-label={`Respuesta ${item.codigo}`}>{RESPUESTAS.map((r) => <button type="button" key={r} className={(respuestas[item.codigo]?.respuesta || "Pendiente") === r ? "seleccionada" : ""} data-respuesta={r} onClick={() => cambiarRespuesta(item, r)}>{r === "Sí" ? "✓ " : r === "No" ? "✕ " : r === "Pendiente" ? "⏳ " : "— "}{r}</button>)}</div>
         <div className={`sanidad-nota ${(respuestas[item.codigo]?.respuesta || "Pendiente") === "No" ? "requiere-nota" : ""}`}><label>{(respuestas[item.codigo]?.respuesta || "Pendiente") === "No" ? "Explica qué falta o qué se debe corregir" : "Nota opcional"}</label><textarea rows="2" placeholder="Documento que falta o medida pendiente" value={respuestas[item.codigo]?.nota || ""} onChange={(e) => cambiar(item.codigo, "nota", e.target.value)} /></div>
       </article>)}</section>
       <div className="sanidad-guardar"><span>✓ Los cambios se guardan automáticamente en este ordenador</span><button onClick={guardar} disabled={guardando}>{guardando ? "Guardando…" : "Guardar copia en Supabase"}</button><Link to="/higiene/incidencias">Abrir registro de incidencias</Link></div>

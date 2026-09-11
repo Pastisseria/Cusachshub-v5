@@ -377,7 +377,11 @@ function Produccion() {
     });
     const mapa = {};
     producciones
-      .filter((linea) => dias.includes(linea.fecha) && linea.estado !== "Cancelado")
+      .filter((linea) =>
+        dias.includes(linea.fecha) &&
+        linea.estado !== "Cancelado" &&
+        ["Cocina", "Barra"].includes(linea.zona),
+      )
       .forEach((linea) => {
         const nombre = String(linea.producto_nombre || "Producto sin nombre").trim();
         const unidad = String(linea.unidad || "unidades").trim();
@@ -559,6 +563,20 @@ function Produccion() {
       window.requestAnimationFrame(() => {
         window.print();
       });
+    });
+  }
+
+  function imprimirResumenProductos() {
+    const limpiar = () => {
+      document.body.classList.remove("imprimiendo-resumen-productos");
+      window.removeEventListener("afterprint", limpiar);
+    };
+
+    document.body.classList.add("imprimiendo-resumen-productos");
+    window.addEventListener("afterprint", limpiar);
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => window.print());
     });
   }
 
@@ -1275,8 +1293,14 @@ function Produccion() {
                   Semana del {new Date(`${resumenProductosSemana.dias[0]}T12:00:00`).getDate()} al{" "}
                   {new Date(`${resumenProductosSemana.dias[6]}T12:00:00`).getDate()}
                 </h3>
+                <small>Solo Cocina y Barra</small>
               </div>
-              <span>Día seleccionado: {formatearFecha(fechaSeleccionada)}</span>
+              <div className="produccion-totales-acciones">
+                <span>Día seleccionado: {formatearFecha(fechaSeleccionada)}</span>
+                <button type="button" onClick={imprimirResumenProductos}>
+                  🖨️ Imprimir resumen Cocina y Barra
+                </button>
+              </div>
             </div>
 
             {resumenProductosSemana.productos.length === 0 ? (
@@ -2177,6 +2201,9 @@ const ESTILOS_PRODUCCION = `
 
   .produccion-totales-cabecera h3 { margin: 0; font-size: 22px; }
   .produccion-totales-cabecera > span { color: #6c6072; font-weight: 700; text-transform: capitalize; }
+  .produccion-totales-cabecera small { color: #6c6072; font-weight: 800; }
+  .produccion-totales-acciones { display: flex; align-items: flex-end; flex-direction: column; gap: 10px; }
+  .produccion-totales-acciones span { color: #6c6072; font-weight: 700; text-transform: capitalize; }
   .produccion-totales-tabla-contenedor { overflow-x: auto; }
   .produccion-totales-tabla { width: 100%; min-width: 850px; border-collapse: collapse; background: #fff; }
   .produccion-totales-tabla th,
@@ -2907,6 +2934,46 @@ const ESTILOS_PRODUCCION = `
 
   .barra-producto {
     overflow-wrap: anywhere;
+  }
+
+  @media print {
+    body.imprimiendo-resumen-productos * {
+      visibility: hidden !important;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-productos,
+    body.imprimiendo-resumen-productos .produccion-totales-productos * {
+      visibility: visible !important;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-productos {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: #ffffff;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-acciones button {
+      display: none !important;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-tabla {
+      min-width: 0;
+      font-size: 11px;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-tabla th,
+    body.imprimiendo-resumen-productos .produccion-totales-tabla td {
+      padding: 7px 5px;
+    }
+
+    @page {
+      size: A4 landscape;
+      margin: 8mm;
+    }
   }
 
   @media print {

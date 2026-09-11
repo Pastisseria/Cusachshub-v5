@@ -16,6 +16,11 @@ create table if not exists public.higiene_cuestionarios (
 create index if not exists higiene_cuestionarios_periodo_idx
   on public.higiene_cuestionarios (tipo, periodo, codigo);
 
+alter table public.higiene_cuestionarios
+  add column if not exists fecha_revision date,
+  add column if not exists responsable text,
+  add column if not exists ubicacion text;
+
 alter table public.higiene_cuestionarios enable row level security;
 drop policy if exists "cuestionarios_higiene_administrador" on public.higiene_cuestionarios;
 create policy "cuestionarios_higiene_administrador"

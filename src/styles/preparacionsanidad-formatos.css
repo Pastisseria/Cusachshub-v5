@@ -1,0 +1,54 @@
+.sanidad-cabecera-trimestral {
+  display: grid;
+  grid-template-columns: 140px 150px minmax(210px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.sanidad-cabecera-trimestral label {
+  font-size: .82rem;
+}
+
+.sanidad-cabecera-trimestral input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sanidad-cabecera-trimestral fieldset {
+  display: flex;
+  gap: 10px;
+  min-height: 58px;
+  box-sizing: border-box;
+  border: 1px solid #cdbbd3;
+  border-radius: 9px;
+  padding: 5px 10px 8px;
+}
+
+.sanidad-cabecera-trimestral fieldset legend {
+  font-size: .75rem;
+  font-weight: 850;
+}
+
+.sanidad-cabecera-trimestral fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sanidad-cabecera-trimestral fieldset input {
+  width: auto;
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .sanidad-cabecera-trimestral {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .sanidad-cabecera-trimestral {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../supabase.js";
+import "../styles/preparacionsanidad-formatos.css";
 
 const RESPUESTAS = ["Pendiente", "Sí", "No", "No aplica"];
 
@@ -69,65 +70,67 @@ const REQUISITOS = [
 ].map(([seccion, texto], i) => ({ codigo: `R${i + 1}`, seccion, texto }));
 
 const TRIMESTRAL = [
-  ["Agua", "Hay buen suministro de agua potable fría y caliente en todos los puntos."],
-  ["Agua", "Se ha medido y registrado el cloro libre durante el trimestre cuando corresponde."],
-  ["Limpieza", "Los productos nuevos son aptos para uso alimentario y tienen ficha técnica."],
-  ["Limpieza", "Los productos están aislados, tapados y etiquetados."],
-  ["Limpieza", "Se ha completado el registro de limpieza."],
-  ["Limpieza", "Se han realizado las limpiezas con las frecuencias previstas."],
-  ["Limpieza", "Se han seguido los métodos y dosificaciones definidos."],
-  ["Limpieza", "Las bolsas cerradas se trasladan al contenedor cuando están llenas."],
-  ["Plagas", "Mosquiteras y atrapainsectos están íntegros y en buen estado."],
-  ["Plagas", "Las zonas con alimentos están ordenadas y limpias."],
-  ["Plagas", "Los alimentos permanecen tapados y protegidos en obrador y tienda."],
-  ["Plagas", "Si intervino la empresa de plagas, está archivada toda la documentación."],
-  ["Formación", "Las personas manipuladoras han recibido formación."],
-  ["Formación", "Están archivados los certificados correspondientes."],
-  ["Formación", "Están disponibles los contenidos de los cursos."],
-  ["Proveedores", "Los proveedores nuevos se han añadido a la lista de homologados."],
-  ["Proveedores", "Se controla y registra en el albarán caducidad y temperatura."],
-  ["Proveedores", "Se revisan higiene y estiba de los vehículos de reparto."],
-  ["Proveedores", "Se completa el control de recepción de todas las materias primas."],
-  ["Trazabilidad", "Todas las materias primas pueden relacionarse con un albarán de entrada."],
-  ["Trazabilidad", "Materias primas e intermedios están tapados y etiquetados."],
-  ["Trazabilidad", "Todos los productos acabados envasados están correctamente etiquetados."],
-  ["Trazabilidad", "La producción diaria incluye fecha, producto y cantidad."],
-  ["Trazabilidad", "Los albaranes de salida incluyen fecha, destino, producto y cantidad."],
-  ["Buenas prácticas", "El personal se quita joyas y reloj para trabajar."],
-  ["Buenas prácticas", "El personal utiliza gorro e indumentaria exclusiva y limpia."],
-  ["Buenas prácticas", "Se respeta la prohibición de fumar en todas las zonas."],
-  ["Buenas prácticas", "El personal se lava las manos con frecuencia."],
-  ["Locales y equipos", "Almacenes y equipos de frío tienen capacidad suficiente."],
-  ["Locales y equipos", "Los indicadores exteriores de temperatura funcionan."],
-  ["Locales y equipos", "Las cámaras no presentan condensación ni hielo."],
-  ["Locales y equipos", "Suelos, paredes, techos, maquinaria y utensilios están en buen estado."],
-  ["Locales y equipos", "La iluminación es suficiente y está protegida."],
-  ["Locales y equipos", "Los cubos tienen bolsa, tapa y accionamiento no manual."],
-  ["Locales y equipos", "Los lavamanos no son manuales y disponen de agua caliente, jabón y papel."],
-  ["Locales y equipos", "Los vestuarios están limpios y ordenados."],
-  ["Alérgenos", "Los clientes reciben información de ingredientes y trazas alergénicas."],
-  ["Alérgenos", "Las fichas de fabricación están actualizadas."],
-  ["Residuos", "Se minimizan y separan correctamente los residuos."],
-  ["Residuos", "Existe gestor para la recogida del aceite de fritura usado."],
-  ["Incidencias", "Se han aplicado y documentado las medidas correctoras necesarias."],
-  ["Almacenamiento", "No hay productos en el suelo y se evita la contaminación cruzada."],
-  ["Almacenamiento", "Crudos, elaborados y alimentos de distinta naturaleza están separados."],
-  ["Almacenamiento", "Se aplica la rotación PEPS (primero en entrar, primero en salir)."],
-  ["Almacenamiento", "Las temperaturas registradas durante el trimestre han sido adecuadas."],
-  ["Manipulación", "Superficies, equipos y utensilios se revisan antes de trabajar."],
-  ["Manipulación", "Se evita la contaminación cruzada y se separan crudos y cocinados."],
-  ["Manipulación", "Los aditivos se pesan correctamente."],
-  ["Manipulación", "Cortadora, pinzas y otros útiles de venta se usan y mantienen correctamente."],
-  ["Manipulación", "Se comprueban caducidades antes de usar las materias primas."],
-  ["Manipulación", "Los vegetales destinados a rellenos se desinfectan."],
-  ["Manipulación", "Leche, huevo, ovoproducto, nata y queso abiertos/elaborados respetan el plazo definido."],
-  ["Manipulación", "Se retiran al final del día los productos que han estado expuestos a 8 °C."],
-  ["Manipulación", "Los productos envasados cumplen etiquetado y alérgenos."],
-  ["Cocción", "Se controlan tiempo y temperatura de cocción."],
-  ["Cocción", "Se comprueba y registra el estado del aceite de fritura."],
-  ["Enfriamiento", "Los productos sensibles alcanzan 10 °C en menos de dos horas."],
-  ["Enfriamiento", "Al terminar el enfriamiento se introducen rápidamente en frío."],
-].map(([seccion, texto], i) => ({ codigo: `T${i + 1}`, seccion, texto }));
+  [7, "Pla de control de l’aigua", "Es disposa de bon subministrament d’aigua potable freda i/o calenta en tots els punts de la xarxa."],
+  [8, "Pla de control de l’aigua", "S’ha mesurat i registrat la concentració de clor lliure de l’aigua durant aquest període."],
+  [11, "Pla de control de neteja i desinfecció", "Els nous productes de neteja procedeixen d’indústries autoritzades, són aptes per a ús alimentari i se’n disposa de la fitxa tècnica."],
+  [12, "Pla de control de neteja i desinfecció", "Els productes de neteja estan emmagatzemats en un lloc aïllat, sempre tapats i amb etiqueta."],
+  [13, "Pla de control de neteja i desinfecció", "S’omple el registre de neteja."],
+  [14, "Pla de control de neteja i desinfecció", "S’han realitzat les neteges descrites en el full de freqüències."],
+  [15, "Pla de control de neteja i desinfecció", "Les operacions de neteja han seguit les indicacions descrites en el full de mètode."],
+  [16, "Pla de control de neteja i desinfecció", "Les bosses d’escombraries, tancades, es transporten al contenidor del carrer quan són plenes."],
+  [19, "Pla de control de plagues", "Les teles mosquiteres o atrapamosques es troben íntegres i en bon estat."],
+  [20, "Pla de control de plagues", "Es mantenen les zones on hi ha aliments ordenades i netes."],
+  [21, "Pla de control de plagues", "Es mantenen els aliments tapats i protegits a l’obrador i a la botiga."],
+  [22, "Pla de control de plagues", "Si aquest trimestre ha estat necessària la intervenció d’una empresa de control de plagues, es disposa de la documentació corresponent."],
+  [25, "Pla de formació i capacitació del personal", "Les persones que manipulen aliments han rebut formació."],
+  [26, "Pla de formació i capacitació del personal", "Es disposa dels certificats corresponents."],
+  [27, "Pla de formació i capacitació del personal", "Es disposa dels continguts del curs."],
+  [30, "Pla de control de proveïdors", "Si hi ha nous proveïdors, s’han afegit a la llista de proveïdors homologats."],
+  [31, "Pla de control de proveïdors", "Es realitza el control de recepció (dates de caducitat i temperatura) i es registra en l’albarà o en el registre corresponent."],
+  [32, "Pla de control de proveïdors", "El control de recepció preveu també la revisió de les condicions d’higiene i estiba dels vehicles dels proveïdors."],
+  [33, "Pla de control de proveïdors", "S’omple el registre de recepció per a totes les matèries primeres."],
+  [36, "Pla de traçabilitat", "Totes les matèries primeres es poden relacionar amb un albarà d’entrada."],
+  [37, "Pla de traçabilitat", "Totes les matèries primeres i els productes intermedis són en recipients tapats i correctament etiquetats."],
+  [38, "Pla de traçabilitat", "Tots els productes acabats envasats estan correctament etiquetats."],
+  [39, "Pla de traçabilitat", "La llista de fabricació diària conté dades sobre la data de producció, el producte i la quantitat fabricada."],
+  [40, "Pla de traçabilitat", "Els albarans de sortida indiquen la data, el destí, el producte i la seva quantitat."],
+  [43, "Bones pràctiques", "El personal es treu les joies i el rellotge per treballar."],
+  [44, "Bones pràctiques", "El personal fa servir barret i indumentària exclusiva i neta."],
+  [45, "Bones pràctiques", "El personal compleix la prohibició de fumar a les instal·lacions."],
+  [46, "Bones pràctiques", "El personal es renta les mans amb freqüència."],
+  [49, "Requisits dels locals i equipament", "La capacitat del magatzem és suficient."],
+  [50, "Requisits dels locals i equipament", "La capacitat de fred positiu i negatiu és suficient."],
+  [51, "Requisits dels locals i equipament", "El lector de temperatura a l’exterior d’expositors i cambres funciona correctament."],
+  [52, "Requisits dels locals i equipament", "Les cambres estan lliures d’aigua de condensació i gel."],
+  [53, "Requisits dels locals i equipament", "El terra, les parets, el sostre, la maquinària i els utensilis estan en bon estat."],
+  [54, "Requisits dels locals i equipament", "La il·luminació és suficient i està protegida."],
+  [55, "Requisits dels locals i equipament", "Els contenidors d’escombraries disposen de bossa fixada a la boca i tenen la tapa d’accionament no manual."],
+  [56, "Requisits dels locals i equipament", "L’accionament no manual dels rentamans funciona i estan ben equipats (paper de cel·lulosa, sabó i aigua calenta)."],
+  [57, "Requisits dels locals i equipament", "L’estat d’higiene dels vestidors és correcte i estan endreçats."],
+  [60, "Gestió d’al·lèrgens", "S’informa els clients de la presència d’al·lèrgens (ingredient o traça) en els productes."],
+  [61, "Gestió d’al·lèrgens", "Les fitxes de fabricació estan actualitzades."],
+  [64, "Gestió de residus", "Es compleix amb les mesures de separació de residus."],
+  [65, "Gestió de residus", "Es disposa d’una empresa de recollida de l’oli de fregir usat."],
+  [68, "Emmagatzematge de matèries primeres", "L’estiba és correcta, sense producte al terra ni contaminació encreuada."],
+  [69, "Emmagatzematge de matèries primeres", "Els productes crus estan ben separats dels elaborats o cuits."],
+  [70, "Emmagatzematge de matèries primeres", "Els aliments de diferent naturalesa estan ben separats."],
+  [71, "Emmagatzematge de matèries primeres", "Es fa rotació d’estocs d’acord amb la norma primer en entrar, primer en sortir (PEPS)."],
+  [72, "Emmagatzematge de matèries primeres", "Les temperatures d’emmagatzematge i exposició són correctes."],
+  [75, "Manipulació", "Es comprova la neteja de superfícies, equips i estris abans de començar a treballar."],
+  [76, "Manipulació", "Es treballa per evitar la contaminació encreuada a partir d’estris o dels manipuladors."],
+  [77, "Manipulació", "Es pesen correctament els additius."],
+  [78, "Manipulació", "S’utilitzen pinces o altres estris durant la venda de pastissos i brioixeria."],
+  [79, "Manipulació", "Es comprova la data de caducitat o de consum preferent de les matèries primeres abans d’usar-les."],
+  [80, "Manipulació", "Es respecta la separació temporal o física entre la manipulació de productes crus i cuits."],
+  [81, "Manipulació", "Es desinfecten els vegetals abans de formar part dels farcits."],
+  [82, "Manipulació", "Tots els productes amb llet, ous o ovoproductes, nata o formatge que hi ha a les cambres han estat elaborats fa menys de dos dies."],
+  [83, "Manipulació", "Es rebutgen els productes exposats per a la venda que es conserven a 8 ºC al final del dia."],
+  [84, "Manipulació", "S’etiqueten els productes envasats d’acord amb la normativa d’etiquetatge i al·lèrgens."],
+  [87, "Cocció", "Es controla el temps i la temperatura de cocció?"],
+  [88, "Cocció", "Es comprova l’estat de l’oli de fregir?"],
+  [91, "Refredament", "Els productes sensibles es refreden a 10 ºC en menys de dues hores?"],
+  [92, "Refredament", "Acabat el refredament, l’aliment es disposa ràpidament en cambra de fred?"],
+].map(([fila, seccion, texto]) => ({ codigo: `RT${fila}`, seccion, texto }));
 
 const CARENCIAS = [
   ["Alta", "Compromiso de adhesión a la guía", "No existe un documento firmado por la persona responsable con los datos de la empresa.", "Preparar, firmar y archivar el compromiso de la página 27."],
@@ -167,6 +170,10 @@ function claveLocal(tipo, periodo) {
   return `cusachs-sanidad-${tipo}-${periodo}`;
 }
 
+function claveCabecera(periodo) {
+  return `cusachs-sanidad-trimestral-cabecera-${periodo}`;
+}
+
 function leerLocal(tipo, periodo) {
   try { return JSON.parse(localStorage.getItem(claveLocal(tipo, periodo)) || "{}"); }
   catch { return {}; }
@@ -176,6 +183,7 @@ export default function PreparacionSanidad() {
   const [vista, setVista] = useState("pendientes");
   const [periodo, setPeriodo] = useState(periodoActual("trimestral"));
   const [respuestas, setRespuestas] = useState({});
+  const [cabeceraTrimestral, setCabeceraTrimestral] = useState({ fecha: "", responsable: "", ubicacion: "" });
   const [mensaje, setMensaje] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [apartadoActivo, setApartadoActivo] = useState(APARTADOS_ALTA[0]);
@@ -191,17 +199,29 @@ export default function PreparacionSanidad() {
   useEffect(() => {
     if (vista === "pendientes" || vista === "alta") return;
     let activo = true;
-    supabase.from("higiene_cuestionarios").select("codigo,respuesta,nota")
+    supabase.from("higiene_cuestionarios").select("codigo,respuesta,nota,fecha_revision,responsable,ubicacion")
       .eq("tipo", tipo).eq("periodo", periodoConsulta).then(({ data, error }) => {
         if (!activo) return;
         if (error) {
           setMensaje("Las respuestas se guardan automáticamente en este ordenador. Falta activar Supabase para compartirlas entre dispositivos.");
           setRespuestas(leerLocal(tipo, periodoConsulta));
+          if (tipo === "trimestral") {
+            try { setCabeceraTrimestral(JSON.parse(localStorage.getItem(claveCabecera(periodoConsulta)) || "{}")); }
+            catch { setCabeceraTrimestral({ fecha: "", responsable: "", ubicacion: "" }); }
+          }
           return;
         }
         setMensaje("");
         const remotas = Object.fromEntries((data || []).map((r) => [r.codigo, { respuesta: r.respuesta, nota: r.nota || "" }]));
         setRespuestas(data?.length ? remotas : leerLocal(tipo, periodoConsulta));
+        if (tipo === "trimestral") {
+          const primera = data?.[0];
+          if (primera) setCabeceraTrimestral({ fecha: primera.fecha_revision || "", responsable: primera.responsable || "", ubicacion: primera.ubicacion || "" });
+          else {
+            try { setCabeceraTrimestral(JSON.parse(localStorage.getItem(claveCabecera(periodoConsulta)) || "{}")); }
+            catch { setCabeceraTrimestral({ fecha: "", responsable: "", ubicacion: "" }); }
+          }
+        }
       });
     return () => { activo = false; };
   }, [vista, tipo, periodoConsulta]);
@@ -259,9 +279,22 @@ export default function PreparacionSanidad() {
     });
   }
 
+  function cambiarCabecera(campo, valor) {
+    setCabeceraTrimestral((actual) => {
+      const nueva = { ...actual, [campo]: valor };
+      localStorage.setItem(claveCabecera(periodoConsulta), JSON.stringify(nueva));
+      return nueva;
+    });
+  }
+
   async function guardar() {
     setGuardando(true); setMensaje("");
-    const filas = items.map((item) => ({ tipo, periodo: periodoConsulta, codigo: item.codigo, seccion: item.seccion, pregunta: item.texto, respuesta: respuestas[item.codigo]?.respuesta || "Pendiente", nota: respuestas[item.codigo]?.nota?.trim() || null, actualizado_en: new Date().toISOString() }));
+    if (tipo === "trimestral" && (!cabeceraTrimestral.fecha || !cabeceraTrimestral.responsable.trim() || !cabeceraTrimestral.ubicacion)) {
+      setGuardando(false);
+      setMensaje("Antes de guardar indica la fecha, la persona responsable y si la revisión corresponde a Obrador o Botiga.");
+      return;
+    }
+    const filas = items.map((item) => ({ tipo, periodo: periodoConsulta, codigo: item.codigo, seccion: item.seccion, pregunta: item.texto, respuesta: respuestas[item.codigo]?.respuesta || "Pendiente", nota: respuestas[item.codigo]?.nota?.trim() || null, fecha_revision: tipo === "trimestral" ? cabeceraTrimestral.fecha : null, responsable: tipo === "trimestral" ? cabeceraTrimestral.responsable.trim() : null, ubicacion: tipo === "trimestral" ? cabeceraTrimestral.ubicacion : null, actualizado_en: new Date().toISOString() }));
     const { error } = await supabase.from("higiene_cuestionarios").upsert(filas, { onConflict: "tipo,periodo,codigo" });
     setGuardando(false);
     if (error) {
@@ -301,7 +334,7 @@ export default function PreparacionSanidad() {
         </div>
       </section>
     </> : <>
-      <section className="sanidad-toolbar"><div><strong>{vista === "requisitos" ? "Implantación inicial y revisión" : "Comprobación obligatoria cada trimestre"}</strong><p>{items.length} puntos · cada “No” debe anotarse en Incidencias y tener medida correctora.</p></div>{vista === "trimestral" && <label>Periodo<input value={periodo} onChange={(e) => setPeriodo(e.target.value)} placeholder="2026-T3" /></label>}</section>
+      <section className="sanidad-toolbar"><div><strong>{vista === "requisitos" ? "Implantación inicial y revisión" : "Registro trimestral oficial"}</strong><p>{items.length} puntos · cada “No” debe anotarse en Incidencias y tener medida correctora.</p></div>{vista === "trimestral" && <div className="sanidad-cabecera-trimestral"><label>Periodo<input value={periodo} onChange={(e) => setPeriodo(e.target.value)} placeholder="2026-T3" /></label><label>Fecha<input type="date" value={cabeceraTrimestral.fecha || ""} onChange={(e) => cambiarCabecera("fecha", e.target.value)} /></label><label>Responsable<input value={cabeceraTrimestral.responsable || ""} onChange={(e) => cambiarCabecera("responsable", e.target.value)} placeholder="Nombre y apellidos" /></label><fieldset><legend>Zona</legend><label><input type="radio" name="ubicacion-trimestral" value="Obrador" checked={cabeceraTrimestral.ubicacion === "Obrador"} onChange={(e) => cambiarCabecera("ubicacion", e.target.value)} /> Obrador</label><label><input type="radio" name="ubicacion-trimestral" value="Botiga" checked={cabeceraTrimestral.ubicacion === "Botiga"} onChange={(e) => cambiarCabecera("ubicacion", e.target.value)} /> Botiga</label></fieldset></div>}</section>
       <div className="sanidad-resumen">{RESPUESTAS.map((r) => <span key={r}><b>{resumen[r] || 0}</b>{r}</span>)}</div>
       <section className="sanidad-cuestionario">{items.map((item) => <article key={item.codigo} className={`respuesta-${(respuestas[item.codigo]?.respuesta || "Pendiente").toLowerCase().replace(" ", "-")}`}>
         <div className="sanidad-pregunta"><span>{item.codigo}</span><div><small>{item.seccion}</small><p>{item.texto}</p>{enlaceModulo[item.seccion] && <Link to={enlaceModulo[item.seccion]}>Abrir módulo relacionado →</Link>}</div></div>

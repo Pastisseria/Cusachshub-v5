@@ -3,6 +3,7 @@ create table if not exists public.higiene_control_recepcion (
   fecha_recepcion date not null default current_date,
   hora_recepcion time,
   proveedor text,
+  proveedor_id uuid references public.proveedores(id) on delete set null,
   responsable_recepcion text,
   temperatura numeric,
   estado_revision text not null default 'pendiente' check (estado_revision in ('pendiente', 'conforme', 'incidencia')),
@@ -21,6 +22,7 @@ create table if not exists public.higiene_control_recepcion (
 );
 
 create index if not exists higiene_control_recepcion_fecha_idx on public.higiene_control_recepcion (fecha_recepcion desc);
+create index if not exists higiene_control_recepcion_proveedor_idx on public.higiene_control_recepcion (proveedor_id);
 alter table public.higiene_control_recepcion enable row level security;
 drop policy if exists "control_recepcion_administrador" on public.higiene_control_recepcion;
 create policy "control_recepcion_administrador" on public.higiene_control_recepcion

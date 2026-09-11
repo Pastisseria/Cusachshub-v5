@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase.js";
 
 const MESES = [
@@ -47,6 +48,7 @@ const FORMULARIO_INICIAL = {
 };
 
 function Catering() {
+  const navigate = useNavigate();
   const hoy = new Date();
 
   const [fechaVisible, setFechaVisible] = useState(
@@ -376,7 +378,18 @@ function Catering() {
 
   function editarDesdeDia(catering) {
     cerrarDia();
-    abrirCatering(catering);
+    abrirPresupuesto(catering);
+  }
+
+  function abrirPresupuesto(catering) {
+    if (!catering.presupuesto_id) {
+      abrirCatering(catering);
+      return;
+    }
+
+    navigate(
+      `/presupuestos?presupuesto_id=${catering.presupuesto_id}&editar=1`,
+    );
   }
 
   async function cambiarTransporteDesdeDia(catering, transporteTipo) {
@@ -770,7 +783,7 @@ function Catering() {
                               evento.estado,
                             )}`}
                             key={evento.id}
-                            onClick={() => abrirCatering(evento)}
+                            onClick={() => abrirPresupuesto(evento)}
                           >
                             <strong>
                               {cortarHora(evento.hora_inicio) || hora}
@@ -915,7 +928,7 @@ function Catering() {
                             .join(" · ")}
                           onClick={(event) => {
                             event.stopPropagation();
-                            abrirCatering(evento);
+                            abrirPresupuesto(evento);
                           }}
                         >
                           {evento.hora_inicio && (
@@ -1041,7 +1054,7 @@ function Catering() {
                       </select>
                     </label>
 
-                    <span className="catering-dia-abrir">Abrir →</span>
+                    <span className="catering-dia-abrir">{evento.presupuesto_id ? "Abrir presupuesto →" : "Editar catering →"}</span>
                   </div>
                 ))
               )}

@@ -2984,13 +2984,36 @@ const ESTILOS_PRODUCCION = `
     }
 
     body.imprimiendo-resumen-productos .produccion-totales-tabla-contenedor {
-      display: none !important;
+      display: block !important;
+      overflow: visible;
     }
 
     body.imprimiendo-resumen-productos .produccion-totales-lista-print {
-      display: grid !important;
-      grid-template-columns: 1fr 1fr;
-      gap: 7px;
+      display: none !important;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-tabla {
+      width: 100%;
+      min-width: 0;
+      table-layout: fixed;
+      font-size: 8px;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-tabla th,
+    body.imprimiendo-resumen-productos .produccion-totales-tabla td {
+      padding: 4px 2px;
+      overflow-wrap: anywhere;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-tabla thead th:first-child,
+    body.imprimiendo-resumen-productos .produccion-totales-tabla tbody th {
+      width: 27%;
+      min-width: 0;
+      text-align: left;
+    }
+
+    body.imprimiendo-resumen-productos .produccion-totales-tabla tbody tr {
+      break-inside: avoid;
     }
 
     body.imprimiendo-resumen-productos .produccion-totales-lista-print article {

@@ -2,6 +2,12 @@ import { useNavigate } from "react-router-dom";
 
 const modulosHigiene = [
   [
+    "🩺",
+    "Preparación para Sanidad",
+    "Cuestionarios oficiales, carencias documentales y seguimiento de lo pendiente.",
+    "/higiene/preparacion-sanidad",
+  ],
+  [
     "🌡️",
     "Temperaturas",
     "Registro de cámaras, congeladores y elaboraciones mediante PDF.",

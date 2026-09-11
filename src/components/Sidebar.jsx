@@ -41,6 +41,7 @@ function Sidebar({ abierto = false, onCerrar }) {
           <NavLink to="/higiene" end className={claseEnlace}>
             🧼 Panel de higiene
           </NavLink>
+          <NavLink to="/higiene/preparacion-sanidad" className={claseEnlace}>🩺 Preparación Sanidad</NavLink>
           <NavLink to="/higiene/temperaturas" className={claseEnlace}>🌡️ Temperaturas</NavLink>
           <NavLink to="/higiene/limpieza" className={claseEnlace}>🧹 Limpieza</NavLink>
           <NavLink to="/higiene/trazabilidad" className={claseEnlace}>📦 Trazabilidad</NavLink>

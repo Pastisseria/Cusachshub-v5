@@ -384,7 +384,8 @@ function Produccion() {
       .forEach((linea) => {
         const nombre = String(linea.producto_nombre || "Producto sin nombre").trim();
         const unidad = String(linea.unidad || "unidades").trim();
-        const clave = `${linea.producto_id || nombre.toLowerCase()}|${unidad.toLowerCase()}`;
+        const nombreNormalizado = nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+        const clave = `${nombreNormalizado}|${unidad.toLowerCase()}`;
         if (!mapa[clave]) mapa[clave] = { clave, nombre, unidad, dias: {}, total: 0 };
         const cantidad = Number(linea.cantidad || 0);
         mapa[clave].dias[linea.fecha] = (mapa[clave].dias[linea.fecha] || 0) + cantidad;

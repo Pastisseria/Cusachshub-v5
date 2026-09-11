@@ -343,49 +343,9 @@ function Produccion() {
         throw respuestaProductos.error;
       }
 
-      const productosPorId = new Map(
-        (respuestaProductos.data || []).map((producto) => [
-          String(producto.id),
-          producto,
-        ]),
-      );
-      const produccionesCorregidas = (respuestaProducciones.data || []).map(
-        (linea) => {
-          const producto = productosPorId.get(String(linea.producto_id));
-          const zonaProducto = normalizarZonaConfigurada(
-            producto?.zona_produccion,
-          );
-          if (
-            !zonaProducto ||
-            zonaProducto === linea.zona ||
-            ["Terminado", "Entregado", "Cancelado"].includes(linea.estado)
-          ) {
-            return linea;
-          }
-          return { ...linea, zona: zonaProducto };
-        },
-      );
-      const lineasParaCorregir = produccionesCorregidas.filter((linea) => {
-        const original = (respuestaProducciones.data || []).find(
-          (item) => item.id === linea.id,
-        );
-        return original && original.zona !== linea.zona;
-      });
-
-      if (lineasParaCorregir.length > 0) {
-        const resultados = await Promise.all(
-          lineasParaCorregir.map((linea) =>
-            supabase
-              .from("producciones")
-              .update({ zona: linea.zona, updated_at: new Date().toISOString() })
-              .eq("id", linea.id),
-          ),
-        );
-        const resultadoConError = resultados.find((resultado) => resultado.error);
-        if (resultadoConError?.error) throw resultadoConError.error;
-      }
-
-      setProducciones(produccionesCorregidas);
+      // La zona guardada en cada línea manda sobre la zona general del producto.
+      // Así, los movimientos manuales no se deshacen al recargar la pantalla.
+      setProducciones(respuestaProducciones.data || []);
       setCaterings(respuestaCaterings.data || []);
       setClientes(respuestaClientes.data || []);
       setProductos(respuestaProductos.data || []);
@@ -904,6 +864,75 @@ function Produccion() {
     }
   }
 
+  async function moverLinea(linea, nuevaZona) {
+    if (!nuevaZona || nuevaZona === linea.zona) return;
+
+    setError("");
+    setMensaje("");
+
+    try {
+      const { error: errorSupabase } = await supabase
+        .from("producciones")
+        .update({
+          zona: nuevaZona,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", linea.id);
+
+      if (errorSupabase) throw errorSupabase;
+
+      setProducciones((anteriores) =>
+        anteriores.map((elemento) =>
+          elemento.id === linea.id ? { ...elemento, zona: nuevaZona } : elemento,
+        ),
+      );
+      setMensaje(`${linea.producto_nombre} movido a ${nuevaZona}.`);
+    } catch (err) {
+      setError(err.message || "No se ha podido mover el producto.");
+    }
+  }
+
+  async function duplicarLinea(linea, nuevaZona) {
+    if (!nuevaZona) return;
+
+    setError("");
+    setMensaje("");
+
+    const copia = {
+      catering_id: linea.catering_id || null,
+      cliente_id: linea.cliente_id || null,
+      cliente_nombre: linea.cliente_nombre,
+      pedido_nombre: linea.pedido_nombre,
+      fecha: linea.fecha,
+      zona: nuevaZona,
+      producto_id: linea.producto_id || null,
+      producto_nombre: linea.producto_nombre,
+      cantidad: linea.cantidad,
+      unidad: linea.unidad || "unidades",
+      responsable: linea.responsable || null,
+      hora_limite: linea.hora_limite || null,
+      estado: linea.estado || "Pendiente",
+      direccion_entrega: linea.direccion_entrega || null,
+      observaciones: linea.observaciones || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      const { data, error: errorSupabase } = await supabase
+        .from("producciones")
+        .insert(copia)
+        .select()
+        .single();
+
+      if (errorSupabase) throw errorSupabase;
+
+      setProducciones((anteriores) => [...anteriores, data]);
+      setMensaje(`${linea.producto_nombre} duplicado también en ${nuevaZona}.`);
+    } catch (err) {
+      setError(err.message || "No se ha podido duplicar el producto.");
+    }
+  }
+
   async function eliminarLinea() {
     if (!formulario.id) return;
 
@@ -1377,6 +1406,44 @@ function Produccion() {
                                     </option>
                                   ))}
                                 </select>
+
+                                <div className="produccion-linea-acciones">
+                                  <select
+                                    aria-label={`Mover ${linea.producto_nombre}`}
+                                    defaultValue=""
+                                    onChange={(event) => {
+                                      moverLinea(linea, event.target.value);
+                                      event.target.value = "";
+                                    }}
+                                  >
+                                    <option value="">↔ Mover a…</option>
+                                    {ZONAS.filter((destino) => destino !== linea.zona).map(
+                                      (destino) => (
+                                        <option key={destino} value={destino}>
+                                          {destino}
+                                        </option>
+                                      ),
+                                    )}
+                                  </select>
+
+                                  <select
+                                    aria-label={`Duplicar ${linea.producto_nombre}`}
+                                    defaultValue=""
+                                    onChange={(event) => {
+                                      duplicarLinea(linea, event.target.value);
+                                      event.target.value = "";
+                                    }}
+                                  >
+                                    <option value="">⧉ Duplicar en…</option>
+                                    {ZONAS.filter((destino) => destino !== linea.zona).map(
+                                      (destino) => (
+                                        <option key={destino} value={destino}>
+                                          {destino}
+                                        </option>
+                                      ),
+                                    )}
+                                  </select>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -2332,6 +2399,26 @@ const ESTILOS_PRODUCCION = `
     font-weight: 700;
   }
 
+  .produccion-linea-acciones {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 0 8px 8px;
+  }
+
+  .produccion-linea-acciones select {
+    min-width: 0;
+    width: 100%;
+    padding: 7px 6px;
+    border: 1px solid #cbbbd4;
+    border-radius: 8px;
+    background: #f7f1fa;
+    color: #642a87;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
   .estado-pendiente {
     background: #fff8df;
   }
@@ -2887,6 +2974,10 @@ const ESTILOS_PRODUCCION = `
 
     .boton-eliminar-produccion {
       margin-left: 0;
+    }
+
+    .produccion-linea-acciones {
+      grid-template-columns: 1fr;
     }
   }
 `;

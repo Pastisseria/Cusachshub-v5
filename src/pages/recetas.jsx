@@ -77,12 +77,47 @@ const printableText = (value) => escapeHtml(value || '—').replace(/\n/g, '<br>
 
 function printProductionSheet(recipe) {
   const sheet = recipe.production_sheet || {};
-  const ingredients = (recipe.recipe_ingredients || []).map((item, index) => `<tr><td>${index + 1}. ${escapeHtml(item.name)}</td><td>${escapeHtml(`${number.format(item.quantity)} ${item.unit}`)}</td></tr>`).join('');
-  const allergens = (recipe.allergens || []).map((value) => ALLERGENS.find(([key]) => key === value)?.[1] || value).join(', ') || 'No indicats';
-  const popup = window.open('', '_blank', 'noopener,noreferrer');
-  if (!popup) return;
-  popup.document.write(`<!doctype html><html lang="ca"><head><meta charset="utf-8"><title>Fitxa de producció - ${escapeHtml(recipe.name)}</title><style>@page{size:A4;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0;font-size:11px}h1{font-size:20px;text-align:center;margin:0 0 10px}.row{display:grid;grid-template-columns:1fr 1fr;border:1px solid #222}.row div,.field{padding:7px;border-right:1px solid #222}.row div:last-child{border:0}.section{border:1px solid #222;border-top:0}.section h2{font-size:12px;background:#e8e8e8;margin:0;padding:5px 7px;text-transform:uppercase}.section .content{min-height:45px;padding:7px;line-height:1.35}.section.tall .content{min-height:75px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #222;padding:5px;text-align:left}th{background:#eee}.label{font-weight:700}.allergens{width:42%}.meta{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;border:1px solid #222}.meta div{padding:6px;border-right:1px solid #222}.meta div:last-child{border:0}@media print{button{display:none}}</style></head><body><h1>FITXA DE PRODUCCIÓ</h1><div class="row"><div><span class="label">PRODUCTE:</span> ${escapeHtml(recipe.name)}</div><div><span class="label">Codi producte:</span> ${escapeHtml(sheet.product_code || '—')}</div></div><div class="row"><div><span class="label">Data elaboració:</span> ${escapeHtml(sheet.elaboration_date || sheet.lot_date || '—')}</div><div><span class="label">Secció:</span> ${escapeHtml(recipe.area)}</div></div><table><thead><tr><th>INGREDIENTS</th><th>QUANTITAT</th><th class="allergens">Informació sobre al·lèrgens per al consumidor final</th></tr></thead><tbody>${ingredients || '<tr><td>—</td><td>—</td><td>—</td></tr>'}<tr><td colspan="2"></td><td rowspan="1">${escapeHtml(allergens)}</td></tr></tbody></table>${[['PROCÉS ELABORACIÓ',recipe.process],['CONTROL DE PRODUCCIÓ',sheet.production_control],['CONTROL DE COCCIÓ',sheet.cooking_control],['CONTROL REFREDAMENT',sheet.cooling_control],['CONTROL DE CONSERVACIÓ',sheet.conservation_control]].map(([title,value])=>`<section class="section tall"><h2>${title}</h2><div class="content">${printableText(value)}</div></section>`).join('')}<section class="section"><h2>ENVASAMENT</h2><div class="content"><b>Format envàs:</b> ${escapeHtml(sheet.packaging_format || '—')} &nbsp;&nbsp; <b>Unitats per envàs:</b> ${escapeHtml(sheet.packaging_units || '—')}<br><b>Mètode:</b> ${escapeHtml(sheet.packaging_method || '—')} ${escapeHtml(sheet.packaging_other || '')}</div></section><section class="section"><h2>PRODUCCIÓ FINAL</h2><div class="content"><b>Peces o Kg de producte en total:</b> ${escapeHtml(sheet.final_production || `${recipe.yield_quantity} ${recipe.yield_unit}`)}</div></section><section class="section"><h2>ETIQUETATGE</h2><div class="content"><b>PRODUCTE:</b> ${escapeHtml(sheet.label_product || recipe.name)}<br><b>Data d'elaboració (LOT):</b> ${escapeHtml(sheet.lot_date || sheet.elaboration_date || '—')}<br><b>Data de caducitat:</b> ${escapeHtml(sheet.expiry_date || '—')}</div></section><script>window.onload=()=>window.print()</script></body></html>`);
+  const ingredients = (recipe.recipe_ingredients || [])
+    .map((item, index) => `<tr><td>${index + 1}. ${escapeHtml(item.name)}</td><td>${escapeHtml(`${number.format(item.quantity)} ${item.unit}`)}</td></tr>`)
+    .join('');
+  const allergens = (recipe.allergens || [])
+    .map((value) => ALLERGENS.find(([key]) => key === value)?.[1] || value)
+    .join(', ') || 'No indicats';
+
+  // Abrimos la pestaña directamente desde el clic del usuario. En Chrome/GitHub Pages,
+  // usar noopener/noreferrer en window.open puede devolver null y dejar una pestaña en blanco.
+  const popup = window.open('', '_blank');
+  if (!popup) {
+    window.alert('El navegador ha bloqueado la ficha PDF. Permite las ventanas emergentes para Cusachs Hub y vuelve a pulsar “Fitxa PDF”.');
+    return;
+  }
+
+  try {
+    popup.opener = null;
+  } catch {
+    // Algunos navegadores no permiten modificar opener; no impide generar la ficha.
+  }
+
+  const html = `<!doctype html><html lang="ca"><head><meta charset="utf-8"><title>Fitxa de producció - ${escapeHtml(recipe.name)}</title><style>@page{size:A4;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0;font-size:11px}h1{font-size:20px;text-align:center;margin:0 0 10px}.row{display:grid;grid-template-columns:1fr 1fr;border:1px solid #222}.row div,.field{padding:7px;border-right:1px solid #222}.row div:last-child{border:0}.section{border:1px solid #222;border-top:0}.section h2{font-size:12px;background:#e8e8e8;margin:0;padding:5px 7px;text-transform:uppercase}.section .content{min-height:45px;padding:7px;line-height:1.35}.section.tall .content{min-height:75px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #222;padding:5px;text-align:left}th{background:#eee}.label{font-weight:700}.allergens{width:42%}.meta{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;border:1px solid #222}.meta div{padding:6px;border-right:1px solid #222}.meta div:last-child{border:0}@media print{button{display:none}}</style></head><body><h1>FITXA DE PRODUCCIÓ</h1><div class="row"><div><span class="label">PRODUCTE:</span> ${escapeHtml(recipe.name)}</div><div><span class="label">Codi producte:</span> ${escapeHtml(sheet.product_code || '—')}</div></div><div class="row"><div><span class="label">Data elaboració:</span> ${escapeHtml(sheet.elaboration_date || sheet.lot_date || '—')}</div><div><span class="label">Secció:</span> ${escapeHtml(recipe.area)}</div></div><table><thead><tr><th>INGREDIENTS</th><th>QUANTITAT</th><th class="allergens">Informació sobre al·lèrgens per al consumidor final</th></tr></thead><tbody>${ingredients || '<tr><td>—</td><td>—</td><td>—</td></tr>'}<tr><td colspan="2"></td><td rowspan="1">${escapeHtml(allergens)}</td></tr></tbody></table>${[['PROCÉS ELABORACIÓ',recipe.process],['CONTROL DE PRODUCCIÓ',sheet.production_control],['CONTROL DE COCCIÓ',sheet.cooking_control],['CONTROL REFREDAMENT',sheet.cooling_control],['CONTROL DE CONSERVACIÓ',sheet.conservation_control]].map(([title,value])=>`<section class="section tall"><h2>${title}</h2><div class="content">${printableText(value)}</div></section>`).join('')}<section class="section"><h2>ENVASAMENT</h2><div class="content"><b>Format envàs:</b> ${escapeHtml(sheet.packaging_format || '—')} &nbsp;&nbsp; <b>Unitats per envàs:</b> ${escapeHtml(sheet.packaging_units || '—')}<br><b>Mètode:</b> ${escapeHtml(sheet.packaging_method || '—')} ${escapeHtml(sheet.packaging_other || '')}</div></section><section class="section"><h2>PRODUCCIÓ FINAL</h2><div class="content"><b>Peces o Kg de producte en total:</b> ${escapeHtml(sheet.final_production || `${recipe.yield_quantity} ${recipe.yield_unit}`)}</div></section><section class="section"><h2>ETIQUETATGE</h2><div class="content"><b>PRODUCTE:</b> ${escapeHtml(sheet.label_product || recipe.name)}<br><b>Data d'elaboració (LOT):</b> ${escapeHtml(sheet.lot_date || sheet.elaboration_date || '—')}<br><b>Data de caducitat:</b> ${escapeHtml(sheet.expiry_date || '—')}</div></section></body></html>`;
+
+  popup.document.open();
+  popup.document.write(html);
   popup.document.close();
+  popup.focus();
+
+  const launchPrint = () => {
+    window.setTimeout(() => {
+      try {
+        popup.focus();
+        popup.print();
+      } catch (printError) {
+        console.error('No se ha podido abrir la impresión de la ficha:', printError);
+      }
+    }, 250);
+  };
+
+  if (popup.document.readyState === 'complete') launchPrint();
+  else popup.addEventListener('load', launchPrint, { once: true });
 }
 
 function RecipeForm({ initial, availableRecipes, availableIngredients, onCancel, onSaved }) {

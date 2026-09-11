@@ -163,6 +163,15 @@ function periodoActual(tipo) {
   return tipo === "trimestral" ? `${d.getFullYear()}-T${Math.floor(d.getMonth() / 3) + 1}` : "implantacion";
 }
 
+function claveLocal(tipo, periodo) {
+  return `cusachs-sanidad-${tipo}-${periodo}`;
+}
+
+function leerLocal(tipo, periodo) {
+  try { return JSON.parse(localStorage.getItem(claveLocal(tipo, periodo)) || "{}"); }
+  catch { return {}; }
+}
+
 export default function PreparacionSanidad() {
   const [vista, setVista] = useState("pendientes");
   const [periodo, setPeriodo] = useState(periodoActual("trimestral"));
@@ -186,12 +195,13 @@ export default function PreparacionSanidad() {
       .eq("tipo", tipo).eq("periodo", periodoConsulta).then(({ data, error }) => {
         if (!activo) return;
         if (error) {
-          setMensaje("El cuestionario está preparado, pero falta ejecutar la migración de Supabase para poder guardarlo.");
-          setRespuestas({});
+          setMensaje("Las respuestas se guardan automáticamente en este ordenador. Falta activar Supabase para compartirlas entre dispositivos.");
+          setRespuestas(leerLocal(tipo, periodoConsulta));
           return;
         }
         setMensaje("");
-        setRespuestas(Object.fromEntries((data || []).map((r) => [r.codigo, { respuesta: r.respuesta, nota: r.nota || "" }])));
+        const remotas = Object.fromEntries((data || []).map((r) => [r.codigo, { respuesta: r.respuesta, nota: r.nota || "" }]));
+        setRespuestas(data?.length ? remotas : leerLocal(tipo, periodoConsulta));
       });
     return () => { activo = false; };
   }, [vista, tipo, periodoConsulta]);
@@ -214,17 +224,17 @@ export default function PreparacionSanidad() {
     if (documento) {
       archivo_nombre = documento.name;
       archivo_ruta = `preparacion-sanidad/${apartadoActivo.codigo}/${Date.now()}-${documento.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-      const { error } = await supabase.storage.from("higiene-pdfs").upload(archivo_ruta, documento, { contentType: documento.type || undefined });
+      const { error } = await supabase.storage.from("sanidad-privado").upload(archivo_ruta, documento, { contentType: documento.type || undefined });
       if (error) { setGuardandoGestion(false); setMensajeGestion(`No se pudo subir el documento: ${error.message}`); return; }
     }
     const { error } = await supabase.from("higiene_gestion_sanidad").insert({ apartado: apartadoActivo.codigo, titulo: apartadoActivo.titulo, estado: gestion.estado, responsable: gestion.responsable.trim() || null, fecha_objetivo: gestion.fecha_objetivo || null, notas: gestion.notas.trim() || null, archivo_ruta, archivo_nombre });
-    if (error && archivo_ruta) await supabase.storage.from("higiene-pdfs").remove([archivo_ruta]);
+    if (error && archivo_ruta) await supabase.storage.from("sanidad-privado").remove([archivo_ruta]);
     setGuardandoGestion(false); setMensajeGestion(error ? `No se pudo guardar: ${error.message}` : "Seguimiento guardado correctamente.");
     if (!error) { setGestion(GESTION_VACIA); setDocumento(null); await cargarGestiones(apartadoActivo.codigo); }
   }
 
   async function abrirDocumento(registro) {
-    const { data, error } = await supabase.storage.from("higiene-pdfs").createSignedUrl(registro.archivo_ruta, 120);
+    const { data, error } = await supabase.storage.from("sanidad-privado").createSignedUrl(registro.archivo_ruta, 120);
     if (error) setMensajeGestion(error.message); else window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
@@ -232,7 +242,7 @@ export default function PreparacionSanidad() {
     if (!window.confirm("¿Eliminar este seguimiento y su documento?")) return;
     const { error } = await supabase.from("higiene_gestion_sanidad").delete().eq("id", registro.id);
     if (error) return setMensajeGestion(error.message);
-    if (registro.archivo_ruta) await supabase.storage.from("higiene-pdfs").remove([registro.archivo_ruta]);
+    if (registro.archivo_ruta) await supabase.storage.from("sanidad-privado").remove([registro.archivo_ruta]);
     await cargarGestiones(apartadoActivo.codigo);
   }
 
@@ -242,7 +252,11 @@ export default function PreparacionSanidad() {
   }, {}), [items, respuestas]);
 
   function cambiar(codigo, campo, valor) {
-    setRespuestas((actual) => ({ ...actual, [codigo]: { respuesta: actual[codigo]?.respuesta || "Pendiente", nota: actual[codigo]?.nota || "", [campo]: valor } }));
+    setRespuestas((actual) => {
+      const nuevas = { ...actual, [codigo]: { respuesta: actual[codigo]?.respuesta || "Pendiente", nota: actual[codigo]?.nota || "", [campo]: valor } };
+      localStorage.setItem(claveLocal(tipo, periodoConsulta), JSON.stringify(nuevas));
+      return nuevas;
+    });
   }
 
   async function guardar() {
@@ -250,7 +264,10 @@ export default function PreparacionSanidad() {
     const filas = items.map((item) => ({ tipo, periodo: periodoConsulta, codigo: item.codigo, seccion: item.seccion, pregunta: item.texto, respuesta: respuestas[item.codigo]?.respuesta || "Pendiente", nota: respuestas[item.codigo]?.nota?.trim() || null, actualizado_en: new Date().toISOString() }));
     const { error } = await supabase.from("higiene_cuestionarios").upsert(filas, { onConflict: "tipo,periodo,codigo" });
     setGuardando(false);
-    setMensaje(error ? `No se pudo guardar: ${error.message}` : "Cuestionario guardado correctamente.");
+    if (error) {
+      localStorage.setItem(claveLocal(tipo, periodoConsulta), JSON.stringify(respuestas));
+      setMensaje("Guardado en este ordenador. Cuando activemos Supabase también quedará disponible en la tablet y otros equipos.");
+    } else setMensaje("Cuestionario guardado correctamente y disponible para los usuarios autorizados.");
   }
 
   return <main className="sanidad-page">
@@ -288,10 +305,10 @@ export default function PreparacionSanidad() {
       <div className="sanidad-resumen">{RESPUESTAS.map((r) => <span key={r}><b>{resumen[r] || 0}</b>{r}</span>)}</div>
       <section className="sanidad-cuestionario">{items.map((item) => <article key={item.codigo} className={`respuesta-${(respuestas[item.codigo]?.respuesta || "Pendiente").toLowerCase().replace(" ", "-")}`}>
         <div className="sanidad-pregunta"><span>{item.codigo}</span><div><small>{item.seccion}</small><p>{item.texto}</p>{enlaceModulo[item.seccion] && <Link to={enlaceModulo[item.seccion]}>Abrir módulo relacionado →</Link>}</div></div>
-        <select aria-label={`Respuesta ${item.codigo}`} value={respuestas[item.codigo]?.respuesta || "Pendiente"} onChange={(e) => cambiar(item.codigo, "respuesta", e.target.value)}>{RESPUESTAS.map((r) => <option key={r}>{r}</option>)}</select>
-        <textarea rows="2" placeholder="Notas, documento que falta o medida pendiente" value={respuestas[item.codigo]?.nota || ""} onChange={(e) => cambiar(item.codigo, "nota", e.target.value)} />
+        <div className="sanidad-opciones" role="group" aria-label={`Respuesta ${item.codigo}`}>{RESPUESTAS.map((r) => <button type="button" key={r} className={(respuestas[item.codigo]?.respuesta || "Pendiente") === r ? "seleccionada" : ""} data-respuesta={r} onClick={() => cambiar(item.codigo, "respuesta", r)}>{r === "Sí" ? "✓ " : r === "No" ? "✕ " : r === "Pendiente" ? "⏳ " : "— "}{r}</button>)}</div>
+        <div className={`sanidad-nota ${(respuestas[item.codigo]?.respuesta || "Pendiente") === "No" ? "requiere-nota" : ""}`}><label>{(respuestas[item.codigo]?.respuesta || "Pendiente") === "No" ? "Explica qué falta o qué se debe corregir" : "Nota opcional"}</label><textarea rows="2" placeholder="Documento que falta o medida pendiente" value={respuestas[item.codigo]?.nota || ""} onChange={(e) => cambiar(item.codigo, "nota", e.target.value)} /></div>
       </article>)}</section>
-      <div className="sanidad-guardar"><button onClick={guardar} disabled={guardando}>{guardando ? "Guardando…" : "Guardar cuestionario"}</button><Link to="/higiene/incidencias">Abrir registro de incidencias</Link></div>
+      <div className="sanidad-guardar"><span>✓ Los cambios se guardan automáticamente en este ordenador</span><button onClick={guardar} disabled={guardando}>{guardando ? "Guardando…" : "Guardar copia en Supabase"}</button><Link to="/higiene/incidencias">Abrir registro de incidencias</Link></div>
       {mensaje && <p className="mensaje-control">{mensaje}</p>}
     </>}
   </main>;

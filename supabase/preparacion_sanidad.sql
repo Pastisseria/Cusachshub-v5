@@ -36,3 +36,22 @@ drop policy if exists "gestion_sanidad_administrador" on public.higiene_gestion_
 create policy "gestion_sanidad_administrador" on public.higiene_gestion_sanidad for all to authenticated
   using (public.es_administrador()) with check (public.es_administrador());
 grant select, insert, update, delete on public.higiene_gestion_sanidad to authenticated;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('sanidad-privado', 'sanidad-privado', false, 15728640,
+  array['application/pdf','image/jpeg','image/png','image/webp'])
+on conflict (id) do update set public = false;
+
+drop policy if exists "sanidad_privado_leer" on storage.objects;
+create policy "sanidad_privado_leer" on storage.objects for select to authenticated
+  using (bucket_id = 'sanidad-privado' and public.es_administrador());
+drop policy if exists "sanidad_privado_subir" on storage.objects;
+create policy "sanidad_privado_subir" on storage.objects for insert to authenticated
+  with check (bucket_id = 'sanidad-privado' and public.es_administrador());
+drop policy if exists "sanidad_privado_actualizar" on storage.objects;
+create policy "sanidad_privado_actualizar" on storage.objects for update to authenticated
+  using (bucket_id = 'sanidad-privado' and public.es_administrador())
+  with check (bucket_id = 'sanidad-privado' and public.es_administrador());
+drop policy if exists "sanidad_privado_eliminar" on storage.objects;
+create policy "sanidad_privado_eliminar" on storage.objects for delete to authenticated
+  using (bucket_id = 'sanidad-privado' and public.es_administrador());

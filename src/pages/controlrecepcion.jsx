@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../supabase.js";
 import { imagenAPdf } from "../services/imagenAPdf.js";
 import { crearPdfConSello } from "../services/selloRecepcionPdf.js";
+import { leerControlRecepcion } from "../services/lectorControlRecepcion.js";
 import "../styles/controlrecepcion.css";
 
 const HOY = new Date().toISOString().slice(0, 10);
@@ -40,13 +41,14 @@ export default function ControlRecepcion() {
     let guardados = 0;
     for (const archivo of archivos) {
       try {
-        setMensaje(`Preparando ${guardados + 1} de ${archivos.length}: ${archivo.name}`);
+        setMensaje(`Leyendo ${guardados + 1} de ${archivos.length}: ${archivo.name}`);
+        const lectura = await leerControlRecepcion(archivo, ({ estado, progreso }) => setMensaje(`${estado} · ${Math.round(progreso)}%`));
         const pdf = await imagenAPdf(archivo);
         const seguro = pdf.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const ruta = `control-recepcion/${Date.now()}-${guardados}-${seguro}`;
         const subida = await supabase.storage.from("higiene-pdfs").upload(ruta, pdf, { contentType: "application/pdf" });
         if (subida.error) throw subida.error;
-        const { error } = await supabase.from("higiene_control_recepcion").insert({ fecha_recepcion: HOY, estado_revision: "pendiente", nombre_original: archivo.name, archivo_nombre: pdf.name, archivo_ruta: ruta, controles: {} });
+        const { error } = await supabase.from("higiene_control_recepcion").insert({ fecha_recepcion: lectura.fecha_recepcion || HOY, hora_recepcion: lectura.hora_recepcion || null, proveedor: lectura.proveedor || null, responsable_recepcion: lectura.responsable_recepcion || null, temperatura: lectura.temperatura, estado_revision: lectura.estado_revision, nombre_original: archivo.name, archivo_nombre: pdf.name, archivo_ruta: ruta, controles: lectura.controles, sello_detectado: lectura.sello_detectado, lectura_automatica: lectura });
         if (error) { await supabase.storage.from("higiene-pdfs").remove([ruta]); throw error; }
         guardados += 1;
       } catch (error) { setMensaje(`Se guardaron ${guardados}. Error en ${archivo.name}: ${error.message}`); setSubiendo(false); await cargar(); return; }
@@ -54,7 +56,7 @@ export default function ControlRecepcion() {
     setArchivos([]);
     if (input.current) input.current.value = "";
     setSubiendo(false);
-    setMensaje(`${guardados} documento(s) guardado(s). Ya puedes completar el sello.`);
+    setMensaje(`${guardados} documento(s) leído(s) y guardado(s). Los que ya tenían sello no se volverán a sellar.`);
     await cargar();
   }
 
@@ -73,20 +75,24 @@ export default function ControlRecepcion() {
     setSubiendo(true);
     const controles = { temperatura_estado: form.temperatura_estado, ...Object.fromEntries(CAMPOS_CONTROL.map(([clave]) => [clave, form[clave]])) };
     try {
-      const descarga = await supabase.storage.from("higiene-pdfs").download(editando.archivo_ruta);
-      if (descarga.error) throw descarga.error;
-      const original = new File([descarga.data], editando.archivo_nombre, { type: "application/pdf" });
-      const sellado = await crearPdfConSello(original, { ...form, controles });
-      const rutaSellada = `control-recepcion/sellados/${editando.id}-${Date.now()}.pdf`;
-      const subida = await supabase.storage.from("higiene-pdfs").upload(rutaSellada, sellado, { contentType: "application/pdf" });
-      if (subida.error) throw subida.error;
-      const { error } = await supabase.from("higiene_control_recepcion").update({ fecha_recepcion: form.fecha_recepcion, hora_recepcion: form.hora_recepcion || null, proveedor: form.proveedor.trim() || null, responsable_recepcion: form.responsable_recepcion.trim() || null, temperatura: form.temperatura === "" ? null : Number(form.temperatura), estado_revision: form.estado_revision, controles, posicion_sello: form.posicion_sello, observaciones: form.observaciones.trim() || null, archivo_sellado_nombre: sellado.name, archivo_sellado_ruta: rutaSellada, revisado_at: new Date().toISOString() }).eq("id", editando.id);
-      if (error) { await supabase.storage.from("higiene-pdfs").remove([rutaSellada]); throw error; }
-      if (editando.archivo_sellado_ruta) await supabase.storage.from("higiene-pdfs").remove([editando.archivo_sellado_ruta]);
-    } catch (error) { setSubiendo(false); return setMensaje(`No se pudo crear el PDF sellado: ${error.message}`); }
+      let rutaSellada = editando.archivo_sellado_ruta;
+      let nombreSellado = editando.archivo_sellado_nombre;
+      if (!editando.sello_detectado) {
+        const descarga = await supabase.storage.from("higiene-pdfs").download(editando.archivo_ruta);
+        if (descarga.error) throw descarga.error;
+        const original = new File([descarga.data], editando.archivo_nombre, { type: "application/pdf" });
+        const sellado = await crearPdfConSello(original, { ...form, controles });
+        rutaSellada = `control-recepcion/sellados/${editando.id}-${Date.now()}.pdf`;
+        nombreSellado = sellado.name;
+        const subida = await supabase.storage.from("higiene-pdfs").upload(rutaSellada, sellado, { contentType: "application/pdf" });
+        if (subida.error) throw subida.error;
+      }
+      const { error } = await supabase.from("higiene_control_recepcion").update({ fecha_recepcion: form.fecha_recepcion, hora_recepcion: form.hora_recepcion || null, proveedor: form.proveedor.trim() || null, responsable_recepcion: form.responsable_recepcion.trim() || null, temperatura: form.temperatura === "" ? null : Number(form.temperatura), estado_revision: form.estado_revision, controles, posicion_sello: form.posicion_sello, observaciones: form.observaciones.trim() || null, archivo_sellado_nombre: nombreSellado, archivo_sellado_ruta: rutaSellada, revisado_at: new Date().toISOString() }).eq("id", editando.id);
+      if (error) throw error;
+    } catch (error) { setSubiendo(false); return setMensaje(`No se pudo guardar el control: ${error.message}`); }
     setSubiendo(false);
     setEditando(null);
-    setMensaje("Control guardado y sello añadido al PDF.");
+    setMensaje(editando.sello_detectado ? "Lectura del sello confirmada y guardada." : "Control guardado y sello añadido al PDF.");
     await cargar();
   }
 

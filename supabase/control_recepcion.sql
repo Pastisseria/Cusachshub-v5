@@ -14,6 +14,8 @@ create table if not exists public.higiene_control_recepcion (
   archivo_sellado_nombre text,
   archivo_sellado_ruta text,
   posicion_sello text not null default 'abajo_izquierda' check (posicion_sello in ('abajo_izquierda', 'abajo_derecha', 'arriba_izquierda', 'arriba_derecha')),
+  sello_detectado boolean not null default false,
+  lectura_automatica jsonb not null default '{}'::jsonb,
   revisado_at timestamptz,
   created_at timestamptz not null default now()
 );

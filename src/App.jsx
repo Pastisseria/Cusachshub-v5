@@ -10,6 +10,7 @@ import Productos from "./pages/productos.jsx";
 import Presupuestos from "./pages/presupuestos.jsx";
 import PresupuestosEstandar from "./pages/presupuestosestandar.jsx";
 import Catering from "./pages/catering.jsx";
+import Camareros from "./pages/camareros.jsx";
 import EmailPresupuesto from "./pages/emailpresupuesto.jsx";
 import Menaje from "./pages/menaje.jsx";
 import Bebidas from "./pages/bebidas.jsx";
@@ -154,6 +155,7 @@ function App() {
           element={protegida(<PresupuestosEstandar />)}
         />
         <Route path="/catering" element={protegida(<Catering />)} />
+        <Route path="/servicio-camareros" element={protegida(<Camareros />)} />
         <Route
           path="/catering/email-presupuesto"
           element={protegida(<EmailPresupuesto />)}

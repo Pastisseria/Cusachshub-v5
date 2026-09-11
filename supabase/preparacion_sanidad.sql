@@ -23,3 +23,16 @@ create policy "cuestionarios_higiene_administrador"
   using (public.es_administrador()) with check (public.es_administrador());
 
 grant select, insert, update, delete on public.higiene_cuestionarios to authenticated;
+
+create table if not exists public.higiene_gestion_sanidad (
+  id uuid primary key default gen_random_uuid(), apartado text not null, titulo text not null,
+  estado text not null default 'Pendiente' check (estado in ('Pendiente', 'En preparación', 'Preparado', 'Revisar')),
+  responsable text, fecha_objetivo date, notas text, archivo_nombre text, archivo_ruta text,
+  created_at timestamptz not null default now(), creado_por uuid default auth.uid()
+);
+create index if not exists higiene_gestion_sanidad_apartado_idx on public.higiene_gestion_sanidad (apartado, created_at desc);
+alter table public.higiene_gestion_sanidad enable row level security;
+drop policy if exists "gestion_sanidad_administrador" on public.higiene_gestion_sanidad;
+create policy "gestion_sanidad_administrador" on public.higiene_gestion_sanidad for all to authenticated
+  using (public.es_administrador()) with check (public.es_administrador());
+grant select, insert, update, delete on public.higiene_gestion_sanidad to authenticated;

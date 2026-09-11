@@ -146,6 +146,11 @@ const CARENCIAS = [
   ["Media", "Archivo de contratos y justificantes", "Deben estar disponibles contrato/partes de plagas, gestor de residuos y aceite, factura de agua y fichas de limpieza.", "Revisar que todos los PDF estén vigentes, legibles y asociados a su fecha."],
 ];
 
+const APARTADOS_ALTA = CARENCIAS.filter(([prioridad]) => prioridad === "Alta").map(
+  ([, titulo, falta, accion], indice) => ({ codigo: `alta-${indice + 1}`, titulo, falta, accion }),
+);
+const GESTION_VACIA = { estado: "Pendiente", responsable: "", fecha_objetivo: "", notas: "" };
+
 const enlaceModulo = {
   Agua: "/higiene/agua", Limpieza: "/higiene/limpieza", Plagas: "/higiene/ibertrac",
   Formación: "/higiene/personal-riesgos", Proveedores: "/higiene/proveedores",
@@ -164,12 +169,18 @@ export default function PreparacionSanidad() {
   const [respuestas, setRespuestas] = useState({});
   const [mensaje, setMensaje] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [apartadoActivo, setApartadoActivo] = useState(APARTADOS_ALTA[0]);
+  const [gestiones, setGestiones] = useState([]);
+  const [gestion, setGestion] = useState(GESTION_VACIA);
+  const [documento, setDocumento] = useState(null);
+  const [mensajeGestion, setMensajeGestion] = useState("");
+  const [guardandoGestion, setGuardandoGestion] = useState(false);
   const items = vista === "requisitos" ? REQUISITOS : TRIMESTRAL;
   const tipo = vista === "requisitos" ? "requisitos" : "trimestral";
   const periodoConsulta = vista === "requisitos" ? "implantacion" : periodo;
 
   useEffect(() => {
-    if (vista === "pendientes") return;
+    if (vista === "pendientes" || vista === "alta") return;
     let activo = true;
     supabase.from("higiene_cuestionarios").select("codigo,respuesta,nota")
       .eq("tipo", tipo).eq("periodo", periodoConsulta).then(({ data, error }) => {
@@ -184,6 +195,46 @@ export default function PreparacionSanidad() {
       });
     return () => { activo = false; };
   }, [vista, tipo, periodoConsulta]);
+
+  useEffect(() => {
+    if (vista !== "alta" || !apartadoActivo) return;
+    cargarGestiones(apartadoActivo.codigo);
+  }, [vista, apartadoActivo]);
+
+  async function cargarGestiones(codigo) {
+    setMensajeGestion("");
+    const { data, error } = await supabase.from("higiene_gestion_sanidad").select("*").eq("apartado", codigo).order("created_at", { ascending: false });
+    if (error) { setGestiones([]); setMensajeGestion("Falta activar la base de datos de Preparación Sanidad para guardar estos apartados."); }
+    else setGestiones(data || []);
+  }
+
+  async function guardarGestion(e) {
+    e.preventDefault(); setGuardandoGestion(true); setMensajeGestion("");
+    let archivo_ruta = null; let archivo_nombre = null;
+    if (documento) {
+      archivo_nombre = documento.name;
+      archivo_ruta = `preparacion-sanidad/${apartadoActivo.codigo}/${Date.now()}-${documento.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { error } = await supabase.storage.from("higiene-pdfs").upload(archivo_ruta, documento, { contentType: documento.type || undefined });
+      if (error) { setGuardandoGestion(false); setMensajeGestion(`No se pudo subir el documento: ${error.message}`); return; }
+    }
+    const { error } = await supabase.from("higiene_gestion_sanidad").insert({ apartado: apartadoActivo.codigo, titulo: apartadoActivo.titulo, estado: gestion.estado, responsable: gestion.responsable.trim() || null, fecha_objetivo: gestion.fecha_objetivo || null, notas: gestion.notas.trim() || null, archivo_ruta, archivo_nombre });
+    if (error && archivo_ruta) await supabase.storage.from("higiene-pdfs").remove([archivo_ruta]);
+    setGuardandoGestion(false); setMensajeGestion(error ? `No se pudo guardar: ${error.message}` : "Seguimiento guardado correctamente.");
+    if (!error) { setGestion(GESTION_VACIA); setDocumento(null); await cargarGestiones(apartadoActivo.codigo); }
+  }
+
+  async function abrirDocumento(registro) {
+    const { data, error } = await supabase.storage.from("higiene-pdfs").createSignedUrl(registro.archivo_ruta, 120);
+    if (error) setMensajeGestion(error.message); else window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
+  async function eliminarGestion(registro) {
+    if (!window.confirm("¿Eliminar este seguimiento y su documento?")) return;
+    const { error } = await supabase.from("higiene_gestion_sanidad").delete().eq("id", registro.id);
+    if (error) return setMensajeGestion(error.message);
+    if (registro.archivo_ruta) await supabase.storage.from("higiene-pdfs").remove([registro.archivo_ruta]);
+    await cargarGestiones(apartadoActivo.codigo);
+  }
 
   const resumen = useMemo(() => items.reduce((a, item) => {
     const valor = respuestas[item.codigo]?.respuesta || "Pendiente";
@@ -206,6 +257,7 @@ export default function PreparacionSanidad() {
     <header className="sanidad-header"><div><span>AUTOCONTROL · GUÍA DE PASTELERÍA</span><h1>Preparación para Sanidad</h1><p>Revisión documental basada en la Guía de prácticas correctas de higiene en pastelería (Generalitat de Catalunya, 2013).</p></div><strong>🩺</strong></header>
     <nav className="sanidad-tabs">
       <button className={vista === "pendientes" ? "activo" : ""} onClick={() => setVista("pendientes")}>Lo que falta</button>
+      <button className={vista === "alta" ? "activo" : ""} onClick={() => setVista("alta")}>Gestionar prioridad alta</button>
       <button className={vista === "requisitos" ? "activo" : ""} onClick={() => setVista("requisitos")}>61 requisitos</button>
       <button className={vista === "trimestral" ? "activo" : ""} onClick={() => setVista("trimestral")}>Revisión trimestral</button>
     </nav>
@@ -216,6 +268,21 @@ export default function PreparacionSanidad() {
         <span className={`prioridad ${prioridad.toLowerCase()}`}>{prioridad}</span><div><h2>{titulo}</h2><p><b>Nota de lo que no tienes:</b> {falta}</p><p><b>Qué preparar:</b> {accion}</p></div>
       </article>)}</section>
       <section className="sanidad-registros"><h2>Registros que deben mantenerse</h2><div><Link to="/higiene/temperaturas">Semanal/diario · Temperaturas</Link><Link to="/higiene/limpieza">Diario · Limpieza</Link><Link to="/higiene/control-recepcion">Cada recepción · Materias primas</Link><Link to="/produccion">Diario · Producción</Link><Link to="/higiene/incidencias">Cuando ocurra · Incidencias</Link></div></section>
+    </> : vista === "alta" ? <>
+      <section className="sanidad-alta-layout">
+        <aside className="sanidad-alta-menu"><h2>Apartados prioritarios</h2>{APARTADOS_ALTA.map((apartado) => <button key={apartado.codigo} className={apartadoActivo.codigo === apartado.codigo ? "activo" : ""} onClick={() => setApartadoActivo(apartado)}><span>{apartado.titulo}</span><small>Gestionar →</small></button>)}</aside>
+        <div className="sanidad-alta-contenido">
+          <header><span>PRIORIDAD ALTA</span><h2>{apartadoActivo.titulo}</h2><p><b>Lo que falta:</b> {apartadoActivo.falta}</p><p><b>Objetivo:</b> {apartadoActivo.accion}</p></header>
+          <form className="sanidad-gestion-form" onSubmit={guardarGestion}><div className="sanidad-gestion-grid">
+            <label>Estado<select value={gestion.estado} onChange={(e) => setGestion({ ...gestion, estado: e.target.value })}><option>Pendiente</option><option>En preparación</option><option>Preparado</option><option>Revisar</option></select></label>
+            <label>Responsable<input value={gestion.responsable} onChange={(e) => setGestion({ ...gestion, responsable: e.target.value })} placeholder="Persona responsable" /></label>
+            <label>Fecha objetivo<input type="date" value={gestion.fecha_objetivo} onChange={(e) => setGestion({ ...gestion, fecha_objetivo: e.target.value })} /></label>
+            <label className="sanidad-documento">Documento<input type="file" accept="application/pdf,image/*,.pdf" onChange={(e) => setDocumento(e.target.files?.[0] || null)} /><span>{documento?.name || "PDF o fotografía"}</span></label>
+          </div><label>Notas y trabajo pendiente<textarea rows="4" value={gestion.notas} onChange={(e) => setGestion({ ...gestion, notas: e.target.value })} placeholder="Anota qué falta, qué se ha pedido o qué se debe revisar" /></label><button disabled={guardandoGestion}>{guardandoGestion ? "Guardando…" : "Guardar seguimiento"}</button></form>
+          {mensajeGestion && <p className="mensaje-control">{mensajeGestion}</p>}
+          <section className="sanidad-historico"><h3>Historial del apartado</h3>{gestiones.length === 0 ? <p>Todavía no hay seguimientos guardados.</p> : gestiones.map((registro) => <article key={registro.id}><div><span className={`estado-gestion ${registro.estado.toLowerCase().replaceAll(" ", "-")}`}>{registro.estado}</span><strong>{registro.responsable || "Sin responsable"}</strong><small>{registro.fecha_objetivo ? `Objetivo: ${registro.fecha_objetivo}` : "Sin fecha objetivo"}</small><p>{registro.notas || "Sin notas"}</p></div><div>{registro.archivo_ruta && <button onClick={() => abrirDocumento(registro)}>Ver documento</button>}<button className="peligro" onClick={() => eliminarGestion(registro)}>Eliminar</button></div></article>)}</section>
+        </div>
+      </section>
     </> : <>
       <section className="sanidad-toolbar"><div><strong>{vista === "requisitos" ? "Implantación inicial y revisión" : "Comprobación obligatoria cada trimestre"}</strong><p>{items.length} puntos · cada “No” debe anotarse en Incidencias y tener medida correctora.</p></div>{vista === "trimestral" && <label>Periodo<input value={periodo} onChange={(e) => setPeriodo(e.target.value)} placeholder="2026-T3" /></label>}</section>
       <div className="sanidad-resumen">{RESPUESTAS.map((r) => <span key={r}><b>{resumen[r] || 0}</b>{r}</span>)}</div>

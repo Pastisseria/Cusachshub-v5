@@ -152,6 +152,22 @@ const CARENCIAS = [
 const APARTADOS_ALTA = CARENCIAS.filter(([prioridad]) => prioridad === "Alta").map(
   ([, titulo, falta, accion], indice) => ({ codigo: `alta-${indice + 1}`, titulo, falta, accion }),
 );
+
+const FORMATOS_OFICIALES = [
+  { numero: 1, icono: "📋", titulo: "Compromís + Prerequisits", descripcion: "Compromiso de adhesión, plano, requisitos y plan de mejoras.", vista: "requisitos", vistaSecundaria: "alta", etiquetaSecundaria: "Documentos pendientes", estado: "Pendiente" },
+  { numero: 2, icono: "📅", titulo: "Registre setmanal", descripcion: "Temperaturas, cloro y comprobación visual de la limpieza.", acciones: [["Temperaturas", "/higiene/temperaturas"], ["Limpieza", "/higiene/limpieza"]], estado: "Pendiente" },
+  { numero: 3, icono: "✅", titulo: "Registre trimestral", descripcion: "Las 60 comprobaciones oficiales del trimestre.", vista: "trimestral", estado: "Ya disponible" },
+  { numero: 4, icono: "🚚", titulo: "Llista proveïdors", descripcion: "Proveedores homologados, registro sanitario y productos suministrados.", ruta: "/higiene/proveedores", estado: "Ya disponible" },
+  { numero: 5, icono: "📦", titulo: "Control recepció", descripcion: "Control de temperatura, envase, caducidad, lote, aspecto y transporte.", ruta: "/higiene/control-recepcion", estado: "Ya disponible" },
+  { numero: 6, icono: "🔖", titulo: "Model segell recepció", descripcion: "Sello de aceptación o devolución para los albaranes recibidos.", ruta: "/higiene/control-recepcion", estado: "Ya disponible" },
+  { numero: 7, icono: "🧾", titulo: "Llista producció", descripcion: "Relación diaria de productos, cantidades y tipo de elaboración.", ruta: "/produccion", estado: "Ya disponible" },
+  { numero: 8, icono: "🥐", titulo: "Fitxa producció", descripcion: "Ingredientes, proceso, cocción, enfriamiento, conservación y etiquetado.", ruta: "/higiene/recetas", estado: "Ya disponible" },
+  { numero: 9, icono: "⚠️", titulo: "Registre d’incidències", descripcion: "Incidencia, medida correctora, fechas, responsable y cierre.", ruta: "/higiene/incidencias", estado: "Ya disponible" },
+  { numero: 10, icono: "🧹", titulo: "Programa N+D · Freqüències", descripcion: "Qué se limpia, cuándo se limpia y quién es responsable.", ruta: "/higiene/limpieza", estado: "Ya disponible" },
+  { numero: 11, icono: "🧴", titulo: "Programa N+D · Mètodes", descripcion: "Producto, dosis, temperatura, tiempo, material y método de limpieza.", ruta: "/higiene/limpieza", estado: "Ya disponible" },
+  { numero: 12, icono: "🌾", titulo: "Llista d’al·lèrgens", descripcion: "Alérgenos y trazas de los productos elaborados.", ruta: "/higiene/recetas", estado: "Pendiente" },
+  { numero: 13, icono: "🏷️", titulo: "Models etiquetes", descripcion: "Etiquetas para materia prima, producto intermedio y producto acabado.", ruta: "/higiene/trazabilidad", estado: "Pendiente" },
+];
 const GESTION_VACIA = { estado: "Pendiente", responsable: "", fecha_objetivo: "", notas: "" };
 
 const enlaceModulo = {
@@ -159,6 +175,13 @@ const enlaceModulo = {
   Formación: "/higiene/personal-riesgos", Proveedores: "/higiene/proveedores",
   Trazabilidad: "/higiene/trazabilidad", Temperaturas: "/higiene/temperaturas",
   Incidencias: "/higiene/incidencias", Residuos: "/higiene/aceite",
+  "Pla de control de l’aigua": "/higiene/agua",
+  "Pla de control de neteja i desinfecció": "/higiene/limpieza",
+  "Pla de control de plagues": "/higiene/ibertrac",
+  "Pla de formació i capacitació del personal": "/higiene/personal-riesgos",
+  "Pla de control de proveïdors": "/higiene/proveedores",
+  "Pla de traçabilitat": "/higiene/trazabilidad",
+  "Gestió de residus": "/higiene/aceite",
 };
 
 function periodoActual(tipo) {
@@ -180,7 +203,7 @@ function leerLocal(tipo, periodo) {
 }
 
 export default function PreparacionSanidad() {
-  const [vista, setVista] = useState("pendientes");
+  const [vista, setVista] = useState("dashboard");
   const [periodo, setPeriodo] = useState(periodoActual("trimestral"));
   const [respuestas, setRespuestas] = useState({});
   const [cabeceraTrimestral, setCabeceraTrimestral] = useState({ fecha: "", responsable: "", ubicacion: "" });
@@ -197,7 +220,7 @@ export default function PreparacionSanidad() {
   const periodoConsulta = vista === "requisitos" ? "implantacion" : periodo;
 
   useEffect(() => {
-    if (vista === "pendientes" || vista === "alta") return;
+    if (vista === "dashboard" || vista === "alta") return;
     let activo = true;
     supabase.from("higiene_cuestionarios").select("codigo,respuesta,nota,fecha_revision,responsable,ubicacion")
       .eq("tipo", tipo).eq("periodo", periodoConsulta).then(({ data, error }) => {
@@ -306,18 +329,30 @@ export default function PreparacionSanidad() {
   return <main className="sanidad-page">
     <header className="sanidad-header"><div><span>AUTOCONTROL · GUÍA DE PASTELERÍA</span><h1>Preparación para Sanidad</h1><p>Revisión documental basada en la Guía de prácticas correctas de higiene en pastelería (Generalitat de Catalunya, 2013).</p></div><strong>🩺</strong></header>
     <nav className="sanidad-tabs">
-      <button className={vista === "pendientes" ? "activo" : ""} onClick={() => setVista("pendientes")}>Lo que falta</button>
-      <button className={vista === "alta" ? "activo" : ""} onClick={() => setVista("alta")}>Gestionar prioridad alta</button>
-      <button className={vista === "requisitos" ? "activo" : ""} onClick={() => setVista("requisitos")}>61 requisitos</button>
-      <button className={vista === "trimestral" ? "activo" : ""} onClick={() => setVista("trimestral")}>Revisión trimestral</button>
+      <button className={vista === "dashboard" ? "activo" : ""} onClick={() => setVista("dashboard")}>Dashboard sanitario</button>
+      <button className={vista === "requisitos" ? "activo" : ""} onClick={() => setVista("requisitos")}>Compromís + Prerequisits</button>
+      <button className={vista === "trimestral" ? "activo" : ""} onClick={() => setVista("trimestral")}>Registre trimestral</button>
     </nav>
 
-    {vista === "pendientes" ? <>
-      <section className="sanidad-aviso"><strong>Importante</strong><p>Estas notas indican lo que no aparece completo en el código actual. Hay que confirmar físicamente el local y comprobar los documentos ya cargados antes de marcar cada punto como resuelto.</p></section>
-      <section className="sanidad-carencias">{CARENCIAS.map(([prioridad, titulo, falta, accion]) => <article key={titulo}>
-        <span className={`prioridad ${prioridad.toLowerCase()}`}>{prioridad}</span><div><h2>{titulo}</h2><p><b>Nota de lo que no tienes:</b> {falta}</p><p><b>Qué preparar:</b> {accion}</p></div>
+    {vista === "dashboard" ? <>
+      <section className="sanidad-dashboard-resumen">
+        <article><b>13</b><span>Formatos oficiales</span></article>
+        <article className="resumen-ok"><b>9</b><span>Ya disponibles</span></article>
+        <article className="resumen-alta"><b>3</b><span>Pendientes de crear</span></article>
+        <article className="resumen-media"><b>1</b><span>Pendiente de revisar</span></article>
+      </section>
+      <section className="sanidad-aviso"><strong>Qué debes preparar para Sanidad</strong><p>Los apartados de abajo siguen exactamente el orden del Excel “Formats documentació”. Entra en cada tarjeta para completar o revisar el registro correspondiente.</p></section>
+      <section className="sanidad-formatos-grid">{FORMATOS_OFICIALES.map((formato) => <article key={formato.numero}>
+        <header><span>{formato.icono}</span><small>FORMATO {formato.numero}</small><em className={`formato-estado ${formato.estado.toLowerCase().replaceAll(" ", "-")}`}>{formato.estado}</em></header>
+        <h2>{formato.titulo}</h2><p>{formato.descripcion}</p>
+        <div className="formato-acciones">
+          {formato.vista && <button onClick={() => setVista(formato.vista)}>Abrir formato</button>}
+          {formato.vistaSecundaria && <button onClick={() => setVista(formato.vistaSecundaria)}>{formato.etiquetaSecundaria}</button>}
+          {formato.ruta && <Link to={formato.ruta}>Abrir apartado</Link>}
+          {formato.acciones?.map(([etiqueta, ruta]) => <Link key={ruta} to={ruta}>{etiqueta}</Link>)}
+        </div>
       </article>)}</section>
-      <section className="sanidad-registros"><h2>Registros que deben mantenerse</h2><div><Link to="/higiene/temperaturas">Semanal/diario · Temperaturas</Link><Link to="/higiene/limpieza">Diario · Limpieza</Link><Link to="/higiene/control-recepcion">Cada recepción · Materias primas</Link><Link to="/produccion">Diario · Producción</Link><Link to="/higiene/incidencias">Cuando ocurra · Incidencias</Link></div></section>
+      <section id="formatos-pendientes" className="sanidad-pendientes-dashboard"><div><h2>Solo lo que todavía falta</h2><p>Los demás apartados ya existen y se mantienen sin cambios.</p></div>{FORMATOS_OFICIALES.filter((formato) => formato.estado !== "Ya disponible").map((formato) => <article key={formato.numero}><span className={`formato-estado ${formato.estado.toLowerCase()}`}>{formato.estado}</span><div><strong>{formato.titulo}</strong><p>{formato.descripcion}</p></div></article>)}</section>
     </> : vista === "alta" ? <>
       <section className="sanidad-alta-layout">
         <aside className="sanidad-alta-menu"><h2>Apartados prioritarios</h2>{APARTADOS_ALTA.map((apartado) => <button key={apartado.codigo} className={apartadoActivo.codigo === apartado.codigo ? "activo" : ""} onClick={() => setApartadoActivo(apartado)}><span>{apartado.titulo}</span><small>Gestionar →</small></button>)}</aside>

@@ -52,3 +52,204 @@
     grid-template-columns: 1fr;
   }
 }
+
+.sanidad-dashboard-resumen {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 1fr)) auto;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.sanidad-dashboard-resumen article,
+.sanidad-dashboard-resumen button {
+  min-height: 82px;
+  border: 1px solid #eadfee;
+  border-radius: 16px;
+  background: #fff;
+  padding: 15px 18px;
+}
+
+.sanidad-dashboard-resumen article {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.sanidad-dashboard-resumen b {
+  color: #653778;
+  font-size: 2rem;
+}
+
+.sanidad-dashboard-resumen span {
+  font-weight: 850;
+}
+
+.sanidad-dashboard-resumen .resumen-alta {
+  border-left: 5px solid #dc2626;
+}
+
+.sanidad-dashboard-resumen .resumen-media {
+  border-left: 5px solid #f59e0b;
+}
+
+.sanidad-dashboard-resumen .resumen-ok {
+  border-left: 5px solid #16a34a;
+}
+
+.sanidad-dashboard-resumen button {
+  border: 0;
+  background: #653778;
+  color: #fff;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.sanidad-formatos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.sanidad-formatos-grid > article {
+  display: flex;
+  min-height: 225px;
+  flex-direction: column;
+  border: 1px solid #eadfee;
+  border-top: 5px solid #875099;
+  border-radius: 18px;
+  background: #fff;
+  padding: 18px;
+  box-shadow: 0 8px 20px #4f245f0d;
+}
+
+.sanidad-formatos-grid header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.sanidad-formatos-grid header > span {
+  font-size: 1.65rem;
+}
+
+.sanidad-formatos-grid header small {
+  color: #785d80;
+  font-weight: 950;
+  letter-spacing: .06em;
+}
+
+.sanidad-formatos-grid h2 {
+  margin: 14px 0 7px;
+  color: #39233f;
+  font-size: 1.13rem;
+}
+
+.sanidad-formatos-grid p {
+  margin: 0 0 16px;
+  color: #615b64;
+  line-height: 1.45;
+}
+
+.formato-estado {
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: .68rem;
+  font-style: normal;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.formato-estado.pendiente {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.formato-estado.revisar {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.formato-estado.disponible {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.formato-estado.ya-disponible {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.formato-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.formato-acciones a,
+.formato-acciones button {
+  border: 0;
+  border-radius: 9px;
+  background: #f1e8f4;
+  color: #653778;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sanidad-pendientes-dashboard {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+  border: 1px solid #eadfee;
+  border-radius: 18px;
+  background: #fff;
+  padding: 20px;
+}
+
+.sanidad-pendientes-dashboard h2,
+.sanidad-pendientes-dashboard > div p {
+  margin: 0;
+}
+
+.sanidad-pendientes-dashboard > div p {
+  margin-top: 5px;
+  color: #615b64;
+}
+
+.sanidad-pendientes-dashboard article {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border-top: 1px solid #eee3f0;
+  padding-top: 12px;
+}
+
+.sanidad-pendientes-dashboard article p {
+  margin: 4px 0 0;
+  color: #615b64;
+}
+
+@media (max-width: 1150px) {
+  .sanidad-formatos-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sanidad-dashboard-resumen {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .sanidad-formatos-grid,
+  .sanidad-dashboard-resumen {
+    grid-template-columns: 1fr;
+  }
+}

@@ -13,7 +13,13 @@ const FORMULARIO_INICIAL = {
   precio_alquiler: "",
   observaciones: "",
   activo: true,
+  ficha_tecnica_nombre: "",
+  ficha_tecnica_ruta: "",
 };
+
+const BUCKET_FICHAS = "menaje-fichas";
+const TIPOS_FICHA_PERMITIDOS = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+const TAMANO_MAXIMO_FICHA = 10 * 1024 * 1024;
 
 function Menaje() {
   const [articulos, setArticulos] = useState([]);
@@ -25,6 +31,7 @@ function Menaje() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [archivoFicha, setArchivoFicha] = useState(null);
 
   useEffect(() => {
     cargarMenaje();
@@ -72,7 +79,10 @@ function Menaje() {
       precio_alquiler: articulo.precio_alquiler ?? "",
       observaciones: articulo.observaciones ?? "",
       activo: articulo.activo ?? true,
+      ficha_tecnica_nombre: articulo.ficha_tecnica_nombre ?? "",
+      ficha_tecnica_ruta: articulo.ficha_tecnica_ruta ?? "",
     });
+    setArchivoFicha(null);
 
     setMensaje("");
     setError("");
@@ -82,6 +92,7 @@ function Menaje() {
   function cancelarEdicion() {
     setEditandoId(null);
     setFormulario(FORMULARIO_INICIAL);
+    setArchivoFicha(null);
     setError("");
     setMensaje("");
   }
@@ -118,6 +129,42 @@ function Menaje() {
     setError("");
     setMensaje("");
 
+    let fichaNuevaRuta = null;
+    let fichaNombre = formulario.ficha_tecnica_nombre || null;
+    let fichaRuta = formulario.ficha_tecnica_ruta || null;
+
+    if (archivoFicha) {
+      if (!TIPOS_FICHA_PERMITIDOS.includes(archivoFicha.type)) {
+        setError("La ficha técnica debe ser un PDF o una imagen JPG, PNG o WEBP.");
+        setGuardando(false);
+        return;
+      }
+
+      if (archivoFicha.size > TAMANO_MAXIMO_FICHA) {
+        setError("La ficha técnica no puede ocupar más de 10 MB.");
+        setGuardando(false);
+        return;
+      }
+
+      const nombreSeguro = archivoFicha.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      fichaNuevaRuta = `fichas/${crypto.randomUUID()}-${nombreSeguro}`;
+      const { error: errorSubida } = await supabase.storage
+        .from(BUCKET_FICHAS)
+        .upload(fichaNuevaRuta, archivoFicha, {
+          contentType: archivoFicha.type,
+          upsert: false,
+        });
+
+      if (errorSubida) {
+        setError(`No se pudo subir la ficha técnica: ${errorSubida.message}`);
+        setGuardando(false);
+        return;
+      }
+
+      fichaNombre = archivoFicha.name;
+      fichaRuta = fichaNuevaRuta;
+    }
+
     const datos = {
       nombre: formulario.nombre.trim(),
       categoria: formulario.categoria.trim() || null,
@@ -130,6 +177,8 @@ function Menaje() {
       precio_alquiler: precioAlquiler,
       observaciones: formulario.observaciones.trim() || null,
       activo: formulario.activo,
+      ficha_tecnica_nombre: fichaNombre,
+      ficha_tecnica_ruta: fichaRuta,
       updated_at: new Date().toISOString(),
     };
 
@@ -145,9 +194,22 @@ function Menaje() {
     }
 
     if (resultado.error) {
+      if (fichaNuevaRuta) {
+        await supabase.storage.from(BUCKET_FICHAS).remove([fichaNuevaRuta]);
+      }
       setError(resultado.error.message);
       setGuardando(false);
       return;
+    }
+
+    if (
+      fichaNuevaRuta &&
+      formulario.ficha_tecnica_ruta &&
+      formulario.ficha_tecnica_ruta !== fichaNuevaRuta
+    ) {
+      await supabase.storage
+        .from(BUCKET_FICHAS)
+        .remove([formulario.ficha_tecnica_ruta]);
     }
 
     setMensaje(
@@ -157,6 +219,7 @@ function Menaje() {
     );
 
     setFormulario(FORMULARIO_INICIAL);
+    setArchivoFicha(null);
     setEditandoId(null);
     setGuardando(false);
     await cargarMenaje();
@@ -184,12 +247,66 @@ function Menaje() {
       return;
     }
 
+    if (articulo.ficha_tecnica_ruta) {
+      await supabase.storage
+        .from(BUCKET_FICHAS)
+        .remove([articulo.ficha_tecnica_ruta]);
+    }
+
     setMensaje("Artículo eliminado correctamente.");
 
     if (editandoId === articulo.id) {
       cancelarEdicion();
     }
 
+    await cargarMenaje();
+  }
+
+  async function abrirFicha(articulo) {
+    setError("");
+    const { data, error: errorFirma } = await supabase.storage
+      .from(BUCKET_FICHAS)
+      .createSignedUrl(articulo.ficha_tecnica_ruta, 120);
+
+    if (errorFirma) {
+      setError(`No se pudo abrir la ficha técnica: ${errorFirma.message}`);
+      return;
+    }
+
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
+  async function quitarFichaActual() {
+    if (!formulario.ficha_tecnica_ruta) return;
+    if (!window.confirm("¿Eliminar la ficha técnica adjunta de este artículo?")) return;
+
+    setGuardando(true);
+    setError("");
+    const rutaAnterior = formulario.ficha_tecnica_ruta;
+    const { error: errorActualizacion } = await supabase
+      .from("menaje")
+      .update({
+        ficha_tecnica_nombre: null,
+        ficha_tecnica_ruta: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", editandoId);
+
+    if (errorActualizacion) {
+      setError(`No se pudo eliminar la ficha técnica: ${errorActualizacion.message}`);
+      setGuardando(false);
+      return;
+    }
+
+    await supabase.storage.from(BUCKET_FICHAS).remove([rutaAnterior]);
+    setFormulario((anterior) => ({
+      ...anterior,
+      ficha_tecnica_nombre: "",
+      ficha_tecnica_ruta: "",
+    }));
+    setArchivoFicha(null);
+    setMensaje("Ficha técnica eliminada correctamente.");
+    setGuardando(false);
     await cargarMenaje();
   }
 
@@ -437,6 +554,36 @@ function Menaje() {
           />
         </label>
 
+        <div style={estiloFichaTecnica}>
+          <label style={{ display: "block" }}>
+            Ficha técnica
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+              onChange={(evento) => setArchivoFicha(evento.target.files?.[0] ?? null)}
+              style={{ ...estiloCampo, padding: "11px 14px" }}
+            />
+          </label>
+          <p style={{ margin: "8px 0 0", opacity: 0.72 }}>
+            PDF o imagen, máximo 10 MB.
+            {archivoFicha
+              ? ` Archivo seleccionado: ${archivoFicha.name}`
+              : formulario.ficha_tecnica_nombre
+                ? ` Archivo actual: ${formulario.ficha_tecnica_nombre}`
+                : " Todavía no hay ninguna ficha adjunta."}
+          </p>
+          {editandoId && formulario.ficha_tecnica_ruta && (
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "10px" }}>
+              <button type="button" onClick={() => abrirFicha(formulario)}>
+                Ver ficha actual
+              </button>
+              <button type="button" className="boton-cancelar" onClick={quitarFichaActual} disabled={guardando}>
+                Eliminar ficha
+              </button>
+            </div>
+          )}
+        </div>
+
         {error && <p style={estiloError}>Error: {error}</p>}
         {mensaje && <p style={estiloMensaje}>{mensaje}</p>}
 
@@ -490,6 +637,7 @@ function Menaje() {
                 <th style={estiloCabecera}>Coste</th>
                 <th style={estiloCabecera}>Alquiler</th>
                 <th style={estiloCabecera}>Estado</th>
+                <th style={estiloCabecera}>Ficha técnica</th>
                 <th style={estiloCabecera}>Acciones</th>
               </tr>
             </thead>
@@ -544,6 +692,16 @@ function Menaje() {
 
                     <td style={estiloCelda}>
                       {articulo.activo ? "Activo" : "Inactivo"}
+                    </td>
+
+                    <td style={estiloCelda}>
+                      {articulo.ficha_tecnica_ruta ? (
+                        <button type="button" onClick={() => abrirFicha(articulo)}>
+                          Ver ficha
+                        </button>
+                      ) : (
+                        <span style={{ opacity: 0.6 }}>Sin ficha</span>
+                      )}
                     </td>
 
                     <td style={estiloCelda}>
@@ -705,6 +863,14 @@ const estiloError = {
 const estiloMensaje = {
   marginTop: "16px",
   color: "#9fe1ae",
+};
+
+const estiloFichaTecnica = {
+  marginTop: "18px",
+  padding: "16px",
+  border: "1px solid #4b4453",
+  borderRadius: "14px",
+  background: "rgba(255, 255, 255, 0.025)",
 };
 
 export default Menaje;

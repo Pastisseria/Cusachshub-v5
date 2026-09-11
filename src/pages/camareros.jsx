@@ -52,7 +52,7 @@ export default function Camareros() {
     const [eventos, personas, lineas] = await Promise.all([
       supabase.from("caterings").select("id,cliente_id,presupuesto_id,titulo,fecha,hora_inicio,hora_fin,direccion,numero_personas,estado,camareros_necesarios,camareros_confirmados,camareros_asignados,hora_camareros_inicio,hora_camareros_fin,notas_camareros").order("fecha").order("hora_inicio"),
       supabase.from("clientes").select("id,nombre,empresa"),
-      supabase.from("presupuesto_lineas").select("presupuesto_id,descripcion,cantidad").ilike("descripcion", "%camarer%"),
+      supabase.from("presupuesto_lineas").select("presupuesto_id,descripcion,cantidad").or("descripcion.ilike.%camarer%,descripcion.ilike.%cambrer%"),
     ]);
     const error = eventos.error || personas.error || lineas.error;
     if (error) setMensaje(`No se pudo cargar el calendario: ${error.message}`);

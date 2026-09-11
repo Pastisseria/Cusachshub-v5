@@ -88,6 +88,7 @@ export async function leerIbertracPdf(archivo) {
     const items = contenido.items.filter((item) => item.str?.trim()).map((item) => ({ texto: item.str.trim(), x: item.transform[4], top: viewport.height - item.transform[5] }));
     paginas.push({ items, lineas: agruparLineas(items) });
   }
+
   const texto = paginas.flatMap((pagina) => pagina.lineas.map((linea) => linea.texto)).join("\n");
   const productos = paginas.flatMap((pagina) => extraerProductos(pagina.items, pagina.lineas));
   const numero = texto.match(/Certificat de servei n[uú]m\.\s*(\d+)/i)?.[1] || "";
@@ -96,20 +97,55 @@ export async function leerIbertracPdf(archivo) {
   const tecnico = texto.match(/TRAMS HORARIS[\s\S]{0,100}?\n\s*([^:\n]+):\s*\d{2}[/-]/i)?.[1]?.trim() || "";
   const riesgo = texto.match(/RISC D'INFESTACI[ÓO]:\s*([^\n]+)/i)?.[1]?.trim() || "";
   const incidencia = texto.match(/INCID[ÈE]NCIES:\s*([^\n]+)/i)?.[1]?.trim() || "";
-  const observaciones = [contrato && `Contrato: ${contrato}`, tecnico && `Técnico/a: ${tecnico}`, riesgo && `Riesgo de infestación: ${riesgo}`, incidencia && `Incidencias: ${incidencia}`].filter(Boolean).join(" · ");
+  const observaciones = [
+    contrato && `Contrato: ${contrato}`,
+    tecnico && `Técnico/a: ${tecnico}`,
+    riesgo && `Riesgo de infestación: ${riesgo}`,
+    incidencia && `Incidencias: ${incidencia}`,
+  ].filter(Boolean).join(" · ");
+
+  // IMPORTANTE: este lector también se ejecuta al adjuntar fichas técnicas,
+  // fichas de seguridad, registros sanitarios y etiquetajes. No devolvemos
+  // nunca "tipo: parte", porque eso sobrescribía el tipo elegido en la tarjeta
+  // y hacía que el documento quedara guardado como parte de servicio.
+  // Tampoco ponemos un título genérico si no hemos identificado de verdad un
+  // certificado de servicio. Así se conserva el producto/tipo/título que ya
+  // fijó la tarjeta desde la que el usuario pulsó "Subir".
+  const esCertificadoServicio = Boolean(
+    numero ||
+    productos.length ||
+    /Certificat de servei|PRODUCTES?\s+UTILITZATS|Data d'execuci[oó]/i.test(texto),
+  );
+
   return {
-    tipo: "parte",
-    fecha_documento: fechaIso(fechaTexto),
-    titulo: numero ? `Certificado de servicio ${numero}` : "Certificado de servicio Ibertrac",
-    numero_documento: numero,
-    producto: productos.map((producto) => producto.nombre_corto).join("; "),
-    numero_registro: productos.filter((producto) => producto.numero_registro && producto.numero_registro !== "No procede").map((producto) => producto.numero_registro).join("; "),
-    zona_aplicacion: [...new Set(productos.map((producto) => producto.zona).filter(Boolean))].join("; "),
-    observaciones,
-    productos_detectados: productos,
+    fecha_documento: esCertificadoServicio ? fechaIso(fechaTexto) : "",
+    titulo: esCertificadoServicio && numero ? `Certificado de servicio ${numero}` : "",
+    numero_documento: esCertificadoServicio ? numero : "",
+    producto: esCertificadoServicio
+      ? productos.map((producto) => producto.nombre_corto).join("; ")
+      : "",
+    numero_registro: esCertificadoServicio
+      ? productos
+          .filter((producto) => producto.numero_registro && producto.numero_registro !== "No procede")
+          .map((producto) => producto.numero_registro)
+          .join("; ")
+      : "",
+    zona_aplicacion: esCertificadoServicio
+      ? [...new Set(productos.map((producto) => producto.zona).filter(Boolean))].join("; ")
+      : "",
+    observaciones: esCertificadoServicio ? observaciones : "",
+    productos_detectados: esCertificadoServicio ? productos : [],
   };
 }
 
 export function normalizarProducto(valor = "") {
-  return valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\b(ficha|fitxa|tecnica|tecnica|seguridad|seguretat|registro|sanitario|sanitaria|etiquetaje|etiquetatge|producto|producte)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }

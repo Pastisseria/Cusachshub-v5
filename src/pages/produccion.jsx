@@ -1228,6 +1228,13 @@ function Produccion() {
             >
               🖨️ Imprimir Cocina
             </button>
+
+            <button
+              type="button"
+              onClick={() => imprimirZonaDiaria("Todas")}
+            >
+              🖨️ Imprimir toda la producción
+            </button>
           </div>
         </div>
 
@@ -1553,9 +1560,11 @@ function Produccion() {
             <div>
               <strong>PASTISSERIA CUSACHS</strong>
               <h2>
-                {zonaImpresionDiaria === "Obrador"
-                  ? "🥐 Producción Obrador"
-                  : "🍳 Producción Cocina"}
+                {zonaImpresionDiaria === "Todas"
+                  ? "Producción completa"
+                  : zonaImpresionDiaria === "Obrador"
+                    ? "🥐 Producción Obrador"
+                    : "🍳 Producción Cocina"}
               </h2>
             </div>
             <span>{formatearFecha(fechaSeleccionada)}</span>
@@ -1567,7 +1576,8 @@ function Produccion() {
                 ...pedido,
                 lineasZona: pedido.lineas.filter(
                   (linea) =>
-                    linea.zona === zonaImpresionDiaria &&
+                    (zonaImpresionDiaria === "Todas" ||
+                      linea.zona === zonaImpresionDiaria) &&
                     linea.estado !== "Cancelado",
                 ),
               }))
@@ -1581,9 +1591,11 @@ function Produccion() {
                     <div>
                       <strong>PASTISSERIA CUSACHS</strong>
                       <h2>
-                        {zonaImpresionDiaria === "Obrador"
-                          ? "🥐 Producción Obrador"
-                          : "🍳 Producción Cocina"}
+                        {zonaImpresionDiaria === "Todas"
+                  ? "Producción completa"
+                  : zonaImpresionDiaria === "Obrador"
+                    ? "🥐 Producción Obrador"
+                    : "🍳 Producción Cocina"}
                       </h2>
                     </div>
                     <span>{formatearFecha(fechaSeleccionada)}</span>
@@ -1615,7 +1627,12 @@ function Produccion() {
                         <strong>
                           {formatearCantidad(linea.cantidad)} {linea.unidad}
                         </strong>
-                        <span>{linea.producto_nombre}</span>
+                        <span>
+                          {zonaImpresionDiaria === "Todas" && (
+                            <b className="zona-diaria-zona-print">{linea.zona} · </b>
+                          )}
+                          {linea.producto_nombre}
+                        </span>
                         {linea.observaciones && (
                           <small>{linea.observaciones}</small>
                         )}
@@ -1630,12 +1647,13 @@ function Produccion() {
                 (pedido) =>
                   !pedido.lineas.some(
                     (linea) =>
-                      linea.zona === zonaImpresionDiaria &&
-                      linea.estado !== "Cancelado",
+                      (zonaImpresionDiaria === "Todas" ||
+                      linea.zona === zonaImpresionDiaria) &&
+                    linea.estado !== "Cancelado",
                   ),
               ) && (
                 <p className="zona-diaria-sin-lineas-print">
-                  No hay líneas de {zonaImpresionDiaria} para este día.
+                  No hay líneas de producción para este día.
                 </p>
               )}
           </div>

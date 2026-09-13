@@ -4,7 +4,6 @@ import './index.css'
 import './presupuestoClienteExtra.js'
 import './registroTrimestralComodo.js'
 import './registroSemanalComodo.js'
-import './estadoFormatosSanidad.js'
 import App from './App.jsx'
 import { AuthProvider } from './auth/AuthContext.jsx'
 

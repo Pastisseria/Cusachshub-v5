@@ -165,7 +165,7 @@ const FORMATOS_OFICIALES = [
   { numero: 9, icono: "⚠️", titulo: "Registre d’incidències", descripcion: "Incidencia, medida correctora, fechas, responsable y cierre.", ruta: "/higiene/incidencias", estado: "Ya disponible" },
   { numero: 10, icono: "🧹", titulo: "Programa N+D · Freqüències", descripcion: "Qué se limpia, cuándo se limpia y quién es responsable.", ruta: "/higiene/limpieza", estado: "Ya disponible" },
   { numero: 11, icono: "🧴", titulo: "Programa N+D · Mètodes", descripcion: "Producto, dosis, temperatura, tiempo, material y método de limpieza.", ruta: "/higiene/limpieza", estado: "Ya disponible" },
-  { numero: 12, icono: "🌾", titulo: "Llista d’al·lèrgens", descripcion: "Alérgenos y trazas de los productos elaborados.", ruta: "/higiene/recetas", estado: "Pendiente" },
+  { numero: 12, icono: "🌾", titulo: "Llista d’al·lèrgens", descripcion: "Alérgenos y trazas de los productos elaborados.", ruta: "/higiene/alergenos", estado: "Ya disponible" },
   { numero: 13, icono: "🏷️", titulo: "Models etiquetes", descripcion: "Etiquetas para materia prima, producto intermedio y producto acabado.", ruta: "/higiene/trazabilidad", estado: "Pendiente" },
 ];
 const GESTION_VACIA = { estado: "Pendiente", responsable: "", fecha_objetivo: "", notas: "" };

@@ -19,6 +19,7 @@ import Ingredientes from "./pages/ingredientes.jsx";
 import Escandallos from "./pages/escandallos.jsx";
 import Recetas from "./pages/recetas.jsx";
 import Alergenos from "./pages/alergenos.jsx";
+import ModelosEtiquetas from "./pages/modelosetiquetas.jsx";
 import DietarioAnual from "./pages/dietarioanual.jsx";
 import HorarioPersonal from "./pages/horariopersonal.jsx";
 import PersonalRiesgos from "./pages/personalriesgos.jsx";
@@ -100,6 +101,7 @@ function App() {
         <Route path="/higiene/escandallos" element={protegida(<Escandallos />, true)} />
         <Route path="/higiene/recetas" element={protegida(<Recetas />, true)} />
         <Route path="/higiene/alergenos" element={protegida(<Alergenos />, true)} />
+        <Route path="/higiene/modelos-etiquetas" element={protegida(<ModelosEtiquetas />, true)} />
         <Route path="/higiene/personal-riesgos" element={protegida(<PersonalRiesgos />, true)} />
         <Route path="/higiene/proveedores" element={protegida(<Proveedores />, true)} />
         <Route path="/higiene/catalogo-proveedores" element={protegida(<CatalogoProveedores />, true)} />

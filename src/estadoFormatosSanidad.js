@@ -21,7 +21,15 @@ function pintarEstado(card,texto,tipo="ok"){
 function añadirDetalle(card,texto){
   if(!card)return;
   let el=card.querySelector('.estado-dinamico-sanidad');
-  if(!el){el=document.createElement('div');el.className='estado-dinamico-sanidad';el.style.marginTop='10px';el.style.fontSize='13px';el.style.fontWeight='700';el.style.color='#5f4c63';card.appendChild(el);}
+  if(!el){
+    el=document.createElement('div');
+    el.className='estado-dinamico-sanidad';
+    el.style.marginTop='10px';
+    el.style.fontSize='13px';
+    el.style.fontWeight='700';
+    el.style.color='#5f4c63';
+    card.appendChild(el);
+  }
   el.textContent=texto;
 }
 
@@ -31,7 +39,11 @@ async function actualizarFormato1(){
     supabase.from('higiene_gestion_sanidad').select('id,apartado,estado,archivo_nombre,created_at').like('apartado','alta-%'),
     supabase.from('higiene_cuestionarios').select('codigo,respuesta').eq('tipo','requisitos')
   ]);
-  if(e1&&e2){pintarEstado(card,'REVISAR','warn');añadirDetalle(card,'No se ha podido comprobar automáticamente la documentación.');return;}
+  if(e1&&e2){
+    pintarEstado(card,'REVISAR','warn');
+    añadirDetalle(card,'No se ha podido comprobar automáticamente la documentación.');
+    return;
+  }
   const docs=(gestiones||[]).filter(x=>x.archivo_nombre||x.estado==='Preparado').length;
   const contestadas=(req||[]).filter(x=>x.respuesta&&x.respuesta!=='Pendiente').length;
   if(docs>0||contestadas>0){
@@ -47,8 +59,13 @@ async function actualizarFormato2(){
   const card=buscarTarjeta(2); if(!card)return;
   const total=semanasDesdeEnero();
   const {data,error}=await supabase.from('higiene_gestion_sanidad').select('id,apartado,estado').like('apartado','registro-setmanal-%');
-  if(error){pintarEstado(card,'YA DISPONIBLE','ok');añadirDetalle(card,'Registro semanal disponible para completar desde enero hasta hoy.');return;}
-  const unicos=new Map();(data||[]).forEach(x=>unicos.set(x.apartado,x));
+  if(error){
+    pintarEstado(card,'YA DISPONIBLE','ok');
+    añadirDetalle(card,'Registro semanal disponible para completar desde enero hasta hoy.');
+    return;
+  }
+  const unicos=new Map();
+  (data||[]).forEach(x=>unicos.set(x.apartado,x));
   const guardadas=unicos.size;
   const cerradas=[...unicos.values()].filter(x=>x.estado==='Preparado').length;
   if(guardadas>=total&&cerradas>=total){
@@ -63,11 +80,36 @@ async function actualizarFormato2(){
   }
 }
 
+function quitarFormato13DePendientes(){
+  const secciones=[...document.querySelectorAll('section')];
+  const pendientes=secciones.find(s=>s.textContent.includes('Solo lo que todavía falta'));
+  if(!pendientes)return;
+  const candidatos=[...pendientes.querySelectorAll('div,li,article')]
+    .filter(el=>el.textContent.trim().includes('Models etiquetes'))
+    .sort((a,b)=>a.textContent.length-b.textContent.length);
+  const item=candidatos[0];
+  if(item)item.style.display='none';
+}
+
+function actualizarFormato13(){
+  const card=buscarTarjeta(13); if(!card)return;
+  pintarEstado(card,'YA DISPONIBLE','ok');
+  añadirDetalle(card,'Muestra aprobada. El modelo de etiquetas ya está preparado para utilizarlo y ajustarlo cuando haga falta.');
+  quitarFormato13DePendientes();
+}
+
 let ejecutando=false;
 async function actualizar(){
   if(ejecutando||!location.hash.includes('/higiene/preparacion-sanidad'))return;
-  const c1=buscarTarjeta(1),c2=buscarTarjeta(2);if(!c1&&!c2)return;
-  ejecutando=true;try{await Promise.all([actualizarFormato1(),actualizarFormato2()]);}finally{ejecutando=false;}
+  const c1=buscarTarjeta(1),c2=buscarTarjeta(2),c13=buscarTarjeta(13);
+  if(!c1&&!c2&&!c13)return;
+  ejecutando=true;
+  try{
+    await Promise.all([actualizarFormato1(),actualizarFormato2()]);
+    actualizarFormato13();
+  }finally{
+    ejecutando=false;
+  }
 }
 
 const obs=new MutationObserver(()=>setTimeout(actualizar,120));

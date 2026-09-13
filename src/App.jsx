@@ -48,7 +48,7 @@ import Aceite from "./pages/aceite.jsx";
 import Agua from "./pages/agua.jsx";
 import Ibertrac from "./pages/ibertrac.jsx";
 import ControlRecepcion from "./pages/controlrecepcion.jsx";
-import PreparacionSanidad from "./pages/preparacionsanidad.jsx";
+import PreparacionSanidad from "./pages/preparacionsanidadetiquetas.jsx";
 import "./styles/preparacionsanidad.css";
 import RestablecerClave from "./pages/restablecerClave.jsx";
 import "./App.css";

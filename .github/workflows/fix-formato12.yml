@@ -1,0 +1,37 @@
+name: Fix Formato 12 allergen route
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-formato12.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Update Formato 12 route
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/pages/preparacionsanidad.jsx')
+          s = p.read_text(encoding='utf-8')
+          old = '{ numero: 12, icono: "🌾", titulo: "Llista d’al·lèrgens", descripcion: "Alérgenos y trazas de los productos elaborados.", ruta: "/higiene/recetas", estado: "Pendiente" }'
+          new = '{ numero: 12, icono: "🌾", titulo: "Llista d’al·lèrgens", descripcion: "Alérgenos y trazas de los productos elaborados.", ruta: "/higiene/alergenos", estado: "Ya disponible" }'
+          if old not in s:
+              raise SystemExit('Formato 12 expected line not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/preparacionsanidad.jsx
+          git commit -m "Connect Formato 12 to allergen list"
+          git push origin main

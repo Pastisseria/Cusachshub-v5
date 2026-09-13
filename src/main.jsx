@@ -2,8 +2,6 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import './presupuestoClienteExtra.js'
-import './registroTrimestralComodo.js'
-import './registroSemanalComodo.js'
 import App from './App.jsx'
 import { AuthProvider } from './auth/AuthContext.jsx'
 

@@ -17,6 +17,8 @@ export default function ControlRecepcion() {
   const [form, setForm] = useState(CONTROL_VACIO);
   const [mensaje, setMensaje] = useState("");
   const [subiendo, setSubiendo] = useState(false);
+  const [asignandoId, setAsignandoId] = useState(null);
+  const [proveedorSeleccionado, setProveedorSeleccionado] = useState("");
   const input = useRef(null);
   const relecturas = useRef(new Set());
 
@@ -125,6 +127,28 @@ export default function ControlRecepcion() {
     setForm((actual) => ({ ...actual, estado_revision: "conforme", temperatura_estado: "conforme", ...Object.fromEntries(CAMPOS_CONTROL.map(([clave]) => [clave, "conforme"])) }));
   }
 
+  function iniciarAsignacion(registro) {
+    setAsignandoId(registro.id);
+    setProveedorSeleccionado("");
+    setMensaje("Selecciona el proveedor y pulsa Guardar proveedor.");
+  }
+
+  async function guardarProveedorDirecto(registro) {
+    if (!proveedorSeleccionado) return setMensaje("Selecciona un proveedor.");
+    const proveedor = proveedores.find((item) => item.id === proveedorSeleccionado);
+    if (!proveedor) return setMensaje("Proveedor no válido.");
+    const { error } = await supabase.from("higiene_control_recepcion").update({
+      proveedor_id: proveedor.id,
+      proveedor: proveedor.nombre,
+      revisado_at: new Date().toISOString()
+    }).eq("id", registro.id);
+    if (error) return setMensaje(`No se pudo guardar el proveedor: ${error.message}`);
+    setAsignandoId(null);
+    setProveedorSeleccionado("");
+    setMensaje(`Proveedor asignado: ${proveedor.nombre}.`);
+    await cargar(false);
+  }
+
   async function marcarSelladoExistente(registro) {
     if (!window.confirm("¿Confirmas que este PDF ya lleva el sello de recepción y no hay que volver a ponerlo?")) return;
     const proveedor = proveedores.find((item) => item.id === registro.proveedor_id) || encontrarProveedor(registro.proveedor);
@@ -202,6 +226,6 @@ export default function ControlRecepcion() {
     <section className="recepcion-upload"><label onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); setArchivos((actuales) => [...actuales, ...e.dataTransfer.files]); }}><input ref={input} type="file" multiple accept="image/*,application/pdf,.pdf" onChange={(e) => setArchivos([...e.target.files])} /><b>{archivos.length ? `${archivos.length} documentos seleccionados` : "Pegar, arrastrar o seleccionar fotos y PDF"}</b><small>Copia un adjunto del correo y pulsa Ctrl + V en esta pantalla.</small></label>{archivos.length > 0 && <div className="recepcion-seleccion">{archivos.map((archivo) => <span key={`${archivo.name}-${archivo.lastModified}`}>📄 {archivo.name}</span>)}</div>}<button onClick={subirTodos} disabled={subiendo}>{subiendo ? "Convirtiendo y guardando…" : "Guardar documentos"}</button></section>
     {mensaje && <p className="mensaje-control">{mensaje}</p>}
     {editando && <form className="recepcion-revision" onSubmit={guardarRevision}><div className="recepcion-form-title"><h2>{editando.proveedor_id ? "Completar y pegar sello" : "Asignar proveedor y revisar"}</h2><button type="button" onClick={() => setEditando(null)}>×</button></div><div className="recepcion-toolbar"><button type="button" onClick={todoConforme}>✓ Todo conforme</button><button type="button" onClick={() => abrir(editando, true)}>Ver albarán original</button></div><div className="recepcion-grid"><label>Fecha<input required type="date" value={form.fecha_recepcion} onChange={(e) => setForm({ ...form, fecha_recepcion: e.target.value })} /></label><label>Hora<input required type="time" value={form.hora_recepcion} onChange={(e) => setForm({ ...form, hora_recepcion: e.target.value })} /></label><label>Proveedor<select required value={form.proveedor_id} onChange={(e) => { const proveedor = proveedores.find((item) => item.id === e.target.value); setForm({ ...form, proveedor_id: e.target.value, proveedor: proveedor?.nombre || "" }); }}><option value="">Selecciona proveedor</option>{proveedores.map((proveedor) => <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre}</option>)}</select></label><label>Responsable<input required value={form.responsable_recepcion} onChange={(e) => setForm({ ...form, responsable_recepcion: e.target.value })} /></label><label>Temperatura °C<input type="number" step="0.1" value={form.temperatura} onChange={(e) => setForm({ ...form, temperatura: e.target.value })} /></label><label>Control temperatura<select value={form.temperatura_estado} onChange={(e) => setForm({ ...form, temperatura_estado: e.target.value })}><option value="conforme">Conforme</option><option value="no_conforme">No conforme</option></select></label><label>Resultado<select value={form.estado_revision} onChange={(e) => setForm({ ...form, estado_revision: e.target.value })}><option value="pendiente">Pendiente</option><option value="conforme">Aceptación</option><option value="incidencia">Devolución / incidencia</option></select></label><label>Posición del sello<select value={form.posicion_sello} onChange={(e) => setForm({ ...form, posicion_sello: e.target.value })}><option value="abajo_izquierda">Abajo izquierda</option><option value="abajo_derecha">Abajo derecha</option><option value="arriba_izquierda">Arriba izquierda</option><option value="arriba_derecha">Arriba derecha</option></select></label></div><div className="recepcion-checks">{CAMPOS_CONTROL.map(([clave, etiqueta]) => <label key={clave}>{etiqueta}<select value={form[clave]} onChange={(e) => setForm({ ...form, [clave]: e.target.value })}><option value="pendiente">Pendiente</option><option value="conforme">Conforme</option><option value="no_conforme">No conforme</option></select></label>)}</div><label>Observaciones<textarea rows="3" value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} /></label><button disabled={subiendo}>{subiendo ? "Guardando…" : editando.sello_detectado ? "Guardar proveedor y revisión" : "Guardar control y PDF sellado"}</button></form>}
-    <section className="recepcion-lista"><h2>Documentos recibidos</h2>{registros.length === 0 ? <p>No hay documentos guardados.</p> : registros.map((registro) => <article key={registro.id}><div><span className={`recepcion-estado ${registro.estado_revision}`}>{registro.sello_detectado ? "LEÍDO" : registro.estado_revision}</span><strong>{registro.proveedor || "Proveedor pendiente"}</strong><small>{registro.fecha_recepcion}{registro.hora_recepcion ? ` · ${registro.hora_recepcion.slice(0, 5)}` : ""}{registro.responsable_recepcion ? ` · ${registro.responsable_recepcion}` : ""} · {registro.archivo_sellado_nombre || registro.archivo_nombre}</small></div><div className="recepcion-acciones"><button onClick={() => abrir(registro)}>{registro.archivo_sellado_ruta ? "Ver PDF sellado" : "Ver PDF"}</button>{!registro.sello_detectado && <button onClick={() => marcarSelladoExistente(registro)}>Ya está sellado</button>}{!registro.proveedor_id ? <button onClick={() => revisar(registro)}>Asignar proveedor</button> : registro.sello_detectado ? <button onClick={() => revisar(registro)}>Ver lectura</button> : <button onClick={() => revisar(registro)}>{registro.archivo_sellado_ruta ? "Modificar sello" : "Completar sello"}</button>}<button className="peligro" onClick={() => eliminar(registro)}>Eliminar</button></div></article>)}</section>
+    <section className="recepcion-lista"><h2>Documentos recibidos</h2>{registros.length === 0 ? <p>No hay documentos guardados.</p> : registros.map((registro) => <article key={registro.id}><div><span className={`recepcion-estado ${registro.estado_revision}`}>{registro.sello_detectado ? "LEÍDO" : registro.estado_revision}</span><strong>{registro.proveedor || "Proveedor pendiente"}</strong><small>{registro.fecha_recepcion}{registro.hora_recepcion ? ` · ${registro.hora_recepcion.slice(0, 5)}` : ""}{registro.responsable_recepcion ? ` · ${registro.responsable_recepcion}` : ""} · {registro.archivo_sellado_nombre || registro.archivo_nombre}</small></div><div className="recepcion-acciones"><button onClick={() => abrir(registro)}>{registro.archivo_sellado_ruta ? "Ver PDF sellado" : "Ver PDF"}</button>{!registro.sello_detectado && <button onClick={() => marcarSelladoExistente(registro)}>Ya está sellado</button>}{!registro.proveedor_id ? (asignandoId === registro.id ? <><select value={proveedorSeleccionado} onChange={(e) => setProveedorSeleccionado(e.target.value)}><option value="">Selecciona proveedor</option>{proveedores.map((proveedor) => <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre}</option>)}</select><button onClick={() => guardarProveedorDirecto(registro)}>Guardar proveedor</button><button onClick={() => { setAsignandoId(null); setProveedorSeleccionado(""); }}>Cancelar</button></> : <button onClick={() => iniciarAsignacion(registro)}>Asignar proveedor</button>) : registro.sello_detectado ? <button onClick={() => revisar(registro)}>Ver lectura</button> : <button onClick={() => revisar(registro)}>{registro.archivo_sellado_ruta ? "Modificar sello" : "Completar sello"}</button>}<button className="peligro" onClick={() => eliminar(registro)}>Eliminar</button></div></article>)}</section>
   </main>;
 }

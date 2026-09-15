@@ -1,6 +1,72 @@
-/* Producción: ocultar las observaciones en las hojas impresas */
+/* Producción: impresión compacta de Obrador y Cocina en A5 */
 @media print {
+  /* La hoja diaria de zona usa una página nombrada para que prevalezca
+     sobre el @page A4 general definido en produccion.jsx. */
+  body.imprimiendo-zona-diaria .zona-diaria-hoja-print,
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-print {
+    page: produccion-a5;
+  }
+
   body.imprimiendo-zona-diaria .zona-diaria-linea-print small {
     display: none !important;
   }
+
+  /* Ajuste de tamaños para que la producción siga siendo legible en A5. */
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print {
+    gap: 10px !important;
+    padding-bottom: 6px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print strong {
+    font-size: 9px !important;
+    letter-spacing: 1px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print h2 {
+    margin-top: 2px !important;
+    font-size: 18px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print > span {
+    font-size: 11px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print {
+    margin-top: 6px !important;
+    padding: 6px 7px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print strong {
+    font-size: 13px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print div span {
+    font-size: 10px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print .zona-diaria-hora-catering-print {
+    margin-top: 3px !important;
+    font-size: 11px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-lineas-print {
+    padding: 3px 7px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-linea-print {
+    grid-template-columns: 18px 82px 1fr !important;
+    gap: 5px !important;
+    padding: 5px 0 !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-check-print {
+    font-size: 13px !important;
+  }
+}
+
+@page produccion-a5 {
+  size: A5 portrait;
+  margin: 7mm;
 }

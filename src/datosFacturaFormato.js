@@ -54,44 +54,21 @@ function formaPagoEtiqueta(valor = "") {
   return "transferencia";
 }
 
-async function guardarOpciones(registros, ivaIncluido, formaPago, boton) {
-  if (!registros.length) return;
+async function guardarFormaPago(registros, formaPago, boton) {
   const ids = registros.map((r) => r.id).filter(Boolean);
   if (!ids.length) return;
-
-  const textoOriginal = boton?.textContent || "Guardar cambios";
-  if (boton) {
-    boton.disabled = true;
-    boton.textContent = "Guardando...";
-  }
-
-  const { error } = await supabase
-    .from("facturas")
-    .update({
-      iva_incluido: Boolean(ivaIncluido),
-      forma_pago: formaPago,
-      updated_at: new Date().toISOString(),
-    })
-    .in("id", ids);
-
+  const original = boton?.textContent || "Guardar cambios";
+  if (boton) { boton.disabled = true; boton.textContent = "Guardando..."; }
+  const { error } = await supabase.from("facturas").update({
+    forma_pago: formaPago,
+    updated_at: new Date().toISOString(),
+  }).in("id", ids);
   if (boton) {
     boton.disabled = false;
     boton.textContent = error ? "Error al guardar" : "✓ Guardado";
-    setTimeout(() => {
-      boton.textContent = textoOriginal;
-    }, 1600);
+    setTimeout(() => { boton.textContent = original; }, 1600);
   }
-
-  if (error) {
-    console.warn("No se han podido guardar IVA y forma de pago", error);
-    return;
-  }
-
-  const ficha = document.querySelector(".datos-factura-ficha");
-  if (ficha) {
-    ficha.dataset.ivaIncluido = ivaIncluido ? "si" : "no";
-    ficha.dataset.formaPago = formaPago;
-  }
+  if (error) console.warn("No se ha podido guardar la forma de pago", error);
 }
 
 async function aplicarFormato() {
@@ -107,7 +84,6 @@ async function aplicarFormato() {
   if (!cliente) return;
 
   documento.dataset.formatoFicha = "cargando";
-
   const { data, error } = await supabase
     .from("facturas")
     .select("*")
@@ -121,44 +97,40 @@ async function aplicarFormato() {
   }
 
   let registros = data || [];
-  if (periodo) {
-    registros = registros.filter((r) => String(r.fecha_factura || "").startsWith(`${periodo.anio}-${periodo.mes}`));
-  }
-  if (!registros.length) {
-    documento.dataset.formatoFicha = "";
-    return;
-  }
+  if (periodo) registros = registros.filter((r) => String(r.fecha_factura || "").startsWith(`${periodo.anio}-${periodo.mes}`));
+  if (!registros.length) { documento.dataset.formatoFicha = ""; return; }
 
   const principal = registros[0];
-  const importe = registros.reduce((suma, r) => suma + Number(r.total ?? r.importe ?? 0), 0);
-  const ivaIncluido = registros.every((r) => Boolean(r.iva_incluido));
   const formas = [...new Set(registros.map((r) => formaPagoEtiqueta(r.forma_pago)))];
   const forma = formas.length === 1 ? formas[0] : "transferencia";
 
   const conceptos = registros.flatMap((r) => {
     const lineas = leerLineas(r.lineas);
     if (!lineas.length) {
-      return [{ descripcion: "Servicio", total: Number(r.total ?? r.importe ?? 0), fecha: r.fecha_factura }];
+      return [{ descripcion: "Servicio", cantidad: 1, precio: Number(r.total ?? r.importe ?? 0), total: Number(r.total ?? r.importe ?? 0) }];
     }
-    return lineas.map((l) => ({
-      descripcion: l.descripcion || "Concepto",
-      total: Number(l.cantidad || 0) * Number(l.precio_unitario || 0) * (1 + Number(l.iva || 0) / 100),
-      fecha: r.fecha_factura,
-    }));
+    return lineas.map((l) => {
+      const cantidad = Number(l.cantidad || 0);
+      const precio = Number(l.precio_unitario || 0);
+      return {
+        descripcion: l.descripcion || "Concepto",
+        cantidad,
+        precio,
+        total: cantidad * precio,
+      };
+    });
   });
 
-  const direccionCompleta = [principal.direccion, principal.codigo_postal, principal.poblacion, principal.provincia]
-    .filter(Boolean)
-    .join(" · ");
-
+  const baseImponible = conceptos.reduce((suma, c) => suma + Number(c.total || 0), 0);
+  const ivaInicial = 10;
+  const direccionCompleta = [principal.direccion, principal.codigo_postal, principal.poblacion, principal.provincia].filter(Boolean).join(" · ");
   const fechaFactura = registros.length === 1
     ? fechaES(principal.fecha_factura)
     : `${fechaES(registros[0].fecha_factura)} - ${fechaES(registros[registros.length - 1].fecha_factura)}`;
 
   documento.innerHTML = `
-    <div class="datos-factura-ficha" data-iva-incluido="${ivaIncluido ? "si" : "no"}" data-forma-pago="${forma}">
+    <div class="datos-factura-ficha" data-forma-pago="${forma}">
       <h1>DATOS PARA FACTURA</h1>
-
       <section class="datos-factura-bloque">
         <h3>Datos Cliente</h3>
         <div class="datos-factura-campo"><strong>Nombre:</strong><span>${escapar(principal.nombre_cliente || cliente)}</span></div>
@@ -170,24 +142,28 @@ async function aplicarFormato() {
 
       <section class="datos-factura-bloque datos-factura-conceptos">
         <h3>Detalle Concepto Factura</h3>
+        <div class="datos-factura-tabla-cabecera">
+          <strong>Descripción</strong><strong>Cantidad</strong><strong>Precio (sin IVA)</strong><strong>Importe (sin IVA)</strong>
+        </div>
         <div class="datos-factura-listado">
           ${conceptos.map((c) => `
             <div class="datos-factura-linea">
               <span>${escapar(c.descripcion)}</span>
+              <span class="numero">${c.cantidad || ""}</span>
+              <span class="numero">${moneda(c.precio)}</span>
               <strong>${moneda(c.total)}</strong>
             </div>`).join("")}
         </div>
       </section>
 
       <section class="datos-factura-bloque datos-factura-totales">
-        <div class="datos-factura-campo importe"><strong>Importe:</strong><span>${moneda(importe)}</span></div>
+        <div class="datos-factura-resumen">
+          <div><strong>Base imponible (sin IVA)</strong><span>${moneda(baseImponible)}</span></div>
+          <div class="fila-iva"><strong>IVA (%)</strong><span class="no-imprimir"><input class="datos-factura-iva-input" type="number" min="0" max="100" step="0.01" value="${ivaInicial}"> %</span><span class="datos-factura-iva-print datos-factura-solo-print">${ivaInicial} %</span><span class="datos-factura-cuota-iva"></span></div>
+          <div class="total"><strong>Total</strong><span class="datos-factura-total-final"></span></div>
+        </div>
 
         <div class="datos-factura-editor no-imprimir">
-          <div class="datos-factura-editor-grupo">
-            <strong>IVA Incluído:</strong>
-            <label><input type="radio" name="iva-incluido-manual" value="si" ${ivaIncluido ? "checked" : ""}> Sí</label>
-            <label><input type="radio" name="iva-incluido-manual" value="no" ${!ivaIncluido ? "checked" : ""}> No</label>
-          </div>
           <div class="datos-factura-editor-grupo">
             <strong>Forma de Pago:</strong>
             <label><input type="radio" name="forma-pago-manual" value="transferencia" ${forma === "transferencia" ? "checked" : ""}> Transferencia</label>
@@ -197,51 +173,44 @@ async function aplicarFormato() {
           <button type="button" class="datos-factura-guardar-opciones">Guardar cambios</button>
         </div>
 
-        <div class="datos-factura-solo-print">
-          <div class="datos-factura-campo"><strong>IVA Incluído:</strong><span class="datos-factura-iva-print"></span></div>
-          <div class="datos-factura-campo"><strong>Forma de Pago:</strong><span></span></div>
-          <div class="datos-factura-pagos datos-factura-pagos-print"></div>
+        <div class="datos-factura-solo-print datos-factura-forma-print">
+          <div class="datos-factura-campo"><strong>Forma de Pago:</strong><span class="datos-factura-forma-pago-print"></span></div>
         </div>
       </section>
-    </div>
-  `;
+    </div>`;
 
   const ficha = documento.querySelector(".datos-factura-ficha");
-  const botonGuardar = documento.querySelector(".datos-factura-guardar-opciones");
+  const ivaInput = documento.querySelector(".datos-factura-iva-input");
   const ivaPrint = documento.querySelector(".datos-factura-iva-print");
-  const pagosPrint = documento.querySelector(".datos-factura-pagos-print");
+  const cuotaIva = documento.querySelector(".datos-factura-cuota-iva");
+  const totalFinal = documento.querySelector(".datos-factura-total-final");
+  const formaPrint = documento.querySelector(".datos-factura-forma-pago-print");
+  const botonGuardar = documento.querySelector(".datos-factura-guardar-opciones");
 
-  function refrescarVistaImpresion() {
-    const ivaSeleccionado = documento.querySelector('input[name="iva-incluido-manual"]:checked')?.value === "si";
-    const formaSeleccionada = documento.querySelector('input[name="forma-pago-manual"]:checked')?.value || "transferencia";
-
-    ficha.dataset.ivaIncluido = ivaSeleccionado ? "si" : "no";
-    ficha.dataset.formaPago = formaSeleccionada;
-
-    if (ivaPrint) {
-      ivaPrint.innerHTML = `<b>SI</b> ${ivaSeleccionado ? "☒" : "☐"} &nbsp;&nbsp;&nbsp; <b>No</b> ${ivaSeleccionado ? "☐" : "☒"}`;
-    }
-    if (pagosPrint) {
-      pagosPrint.innerHTML = `
-        <span><b>Transferencia</b> ${formaSeleccionada === "transferencia" ? "☒" : "☐"}</span>
-        <span><b>Tarjeta</b> ${formaSeleccionada === "tarjeta" ? "☒" : "☐"}</span>
-        <span><b>Efectivo</b> ${formaSeleccionada === "efectivo" ? "☒" : "☐"}</span>
-      `;
-    }
+  function refrescarTotales() {
+    const porcentaje = Math.max(0, Number(ivaInput?.value || 0));
+    const cuota = baseImponible * porcentaje / 100;
+    if (cuotaIva) cuotaIva.textContent = moneda(cuota);
+    if (totalFinal) totalFinal.textContent = moneda(baseImponible + cuota);
+    if (ivaPrint) ivaPrint.textContent = `${porcentaje.toLocaleString("es-ES")} %`;
   }
 
-  documento.querySelectorAll('input[name="iva-incluido-manual"], input[name="forma-pago-manual"]').forEach((input) => {
-    input.addEventListener("change", refrescarVistaImpresion);
-  });
+  function refrescarFormaPago() {
+    const seleccionada = documento.querySelector('input[name="forma-pago-manual"]:checked')?.value || "transferencia";
+    ficha.dataset.formaPago = seleccionada;
+    if (formaPrint) formaPrint.textContent = seleccionada.charAt(0).toUpperCase() + seleccionada.slice(1);
+  }
 
+  ivaInput?.addEventListener("input", refrescarTotales);
+  documento.querySelectorAll('input[name="forma-pago-manual"]').forEach((input) => input.addEventListener("change", refrescarFormaPago));
   botonGuardar?.addEventListener("click", async () => {
-    const ivaSeleccionado = documento.querySelector('input[name="iva-incluido-manual"]:checked')?.value === "si";
     const formaSeleccionada = documento.querySelector('input[name="forma-pago-manual"]:checked')?.value || "transferencia";
-    await guardarOpciones(registros, ivaSeleccionado, formaSeleccionada, botonGuardar);
-    refrescarVistaImpresion();
+    await guardarFormaPago(registros, formaSeleccionada, botonGuardar);
+    refrescarFormaPago();
   });
 
-  refrescarVistaImpresion();
+  refrescarTotales();
+  refrescarFormaPago();
   documento.dataset.formatoFicha = "1";
 }
 
@@ -250,33 +219,47 @@ function instalarEstilos() {
   const style = document.createElement("style");
   style.id = "datos-factura-formato-estilos";
   style.textContent = `
-    .datos-factura-ficha{max-width:900px;margin:0 auto;color:#22152a}
+    .datos-factura-ficha{max-width:1000px;margin:0 auto;color:#22152a}
     .datos-factura-ficha h1{margin:0 0 28px!important;font-size:30px!important;color:#3d004f!important;font-style:italic}
     .datos-factura-bloque{padding:0 0 22px;margin-bottom:18px;border-bottom:1px solid #e5dce9}
     .datos-factura-bloque h3{margin:0 0 18px;font-size:18px;color:#3d004f}
     .datos-factura-campo{display:grid;grid-template-columns:180px 1fr;gap:18px;min-height:34px;align-items:start;margin:5px 0}
-    .datos-factura-conceptos{min-height:260px}
-    .datos-factura-listado{display:flex;flex-direction:column;gap:10px;margin-top:12px}
-    .datos-factura-linea{display:grid;grid-template-columns:1fr 130px;gap:18px;padding:8px 0;border-bottom:1px dotted #ddd}
-    .datos-factura-linea strong{text-align:right}
+    .datos-factura-conceptos{min-height:230px}
+    .datos-factura-tabla-cabecera,.datos-factura-linea{display:grid;grid-template-columns:minmax(280px,1fr) 100px 160px 170px;gap:14px;align-items:center}
+    .datos-factura-tabla-cabecera{padding:10px 12px;background:#f6f1f8;border-radius:9px 9px 0 0}
+    .datos-factura-tabla-cabecera strong:not(:first-child),.datos-factura-linea .numero,.datos-factura-linea strong{text-align:right}
+    .datos-factura-listado{display:flex;flex-direction:column}
+    .datos-factura-linea{padding:11px 12px;border-bottom:1px solid #e7e0e9}
+    .datos-factura-resumen{width:min(560px,100%);margin-left:auto}
+    .datos-factura-resumen>div{display:grid;grid-template-columns:1fr 120px;gap:20px;padding:9px 0;align-items:center}
+    .datos-factura-resumen>div>span:last-child{text-align:right;font-weight:700}
+    .datos-factura-resumen .fila-iva{grid-template-columns:1fr 120px 120px}
+    .datos-factura-iva-input{width:72px;padding:7px 8px;border:1px solid #b9a9c0;border-radius:8px;font:inherit;text-align:right}
+    .datos-factura-resumen .total{margin-top:4px;padding-top:16px;border-top:1px solid #d9cedd;color:#3d004f;font-size:22px}
+    .datos-factura-resumen .total span{font-size:24px}
     .datos-factura-totales{border-bottom:0}
-    .datos-factura-campo.importe span{font-weight:800}
-    .datos-factura-pagos{display:flex;gap:36px;flex-wrap:wrap;margin-top:10px;padding-left:198px}
     .datos-factura-editor{margin-top:22px;padding:18px;border:1px solid #e0d4e5;border-radius:14px;background:#faf7fb}
     .datos-factura-editor-grupo{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:8px 0}
     .datos-factura-editor-grupo>strong{min-width:150px}
     .datos-factura-editor label{display:inline-flex;align-items:center;gap:7px;font-weight:600}
     .datos-factura-guardar-opciones{margin-top:14px;padding:11px 18px;border:0;border-radius:10px;background:#3d004f;color:#fff;font-weight:800;cursor:pointer}
     .datos-factura-solo-print{display:none}
+    @media(max-width:800px){
+      .datos-factura-tabla-cabecera{display:none}
+      .datos-factura-linea{grid-template-columns:1fr 90px}
+      .datos-factura-linea .numero{display:none}
+    }
     @media print{
       .datos-factura-ficha{max-width:none!important;width:100%!important}
       .datos-factura-ficha h1{font-size:22pt!important;margin-bottom:10mm!important}
       .datos-factura-campo{grid-template-columns:45mm 1fr!important;min-height:8mm!important;font-size:11pt!important}
-      .datos-factura-conceptos{min-height:110mm!important}
-      .datos-factura-linea{grid-template-columns:1fr 35mm!important;font-size:11pt!important}
-      .datos-factura-pagos{padding-left:45mm!important;font-size:11pt!important}
+      .datos-factura-conceptos{min-height:85mm!important}
+      .datos-factura-tabla-cabecera,.datos-factura-linea{grid-template-columns:1fr 25mm 35mm 38mm!important;font-size:10pt!important}
       .datos-factura-editor{display:none!important}
       .datos-factura-solo-print{display:block!important}
+      .datos-factura-resumen .datos-factura-solo-print{display:inline!important}
+      .datos-factura-resumen{width:125mm!important}
+      .datos-factura-forma-print{margin-top:10mm}
     }
   `;
   document.head.appendChild(style);

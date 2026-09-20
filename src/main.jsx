@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './presupuestoClienteExtra.js'
 import './dashboardEstadisticasCatering.js'
+import './presupuestoFacturadoControl.js'
 import App from './App.jsx'
 import { AuthProvider } from './auth/AuthContext.jsx'
 

@@ -5,6 +5,7 @@ import './presupuestoClienteExtra.js'
 import './dashboardEstadisticasCatering.js'
 import './presupuestoFacturadoControl.js'
 import './finalizarFacturacionPresupuesto.js'
+import './datosFacturaSimplificado.js'
 import App from './App.jsx'
 import { AuthProvider } from './auth/AuthContext.jsx'
 

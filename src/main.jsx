@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './datosFacturaPremium.css'
 import './presupuestoClienteExtra.js'
 import './dashboardEstadisticasCatering.js'
 import './presupuestoFacturadoControl.js'

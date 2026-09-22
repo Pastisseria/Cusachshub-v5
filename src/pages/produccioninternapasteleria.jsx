@@ -1,158 +1,70 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { supabase } from "../supabase.js";
 
-const PRODUCTOS = [
-  "Croissants",
-  "Ensaimadas",
-  "Brioix",
-  "Croissant de chocolate",
-  "Croissants de mantega",
-  "Coca crema",
-  "Coca d'anís",
-  "Cholita",
-  "Xuixo",
+const GRUPOS = [
+  { titulo: "PASTELERÍA", items: ["Lacets", "Palmiers", "Coques de llardons", "Bretzels", "Bacarissa", "Tarta de poma", "Nius de crema", "Banda de fruita", "Bracet de nata", "Bracet de crema", "Braç crema petit", "Coca de crema", "Coca de xocolata", "Enquesadas", "Merengues", "Bulgaros", "Borratxos"] },
+  { titulo: "TARTALETES", items: ["Maduixa", "Macedonia", "Gerds", "Kiwi", "Arándanos", "Moras", "Mandarina", "Mango", "Flam", "Llimona", "Llimona merengue", "Xocolata", "Xocolata nous", "Xocolata taronja", "Xocolata gerds", "Xocolata llet"] },
+  { titulo: "ELABORACIONES", items: ["Sara", "Negritos", "Pastís Sara", "Pastís de formatge", "Pastís de formatge i gerds", "Pastar hojaldre", "Pastar brioix", "Bizcocho", "Melindros", "Pastar cocas", "Pasta de té", "Pastar croissants", "Crema", "Crema limón", "Crema naranja", "Yema", "Mazapán", "Pasta brisa", "Crema de mantequilla", "Almíbar", "Baño chocolate", "Trufa cocida", "Tocinitos", "Trufas", "Repostería", "Canapés", "Pasta salada", "Quiches"] },
+  { titulo: "OTROS", items: ["Emparedados", "Coca de verdures", "Hacer pasteles", "Planchas bizcocho", "Brazos", "Cocer verdura", "Escalivar", "Bocadillos", "Panecillos", "Turrones"] },
 ];
 
-const HOY = "2026-09-22";
+const ITEMS = GRUPOS.flatMap((g) => g.items);
+const INICIO = "2026-09-22";
 const FIN = "2026-12-31";
-
-function fechaValida(valor) {
-  return valor >= HOY && valor <= FIN;
-}
+const hoy = () => {
+  const d = new Date();
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  return local < INICIO ? INICIO : local > FIN ? FIN : local;
+};
 
 export default function ProduccionInternaPasteleria() {
-  const [fecha, setFecha] = useState(HOY);
+  const [fecha, setFecha] = useState(hoy());
   const [cantidades, setCantidades] = useState({});
-  const [cargando, setCargando] = useState(false);
-  const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState("");
-
-  const fechaBonita = useMemo(() => {
-    const [y, m, d] = fecha.split("-");
-    return `${d}/${m}/${y}`;
-  }, [fecha]);
-
-  useEffect(() => {
-    cargarDia();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fecha]);
-
-  async function cargarDia() {
-    setCargando(true);
-    setMensaje("");
-    const { data, error } = await supabase
-      .from("produccion_interna_pasteleria")
-      .select("*")
-      .eq("fecha", fecha);
-
-    if (error) {
-      setMensaje(`No se pudo cargar el día: ${error.message}`);
-      setCantidades({});
-    } else {
-      const nuevo = {};
-      (data || []).forEach((fila) => {
-        const nombre = fila.producto ?? fila.nombre_producto;
-        const valor = fila.unidades ?? fila.cantidad ?? 0;
-        if (nombre) nuevo[nombre] = valor;
-      });
-      setCantidades(nuevo);
-    }
-    setCargando(false);
-  }
-
-  function cambiarFecha(dias) {
-    const actual = new Date(`${fecha}T12:00:00`);
-    actual.setDate(actual.getDate() + dias);
-    const siguiente = actual.toISOString().slice(0, 10);
-    if (fechaValida(siguiente)) setFecha(siguiente);
-  }
+  const fechaBonita = useMemo(() => fecha.split("-").reverse().join("/"), [fecha]);
 
   async function guardar() {
-    setGuardando(true);
-    setMensaje("");
-
-    const { error: errorBorrado } = await supabase
-      .from("produccion_interna_pasteleria")
-      .delete()
-      .eq("fecha", fecha);
-
-    if (errorBorrado) {
-      setMensaje(`No se pudo guardar: ${errorBorrado.message}`);
-      setGuardando(false);
-      return;
-    }
-
-    const filas = PRODUCTOS.map((producto) => ({
-      fecha,
-      producto,
-      unidades: Number(cantidades[producto] || 0),
-    }));
-
-    const { error } = await supabase
-      .from("produccion_interna_pasteleria")
-      .insert(filas);
-
-    setMensaje(error ? `No se pudo guardar: ${error.message}` : "✓ Producción guardada correctamente");
-    setGuardando(false);
+    setMensaje("Guardando…");
+    const { data, error: lecturaError } = await supabase.from("produccion_interna_pasteleria").select("*").eq("fecha", fecha).maybeSingle();
+    if (lecturaError) return setMensaje(`Error: ${lecturaError.message}`);
+    const payload = { fecha, cantidades: Object.fromEntries(ITEMS.map((x) => [x, Number(cantidades[x] || 0)])), updated_at: new Date().toISOString() };
+    const { error } = data
+      ? await supabase.from("produccion_interna_pasteleria").update(payload).eq("fecha", fecha)
+      : await supabase.from("produccion_interna_pasteleria").insert(payload);
+    setMensaje(error ? `Error: ${error.message}` : "✓ Guardado");
   }
 
-  return (
-    <div className="produccion-interna-pasteleria">
-      <div className="pip-cabecera no-print">
-        <div>
-          <h1>Producción interna Pastelería</h1>
-          <p>Control diario de unidades producidas</p>
-        </div>
-        <button type="button" className="btn-secundario" onClick={() => window.print()}>🖨️ Imprimir A4</button>
-      </div>
+  async function cargar(nuevaFecha) {
+    setFecha(nuevaFecha);
+    setMensaje("");
+    const { data } = await supabase.from("produccion_interna_pasteleria").select("cantidades").eq("fecha", nuevaFecha).maybeSingle();
+    setCantidades(data?.cantidades || {});
+  }
 
-      <div className="pip-fecha no-print">
-        <button type="button" onClick={() => cambiarFecha(-1)} disabled={fecha === HOY}>← Día anterior</button>
-        <input type="date" min={HOY} max={FIN} value={fecha} onChange={(e) => fechaValida(e.target.value) && setFecha(e.target.value)} />
-        <button type="button" onClick={() => cambiarFecha(1)} disabled={fecha === FIN}>Día siguiente →</button>
-      </div>
+  function mover(dias) {
+    const d = new Date(`${fecha}T12:00:00`); d.setDate(d.getDate() + dias);
+    const f = d.toISOString().slice(0, 10); if (f >= INICIO && f <= FIN) cargar(f);
+  }
 
-      <section className="pip-hoja">
-        <div className="pip-titulo-impresion">
-          <h2>PASTISSERIA CUSACHS</h2>
-          <h3>Producción interna Pastelería</h3>
-          <strong>Fecha: {fechaBonita}</strong>
-        </div>
-
-        {cargando ? <p>Cargando…</p> : (
-          <table className="pip-tabla">
-            <thead><tr><th>Producto</th><th>Unidades</th></tr></thead>
-            <tbody>
-              {PRODUCTOS.map((producto) => (
-                <tr key={producto}>
-                  <td>{producto}</td>
-                  <td>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={cantidades[producto] ?? ""}
-                      onChange={(e) => setCantidades((prev) => ({ ...prev, [producto]: e.target.value }))}
-                      aria-label={`Unidades de ${producto}`}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        <div className="pip-firma"><span>Responsable: __________________________</span><span>Firma: __________________________</span></div>
-      </section>
-
-      <div className="pip-acciones no-print">
-        <button type="button" className="btn-primario" onClick={guardar} disabled={guardando || cargando}>{guardando ? "Guardando…" : "Guardar día"}</button>
-        {mensaje && <span className="pip-mensaje">{mensaje}</span>}
-      </div>
-
-      <style>{`
-        .produccion-interna-pasteleria{max-width:1050px;margin:0 auto;padding:24px}.pip-cabecera,.pip-fecha,.pip-acciones{display:flex;align-items:center;justify-content:space-between;gap:14px}.pip-cabecera h1{margin:0}.pip-cabecera p{margin:6px 0 0;color:#666}.pip-fecha{justify-content:center;margin:24px 0}.pip-fecha button,.pip-fecha input,.pip-acciones button,.pip-cabecera button{padding:10px 14px;border:1px solid #bbb;border-radius:8px;background:#fff}.pip-hoja{background:#fff;border:1px solid #ddd;padding:28px}.pip-titulo-impresion{text-align:center;margin-bottom:22px}.pip-titulo-impresion h2{margin:0 0 5px;font-size:18px}.pip-titulo-impresion h3{margin:0 0 10px;font-size:22px}.pip-tabla{width:100%;border-collapse:collapse}.pip-tabla th,.pip-tabla td{border:1px solid #222;padding:11px 14px;text-align:left}.pip-tabla th:last-child,.pip-tabla td:last-child{width:160px;text-align:center}.pip-tabla input{width:100%;box-sizing:border-box;text-align:center;font-size:18px;padding:7px;border:1px solid #bbb;border-radius:5px}.pip-firma{display:flex;justify-content:space-between;gap:30px;margin-top:34px}.pip-acciones{margin-top:18px;justify-content:flex-start}.pip-acciones .btn-primario{background:#6d3b72;color:white;border-color:#6d3b72;font-weight:700}.pip-mensaje{font-weight:600}@media print{@page{size:A4 portrait;margin:14mm}.sidebar,.boton-menu-tablet,.fondo-menu-tablet,.no-print{display:none!important}.contenido{margin:0!important;padding:0!important}.produccion-interna-pasteleria{max-width:none;padding:0}.pip-hoja{border:0;padding:0}.pip-tabla input{border:0;font-size:16px}.pip-firma{margin-top:28px}body{background:#fff!important;color:#000!important}}
-      `}</style>
+  return <div className="pip-page">
+    <div className="pip-tools no-print">
+      <h1>Producción interna Pastelería</h1>
+      <div className="pip-nav"><button onClick={() => mover(-1)}>←</button><input type="date" min={INICIO} max={FIN} value={fecha} onChange={(e) => cargar(e.target.value)} /><button onClick={() => mover(1)}>→</button><button className="pip-save" onClick={guardar}>Guardar</button><button onClick={() => window.print()}>🖨 Imprimir A4</button></div>
+      {mensaje && <b>{mensaje}</b>}
     </div>
-  );
+
+    <div className="pip-sheet" id="pip-print">
+      <header><div><b>PASTISSERIA CUSACHS</b><br/><span>PRODUCCIÓN INTERNA PASTELERÍA</span></div><strong>DÍA: {fechaBonita}</strong></header>
+      <div className="pip-columns">
+        {GRUPOS.map((g) => <section key={g.titulo} className="pip-group"><h3>{g.titulo}</h3>{g.items.map((item) => <div className="pip-row" key={item}><label>{item}</label><input type="number" min="0" value={cantidades[item] ?? ""} onChange={(e) => setCantidades((p) => ({...p,[item]:e.target.value}))}/></div>)}</section>)}
+      </div>
+      <footer>Responsable: ________________________________ &nbsp;&nbsp;&nbsp; Firma: ________________________________</footer>
+    </div>
+
+    <style>{`
+      .pip-page{padding:20px;max-width:1200px;margin:auto}.pip-tools{margin-bottom:16px}.pip-tools h1{margin:0 0 12px}.pip-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pip-nav button,.pip-nav input{height:40px;padding:0 12px;border:1px solid #aaa;border-radius:6px;background:#fff}.pip-save{font-weight:700}.pip-sheet{width:210mm;min-height:297mm;box-sizing:border-box;margin:auto;background:#fff;color:#000;padding:10mm;border:1px solid #bbb}.pip-sheet header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000;padding-bottom:4mm;margin-bottom:4mm}.pip-sheet header span{font-size:18px;font-weight:700}.pip-columns{column-count:2;column-gap:8mm}.pip-group{break-inside:avoid;margin:0 0 4mm}.pip-group h3{font-size:12px;margin:0;border:1px solid #000;background:#eee;padding:2mm}.pip-row{display:grid;grid-template-columns:1fr 24mm;min-height:7.2mm;border:1px solid #000;border-top:0;align-items:center}.pip-row label{padding:1mm 2mm;font-size:10.5px}.pip-row input{width:100%;height:100%;min-height:7mm;box-sizing:border-box;border:0;border-left:1px solid #000;text-align:center;font-size:11px;background:#fff;color:#000}.pip-sheet footer{margin-top:5mm;font-size:10px;border-top:1px solid #000;padding-top:4mm}
+      @media(max-width:900px){.pip-sheet{width:100%;min-height:auto}.pip-columns{column-count:1}}
+      @media print{@page{size:A4 portrait;margin:0}html,body,#root,.app,.contenido{margin:0!important;padding:0!important;width:100%!important;min-width:0!important;background:#fff!important}.sidebar,.boton-menu-tablet,.fondo-menu-tablet,.no-print{display:none!important}.pip-page{padding:0!important;margin:0!important;max-width:none!important}.pip-sheet{display:block!important;width:210mm!important;height:297mm!important;min-height:297mm!important;margin:0!important;padding:8mm!important;border:0!important;overflow:hidden!important;box-shadow:none!important}.pip-columns{column-count:2!important;column-gap:6mm!important}.pip-group{margin-bottom:2.5mm!important}.pip-group h3{font-size:10px!important;padding:1mm!important;background:#fff!important}.pip-row{min-height:5.5mm!important;height:5.5mm!important}.pip-row label{font-size:8.5px!important;padding:.5mm 1mm!important}.pip-row input{min-height:5.3mm!important;font-size:9px!important;border-radius:0!important}.pip-sheet header{margin-bottom:2mm!important;padding-bottom:2mm!important}.pip-sheet header span{font-size:14px!important}.pip-sheet footer{margin-top:2mm!important;padding-top:2mm!important;font-size:8px!important}*{-webkit-print-color-adjust:economy!important;print-color-adjust:economy!important}}
+    `}</style>
+  </div>;
 }

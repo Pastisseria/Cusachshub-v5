@@ -18,6 +18,7 @@ import Produccion from "./pages/produccion.jsx";
 import Ingredientes from "./pages/ingredientes.jsx";
 import Escandallos from "./pages/escandallos.jsx";
 import Recetas from "./pages/recetas.jsx";
+import ProduccionInternaPasteleria from "./pages/produccioninternapasteleria.jsx";
 import Alergenos from "./pages/alergenos.jsx";
 import ModelosEtiquetas from "./pages/modelosetiquetas.jsx";
 import DietarioAnual from "./pages/dietarioanual.jsx";
@@ -56,99 +57,11 @@ import "./App.css";
 import "./responsive-overrides.css";
 import "./presupuesto-print-overrides.css";
 
-function Inicio() {
-  const { usuario, rol, cargando, recuperandoClave } = useAuth();
-  if (cargando) return <div className="pantalla-carga">Preparando Cusachs Hub…</div>;
-  if (!usuario) return <Navigate to="/acceso" replace />;
-  if (recuperandoClave) return <Navigate to="/restablecer-clave" replace />;
-  return <Navigate to={rol === "administrador" ? "/espacios" : "/catering"} replace />;
-}
-
-function MarcoERP({ children }) {
-  const [menuAbierto, setMenuAbierto] = useState(false);
-  return (
-    <div className="app">
-      <button type="button" className="boton-menu-tablet" aria-label="Abrir menú principal" aria-expanded={menuAbierto} onClick={() => setMenuAbierto(true)}><span aria-hidden="true">☰</span> Menú</button>
-      <Sidebar abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} />
-      {menuAbierto && <button type="button" className="fondo-menu-tablet" aria-label="Cerrar menú principal" onClick={() => setMenuAbierto(false)} />}
-      <main className="contenido">{children}</main>
-    </div>
-  );
-}
-
-const protegida = (componente, soloAdministrador = false) => (
-  <RutaProtegida soloAdministrador={soloAdministrador}><MarcoERP>{componente}</MarcoERP></RutaProtegida>
-);
-
-function App() {
-  return (
-    <HashRouter>
-      <Routes>
-        <Route path="/" element={<Inicio />} />
-        <Route path="/acceso" element={<Acceso />} />
-        <Route path="/restablecer-clave" element={<RestablecerClave />} />
-        <Route path="/espacios" element={protegida(<Espacios />, true)} />
-        <Route path="/higiene" element={protegida(<Higiene />, true)} />
-        <Route path="/higiene/temperaturas" element={protegida(<Temperaturas />, true)} />
-        <Route path="/higiene/limpieza" element={protegida(<Limpieza />, true)} />
-        <Route path="/higiene/trazabilidad" element={protegida(<Trazabilidad />, true)} />
-        <Route path="/higiene/incidencias" element={protegida(<Incidencias />, true)} />
-        <Route path="/higiene/aceite" element={protegida(<Aceite />, true)} />
-        <Route path="/higiene/agua" element={protegida(<Agua />, true)} />
-        <Route path="/higiene/ibertrac" element={protegida(<Ibertrac />, true)} />
-        <Route path="/higiene/control-recepcion" element={protegida(<ControlRecepcion />, true)} />
-        <Route path="/higiene/preparacion-sanidad" element={protegida(<PreparacionSanidad />, true)} />
-        <Route path="/higiene/registro-trimestral" element={protegida(<RegistroTrimestral />, true)} />
-        <Route path="/higiene/ingredientes" element={protegida(<Ingredientes />, true)} />
-        <Route path="/higiene/escandallos" element={protegida(<Escandallos />, true)} />
-        <Route path="/higiene/recetas" element={protegida(<Recetas />, true)} />
-        <Route path="/higiene/alergenos" element={protegida(<Alergenos />, true)} />
-        <Route path="/higiene/modelos-etiquetas" element={protegida(<ModelosEtiquetas />, true)} />
-        <Route path="/higiene/personal-riesgos" element={protegida(<PersonalRiesgos />, true)} />
-        <Route path="/higiene/proveedores" element={protegida(<Proveedores />, true)} />
-        <Route path="/higiene/catalogo-proveedores" element={protegida(<CatalogoProveedores />, true)} />
-        <Route path="/higiene/comparador-precios" element={protegida(<ComparadorPrecios />, true)} />
-        <Route path="/higiene/compras" element={protegida(<Compras />, true)} />
-        <Route path="/higiene/importar-albaranes" element={protegida(<ImportadorAlbaranes />, true)} />
-        <Route path="/higiene/importador-albaranes-v3" element={protegida(<ImportadorAlbaranesV3 />, true)} />
-        <Route path="/higiene/albaranes" element={protegida(<Albaranes />, true)} />
-        <Route path="/higiene/albaran-manual" element={protegida(<AlbaranManual />, true)} />
-        <Route path="/dashboard" element={protegida(<Dashboard />, true)} />
-        <Route path="/clientes" element={protegida(<Clientes />)} />
-        <Route path="/clientes/:id" element={protegida(<FichaCliente />)} />
-        <Route path="/productos" element={protegida(<Productos />)} />
-        <Route path="/presupuestos" element={protegida(<Presupuestos />)} />
-        <Route path="/presupuestos-estandar" element={protegida(<PresupuestosEstandar />)} />
-        <Route path="/catering" element={protegida(<Catering />)} />
-        <Route path="/servicio-camareros" element={protegida(<Camareros />)} />
-        <Route path="/catering/email-presupuesto" element={protegida(<EmailPresupuesto />)} />
-        <Route path="/menaje" element={protegida(<Menaje />)} />
-        <Route path="/bebidas" element={protegida(<Bebidas />)} />
-        <Route path="/produccion" element={protegida(<Produccion />)} />
-        <Route path="/ingredientes" element={<Navigate to="/higiene/ingredientes" replace />} />
-        <Route path="/escandallos" element={<Navigate to="/higiene/escandallos" replace />} />
-        <Route path="/recetas" element={<Navigate to="/higiene/recetas" replace />} />
-        <Route path="/dietario" element={protegida(<DietarioAnual />, true)} />
-        <Route path="/horario-personal" element={protegida(<HorarioPersonal />, true)} />
-        <Route path="/personal-riesgos" element={<Navigate to="/higiene/personal-riesgos" replace />} />
-        <Route path="/proveedores" element={protegida(<Proveedores />, true)} />
-        <Route path="/catalogo-proveedores" element={protegida(<CatalogoProveedores />, true)} />
-        <Route path="/comparador-precios" element={protegida(<ComparadorPrecios />, true)} />
-        <Route path="/compras" element={protegida(<Compras />, true)} />
-        <Route path="/importar-albaranes" element={protegida(<ImportadorAlbaranes />, true)} />
-        <Route path="/importador-albaranes-v3" element={protegida(<ImportadorAlbaranesV3 />, true)} />
-        <Route path="/albaranes" element={protegida(<Albaranes />, true)} />
-        <Route path="/visitadores" element={protegida(<VisitadoresMedicos />, true)} />
-        <Route path="/visitadores/:id" element={protegida(<FichaVisitador />, true)} />
-        <Route path="/visitadores-medicos" element={protegida(<VisitadoresMedicos />, true)} />
-        <Route path="/visitadores-medicos/:id" element={protegida(<FichaVisitador />, true)} />
-        <Route path="/importar-emails" element={protegida(<ImportadorEmails />, true)} />
-        <Route path="/facturacion" element={protegida(<DatosFactura />, true)} />
-        <Route path="/estadisticas" element={protegida(<Estadisticas />, true)} />
-        <Route path="/configuracion" element={protegida(<ModuloPendiente titulo="Configuración" />, true)} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </HashRouter>
-  );
-}
+function Inicio() { const { usuario, rol, cargando, recuperandoClave } = useAuth(); if (cargando) return <div className="pantalla-carga">Preparando Cusachs Hub…</div>; if (!usuario) return <Navigate to="/acceso" replace />; if (recuperandoClave) return <Navigate to="/restablecer-clave" replace />; return <Navigate to={rol === "administrador" ? "/espacios" : "/catering"} replace />; }
+function MarcoERP({ children }) { const [menuAbierto, setMenuAbierto] = useState(false); return <div className="app"><button type="button" className="boton-menu-tablet" aria-label="Abrir menú principal" aria-expanded={menuAbierto} onClick={() => setMenuAbierto(true)}><span aria-hidden="true">☰</span> Menú</button><Sidebar abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} />{menuAbierto && <button type="button" className="fondo-menu-tablet" aria-label="Cerrar menú principal" onClick={() => setMenuAbierto(false)} />}<main className="contenido">{children}</main></div>; }
+const protegida = (componente, soloAdministrador = false) => <RutaProtegida soloAdministrador={soloAdministrador}><MarcoERP>{componente}</MarcoERP></RutaProtegida>;
+function App() { return <HashRouter><Routes>
+<Route path="/" element={<Inicio />} /><Route path="/acceso" element={<Acceso />} /><Route path="/restablecer-clave" element={<RestablecerClave />} /><Route path="/espacios" element={protegida(<Espacios />, true)} /><Route path="/higiene" element={protegida(<Higiene />, true)} /><Route path="/higiene/temperaturas" element={protegida(<Temperaturas />, true)} /><Route path="/higiene/limpieza" element={protegida(<Limpieza />, true)} /><Route path="/higiene/trazabilidad" element={protegida(<Trazabilidad />, true)} /><Route path="/higiene/incidencias" element={protegida(<Incidencias />, true)} /><Route path="/higiene/aceite" element={protegida(<Aceite />, true)} /><Route path="/higiene/agua" element={protegida(<Agua />, true)} /><Route path="/higiene/ibertrac" element={protegida(<Ibertrac />, true)} /><Route path="/higiene/control-recepcion" element={protegida(<ControlRecepcion />, true)} /><Route path="/higiene/preparacion-sanidad" element={protegida(<PreparacionSanidad />, true)} /><Route path="/higiene/registro-trimestral" element={protegida(<RegistroTrimestral />, true)} /><Route path="/higiene/ingredientes" element={protegida(<Ingredientes />, true)} /><Route path="/higiene/escandallos" element={protegida(<Escandallos />, true)} /><Route path="/higiene/recetas" element={protegida(<Recetas />, true)} /><Route path="/higiene/produccion-interna-pasteleria" element={protegida(<ProduccionInternaPasteleria />, true)} /><Route path="/higiene/alergenos" element={protegida(<Alergenos />, true)} /><Route path="/higiene/modelos-etiquetas" element={protegida(<ModelosEtiquetas />, true)} /><Route path="/higiene/personal-riesgos" element={protegida(<PersonalRiesgos />, true)} /><Route path="/higiene/proveedores" element={protegida(<Proveedores />, true)} /><Route path="/higiene/catalogo-proveedores" element={protegida(<CatalogoProveedores />, true)} /><Route path="/higiene/comparador-precios" element={protegida(<ComparadorPrecios />, true)} /><Route path="/higiene/compras" element={protegida(<Compras />, true)} /><Route path="/higiene/importar-albaranes" element={protegida(<ImportadorAlbaranes />, true)} /><Route path="/higiene/importador-albaranes-v3" element={protegida(<ImportadorAlbaranesV3 />, true)} /><Route path="/higiene/albaranes" element={protegida(<Albaranes />, true)} /><Route path="/higiene/albaran-manual" element={protegida(<AlbaranManual />, true)} />
+<Route path="/dashboard" element={protegida(<Dashboard />, true)} /><Route path="/clientes" element={protegida(<Clientes />)} /><Route path="/clientes/:id" element={protegida(<FichaCliente />)} /><Route path="/productos" element={protegida(<Productos />)} /><Route path="/presupuestos" element={protegida(<Presupuestos />)} /><Route path="/presupuestos-estandar" element={protegida(<PresupuestosEstandar />)} /><Route path="/catering" element={protegida(<Catering />)} /><Route path="/servicio-camareros" element={protegida(<Camareros />)} /><Route path="/catering/email-presupuesto" element={protegida(<EmailPresupuesto />)} /><Route path="/menaje" element={protegida(<Menaje />)} /><Route path="/bebidas" element={protegida(<Bebidas />)} /><Route path="/produccion" element={protegida(<Produccion />)} /><Route path="/ingredientes" element={<Navigate to="/higiene/ingredientes" replace />} /><Route path="/escandallos" element={<Navigate to="/higiene/escandallos" replace />} /><Route path="/recetas" element={<Navigate to="/higiene/recetas" replace />} /><Route path="/dietario" element={protegida(<DietarioAnual />, true)} /><Route path="/horario-personal" element={protegida(<HorarioPersonal />, true)} /><Route path="/personal-riesgos" element={<Navigate to="/higiene/personal-riesgos" replace />} /><Route path="/proveedores" element={protegida(<Proveedores />, true)} /><Route path="/catalogo-proveedores" element={protegida(<CatalogoProveedores />, true)} /><Route path="/comparador-precios" element={protegida(<ComparadorPrecios />, true)} /><Route path="/compras" element={protegida(<Compras />, true)} /><Route path="/importar-albaranes" element={protegida(<ImportadorAlbaranes />, true)} /><Route path="/importador-albaranes-v3" element={protegida(<ImportadorAlbaranesV3 />, true)} /><Route path="/albaranes" element={protegida(<Albaranes />, true)} /><Route path="/visitadores" element={protegida(<VisitadoresMedicos />, true)} /><Route path="/visitadores/:id" element={protegida(<FichaVisitador />, true)} /><Route path="/visitadores-medicos" element={protegida(<VisitadoresMedicos />, true)} /><Route path="/visitadores-medicos/:id" element={protegida(<FichaVisitador />, true)} /><Route path="/importar-emails" element={protegida(<ImportadorEmails />, true)} /><Route path="/facturacion" element={protegida(<DatosFactura />, true)} /><Route path="/estadisticas" element={protegida(<Estadisticas />, true)} /><Route path="/configuracion" element={protegida(<ModuloPendiente titulo="Configuración" />, true)} /><Route path="*" element={<Navigate to="/" replace />} />
+</Routes></HashRouter>; }
 export default App;

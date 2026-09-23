@@ -1,5 +1,5 @@
 // Producción Cusachs: mostrar la hora de preparación 1 hora antes del catering.
-// Excepción: los caterings de las 07:30 se mantienen a las 07:30.
+// Regla definitiva: nunca mostrar una hora de preparación anterior a las 07:30.
 
 function horaPreparacion(horaOriginal) {
   const coincidencia = String(horaOriginal || "").match(/(\d{1,2}):(\d{2})/);
@@ -7,9 +7,13 @@ function horaPreparacion(horaOriginal) {
 
   const horas = Number(coincidencia[1]);
   const minutos = Number(coincidencia[2]);
-  if (horas === 7 && minutos === 30) return "07:30";
+  const minutosCatering = horas * 60 + minutos;
+  const minimoPreparacion = 7 * 60 + 30;
+  const minutosPreparacion = Math.max(minimoPreparacion, minutosCatering - 60);
 
-  return `${String((horas + 23) % 24).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+  const hora = Math.floor(minutosPreparacion / 60);
+  const minuto = minutosPreparacion % 60;
+  return `${String(hora).padStart(2, "0")}:${String(minuto).padStart(2, "0")}`;
 }
 
 function aplicarHoraPreparacion() {
@@ -23,8 +27,6 @@ function aplicarHoraPreparacion() {
   });
 }
 
-// React crea la hoja de impresión después de cargar la pantalla. Observamos el DOM
-// para aplicar la regla también a contenido que aparezca o cambie posteriormente.
 let programado = false;
 const observador = new MutationObserver(() => {
   if (programado) return;

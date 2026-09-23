@@ -1,68 +1,85 @@
-/* Producción: impresión compacta de Obrador y Cocina en A5 */
+/* Producción Cusachs: Obrador/Cocina en A5 vertical, blanco y negro y letra legible */
 @media print {
-  /* La hoja diaria de zona usa una página nombrada para que prevalezca
-     sobre el @page A4 general definido en produccion.jsx. */
   body.imprimiendo-zona-diaria .zona-diaria-hoja-print,
   body.imprimiendo-zona-diaria .zona-diaria-pedido-print {
-    page: produccion-a5;
+    page: produccion-a5 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-print {
+    width: 100% !important;
+    max-width: none !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print {
+    gap: 8px !important;
+    padding-bottom: 7px !important;
+    border-bottom: 2px solid #000 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print strong {
+    font-size: 11px !important;
+    letter-spacing: 1px !important;
+    color: #000 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print h2 {
+    margin: 2px 0 0 !important;
+    font-size: 20px !important;
+    color: #000 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print > span {
+    font-size: 12px !important;
+    color: #000 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print {
+    margin-top: 7px !important;
+    padding: 7px 8px !important;
+    border: 1px solid #000 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print strong {
+    font-size: 15px !important;
+    color: #000 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print div span {
+    font-size: 12px !important;
+    color: #000 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print .zona-diaria-hora-catering-print {
+    margin-top: 4px !important;
+    font-size: 14px !important;
+    font-weight: 900 !important;
+    color: #000 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-lineas-print {
+    padding: 4px 8px !important;
+    border: 1px solid #000 !important;
+    border-top: 0 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-linea-print {
+    grid-template-columns: 20px 92px 1fr !important;
+    gap: 6px !important;
+    padding: 6px 0 !important;
+    border-bottom: 1px solid #aaa !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    color: #000 !important;
   }
 
   body.imprimiendo-zona-diaria .zona-diaria-linea-print small {
     display: none !important;
   }
 
-  /* Ajuste de tamaños para que la producción siga siendo legible en A5. */
-  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print {
-    gap: 10px !important;
-    padding-bottom: 6px !important;
-  }
-
-  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print strong {
-    font-size: 9px !important;
-    letter-spacing: 1px !important;
-  }
-
-  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print h2 {
-    margin-top: 2px !important;
-    font-size: 18px !important;
-  }
-
-  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print > span {
-    font-size: 11px !important;
-  }
-
-  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print {
-    margin-top: 6px !important;
-    padding: 6px 7px !important;
-  }
-
-  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print strong {
-    font-size: 13px !important;
-  }
-
-  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print div span {
-    font-size: 10px !important;
-  }
-
-  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print .zona-diaria-hora-catering-print {
-    margin-top: 3px !important;
-    font-size: 11px !important;
-  }
-
-  body.imprimiendo-zona-diaria .zona-diaria-lineas-print {
-    padding: 3px 7px !important;
-  }
-
-  body.imprimiendo-zona-diaria .zona-diaria-linea-print {
-    grid-template-columns: 18px 82px 1fr !important;
-    gap: 5px !important;
-    padding: 5px 0 !important;
-    font-size: 11px !important;
-    line-height: 1.2 !important;
-  }
-
   body.imprimiendo-zona-diaria .zona-diaria-check-print {
-    font-size: 13px !important;
+    font-size: 15px !important;
   }
 }
 

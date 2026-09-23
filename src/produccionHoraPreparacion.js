@@ -1,45 +1,49 @@
-// Ajusta únicamente la hora mostrada en la impresión diaria de Producción.
-// Regla Cusachs: preparar 1 hora antes del catering, excepto los caterings de las 07:30.
+// Producción Cusachs: mostrar la hora de preparación 1 hora antes del catering.
+// Excepción: los caterings de las 07:30 se mantienen a las 07:30.
 
 function horaPreparacion(horaOriginal) {
-  const coincidencia = String(horaOriginal || "").match(/^(\d{1,2}):(\d{2})/);
-  if (!coincidencia) return horaOriginal;
+  const coincidencia = String(horaOriginal || "").match(/(\d{1,2}):(\d{2})/);
+  if (!coincidencia) return "";
 
   const horas = Number(coincidencia[1]);
   const minutos = Number(coincidencia[2]);
-
   if (horas === 7 && minutos === 30) return "07:30";
 
-  const nuevaHora = (horas + 23) % 24;
-  return `${String(nuevaHora).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
+  return `${String((horas + 23) % 24).padStart(2, "0")}:${String(minutos).padStart(2, "0")}`;
 }
 
 function aplicarHoraPreparacion() {
-  document
-    .querySelectorAll(".zona-diaria-hora-catering-print")
-    .forEach((elemento) => {
-      if (!elemento.dataset.textoOriginal) {
-        elemento.dataset.textoOriginal = elemento.textContent || "";
-      }
+  document.querySelectorAll(".zona-diaria-hora-catering-print").forEach((elemento) => {
+    const texto = elemento.dataset.horaCatering || elemento.textContent || "";
+    const coincidencia = texto.match(/(\d{1,2}:\d{2})/);
+    if (!coincidencia) return;
 
-      const original = elemento.dataset.textoOriginal;
-      const coincidencia = original.match(/(\d{1,2}:\d{2})/);
-      if (!coincidencia) return;
-
-      const preparada = horaPreparacion(coincidencia[1]);
-      elemento.textContent = `Hora de preparación: ${preparada}`;
-    });
+    elemento.dataset.horaCatering = coincidencia[1];
+    elemento.textContent = `Hora de preparación: ${horaPreparacion(coincidencia[1])}`;
+  });
 }
 
-function restaurarHoraCatering() {
-  document
-    .querySelectorAll(".zona-diaria-hora-catering-print")
-    .forEach((elemento) => {
-      if (elemento.dataset.textoOriginal) {
-        elemento.textContent = elemento.dataset.textoOriginal;
-      }
-    });
+// React crea la hoja de impresión después de cargar la pantalla. Observamos el DOM
+// para aplicar la regla también a contenido que aparezca o cambie posteriormente.
+let programado = false;
+const observador = new MutationObserver(() => {
+  if (programado) return;
+  programado = true;
+  requestAnimationFrame(() => {
+    programado = false;
+    aplicarHoraPreparacion();
+  });
+});
+
+function iniciar() {
+  aplicarHoraPreparacion();
+  observador.observe(document.body, { childList: true, subtree: true });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+} else {
+  iniciar();
 }
 
 window.addEventListener("beforeprint", aplicarHoraPreparacion);
-window.addEventListener("afterprint", restaurarHoraCatering);

@@ -8,6 +8,7 @@ import './presupuestoFacturadoControl.js'
 import './finalizarFacturacionPresupuesto.js'
 import './datosFacturaSimplificado.js'
 import './historicoFacturacionFiltro.js'
+import './produccionPrintA4.css'
 import App from './App.jsx'
 import { AuthProvider } from './auth/AuthContext.jsx'
 

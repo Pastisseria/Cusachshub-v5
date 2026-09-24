@@ -4,13 +4,11 @@
 function horaPreparacion(horaOriginal) {
   const coincidencia = String(horaOriginal || "").match(/(\d{1,2}):(\d{2})/);
   if (!coincidencia) return "";
-
   const horas = Number(coincidencia[1]);
   const minutos = Number(coincidencia[2]);
   const minutosCatering = horas * 60 + minutos;
   const minimoPreparacion = 7 * 60 + 30;
   const minutosPreparacion = Math.max(minimoPreparacion, minutosCatering - 60);
-
   const hora = Math.floor(minutosPreparacion / 60);
   const minuto = minutosPreparacion % 60;
   return `${String(hora).padStart(2, "0")}:${String(minuto).padStart(2, "0")}`;
@@ -21,13 +19,12 @@ function aplicarHoraPreparacion() {
     const texto = elemento.dataset.horaCatering || elemento.textContent || "";
     const coincidencia = texto.match(/(\d{1,2}:\d{2})/);
     if (!coincidencia) return;
-
     elemento.dataset.horaCatering = coincidencia[1];
     elemento.textContent = `Hora de preparación: ${horaPreparacion(coincidencia[1])}`;
   });
 }
 
-function forzarA5Vertical() {
+function aplicarImpresionProduccion() {
   let estilo = document.getElementById("cusachs-produccion-a5-vertical");
   if (!estilo) {
     estilo = document.createElement("style");
@@ -35,19 +32,21 @@ function forzarA5Vertical() {
     document.head.appendChild(estilo);
   }
 
-  // Se inserta al final del <head> para que esta regla gane a los @page A4
-  // incluidos dentro de produccion.jsx, sin alterar el diseño de la ficha.
   estilo.textContent = `
     @media print {
       body.imprimiendo-zona-diaria .zona-diaria-hoja-print,
-      body.imprimiendo-zona-diaria .zona-diaria-pedido-print {
-        page: cusachs-produccion-a5;
-      }
+      body.imprimiendo-zona-diaria .zona-diaria-pedido-print { page: cusachs-produccion-a5 !important; }
+      body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print h2 { font-size: 31px !important; }
+      body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print strong { font-size: 16px !important; }
+      body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print > span { font-size: 20px !important; }
+      body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print strong { font-size: 22px !important; }
+      body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print div span { font-size: 18px !important; }
+      body.imprimiendo-zona-diaria .zona-diaria-hora-catering-print { font-size: 20px !important; font-weight: 800 !important; }
+      body.imprimiendo-zona-diaria .zona-diaria-linea-print { font-size: 20px !important; line-height: 1.28 !important; }
+      body.imprimiendo-zona-diaria .zona-diaria-linea-print small { font-size: 16px !important; }
+      body.imprimiendo-zona-diaria .zona-diaria-check-print { font-size: 23px !important; }
     }
-    @page cusachs-produccion-a5 {
-      size: A5 portrait;
-      margin: 7mm;
-    }
+    @page cusachs-produccion-a5 { size: A5 portrait; margin: 7mm; }
   `;
 }
 
@@ -58,23 +57,20 @@ const observador = new MutationObserver(() => {
   requestAnimationFrame(() => {
     programado = false;
     aplicarHoraPreparacion();
-    forzarA5Vertical();
+    aplicarImpresionProduccion();
   });
 });
 
 function iniciar() {
   aplicarHoraPreparacion();
-  forzarA5Vertical();
+  aplicarImpresionProduccion();
   observador.observe(document.body, { childList: true, subtree: true });
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", iniciar, { once: true });
-} else {
-  iniciar();
-}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+else iniciar();
 
 window.addEventListener("beforeprint", () => {
   aplicarHoraPreparacion();
-  forzarA5Vertical();
+  aplicarImpresionProduccion();
 });

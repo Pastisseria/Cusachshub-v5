@@ -20,17 +20,10 @@
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    page-break-before: always !important;
-    break-before: page !important;
     page-break-after: always !important;
     break-after: page !important;
     page-break-inside: avoid !important;
     break-inside: avoid-page !important;
-  }
-
-  body.imprimiendo-zona-diaria .zona-diaria-pedido-print:first-child {
-    page-break-before: auto !important;
-    break-before: auto !important;
   }
 
   body.imprimiendo-zona-diaria .zona-diaria-pedido-print:last-child {
@@ -47,6 +40,7 @@
   }
 
   body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print {
+    padding-top: 2mm !important;
     padding-bottom: 7px !important;
   }
 
@@ -60,12 +54,31 @@
   }
 
   body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print strong {
+    display: block !important;
+    max-width: 100% !important;
     font-size: 16px !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print > div {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print > span {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
   }
 
   body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print div span,
   body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print .zona-diaria-hora-catering-print {
     font-size: 13px !important;
+    white-space: normal !important;
+    overflow: visible !important;
   }
 
   body.imprimiendo-zona-diaria .zona-diaria-lineas-print {
@@ -86,6 +99,6 @@
 
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 10mm 8mm 8mm 8mm;
   }
 }

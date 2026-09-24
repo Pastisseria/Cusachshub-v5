@@ -38,15 +38,15 @@
     overflow: visible !important;
   }
 
-  /* Productos más grandes y legibles, manteniendo un cliente por hoja */
+  /* Productos a 18px */
   body.imprimiendo-zona-diaria .zona-diaria-linea-print,
   body.imprimiendo-zona-diaria .zona-diaria-linea-print strong {
-    font-size: 14px !important;
-    line-height: 1.12 !important;
+    font-size: 18px !important;
+    line-height: 1.08 !important;
   }
 
   body.imprimiendo-zona-diaria .zona-diaria-linea-print {
-    padding: 4px 0 !important;
+    padding: 3px 0 !important;
   }
 }
 

@@ -27,6 +27,30 @@ function aplicarHoraPreparacion() {
   });
 }
 
+function forzarA5Vertical() {
+  let estilo = document.getElementById("cusachs-produccion-a5-vertical");
+  if (!estilo) {
+    estilo = document.createElement("style");
+    estilo.id = "cusachs-produccion-a5-vertical";
+    document.head.appendChild(estilo);
+  }
+
+  // Se inserta al final del <head> para que esta regla gane a los @page A4
+  // incluidos dentro de produccion.jsx, sin alterar el diseño de la ficha.
+  estilo.textContent = `
+    @media print {
+      body.imprimiendo-zona-diaria .zona-diaria-hoja-print,
+      body.imprimiendo-zona-diaria .zona-diaria-pedido-print {
+        page: cusachs-produccion-a5;
+      }
+    }
+    @page cusachs-produccion-a5 {
+      size: A5 portrait;
+      margin: 7mm;
+    }
+  `;
+}
+
 let programado = false;
 const observador = new MutationObserver(() => {
   if (programado) return;
@@ -34,11 +58,13 @@ const observador = new MutationObserver(() => {
   requestAnimationFrame(() => {
     programado = false;
     aplicarHoraPreparacion();
+    forzarA5Vertical();
   });
 });
 
 function iniciar() {
   aplicarHoraPreparacion();
+  forzarA5Vertical();
   observador.observe(document.body, { childList: true, subtree: true });
 }
 
@@ -48,4 +74,7 @@ if (document.readyState === "loading") {
   iniciar();
 }
 
-window.addEventListener("beforeprint", aplicarHoraPreparacion);
+window.addEventListener("beforeprint", () => {
+  aplicarHoraPreparacion();
+  forzarA5Vertical();
+});

@@ -1,13 +1,51 @@
-/* Producción Cusachs: mantener el diseño actual y forzar SOLO A5 vertical */
+/* Producción Cusachs: A4 vertical, un cliente/pedido por hoja */
 @media print {
   body.imprimiendo-zona-diaria .zona-diaria-hoja-print,
   body.imprimiendo-zona-diaria .zona-diaria-pedido-print {
-    page: produccion-a5 !important;
+    page: produccion-a4 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-print {
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    break-inside: avoid-page !important;
+    page-break-inside: avoid !important;
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-print:last-child {
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-linea-print small {
+    display: none !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print h2 {
+    font-size: 20px !important;
+    line-height: 1.05 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print strong {
+    font-size: 14px !important;
+    line-height: 1.1 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-linea-print {
+    font-size: 12px !important;
+    line-height: 1.08 !important;
+    padding: 4px 0 !important;
   }
 }
 
-/* Regla de página fuera de @media para que Chrome la aplique al diálogo de impresión */
-@page produccion-a5 {
-  size: 148mm 210mm;
-  margin: 7mm;
+@page produccion-a4 {
+  size: A4 portrait;
+  margin: 8mm;
 }

@@ -90,23 +90,22 @@ function aplicarImpresionProduccion() {
       }
       body.imprimiendo-zona-diaria .zona-diaria-lineas-print { padding: 2px 7px !important; }
       body.imprimiendo-zona-diaria .zona-diaria-linea-print {
-        grid-template-columns: 18px 92px minmax(0, 1fr) !important;
-        gap: 5px !important;
-        padding: 4px 0 !important;
-        font-size: 12px !important;
+        grid-template-columns: 22px 105px minmax(0, 1fr) !important;
+        gap: 6px !important;
+        padding: 3px 0 !important;
+        font-size: 18px !important;
         line-height: 1.08 !important;
         break-inside: avoid !important;
         page-break-inside: avoid !important;
       }
       body.imprimiendo-zona-diaria .zona-diaria-linea-print strong {
-        font-size: 12px !important;
+        font-size: 18px !important;
         line-height: 1.08 !important;
       }
-      /* No imprimir observaciones/notas debajo del producto */
       body.imprimiendo-zona-diaria .zona-diaria-linea-print small {
         display: none !important;
       }
-      body.imprimiendo-zona-diaria .zona-diaria-check-print { font-size: 14px !important; }
+      body.imprimiendo-zona-diaria .zona-diaria-check-print { font-size: 18px !important; }
     }
     @page cusachs-produccion-a4 {
       size: A4 portrait;

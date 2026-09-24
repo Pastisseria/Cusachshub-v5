@@ -1,0 +1,91 @@
+/* Producción: impresión diaria en A4 vertical, un pedido por hoja */
+@media print {
+  body.imprimiendo-zona-diaria .zona-diaria-hoja-print {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedidos-print {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-print {
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-before: always !important;
+    break-before: page !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-print:first-child {
+    page-break-before: auto !important;
+    break-before: auto !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-print:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print,
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print,
+  body.imprimiendo-zona-diaria .zona-diaria-lineas-print,
+  body.imprimiendo-zona-diaria .zona-diaria-linea-print {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print {
+    padding-bottom: 7px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-titulo-pedido-print h2 {
+    font-size: 22px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print {
+    margin-top: 7px !important;
+    padding: 7px 9px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print strong {
+    font-size: 16px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print div span,
+  body.imprimiendo-zona-diaria .zona-diaria-pedido-cabecera-print .zona-diaria-hora-catering-print {
+    font-size: 13px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-lineas-print {
+    padding: 3px 9px !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-linea-print {
+    grid-template-columns: 22px 105px 1fr !important;
+    gap: 7px !important;
+    padding: 5px 0 !important;
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+  }
+
+  body.imprimiendo-zona-diaria .zona-diaria-linea-print small {
+    font-size: 11px !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+}

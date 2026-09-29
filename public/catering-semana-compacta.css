@@ -1,0 +1,98 @@
+/* Vista semanal de Catering: mostrar solo hora y cliente. */
+.catering-semana .catering-semana-evento small {
+  display: none !important;
+}
+
+.catering-semana .catering-semana-evento {
+  padding: 7px 8px !important;
+  gap: 2px !important;
+  min-height: 0 !important;
+}
+
+.catering-semana .catering-semana-evento > strong {
+  display: block !important;
+  margin: 0 0 2px !important;
+  line-height: 1.05 !important;
+}
+
+.catering-semana .catering-semana-cliente {
+  display: block !important;
+  margin: 0 !important;
+  line-height: 1.08 !important;
+}
+
+/* Impresion semanal: una sola hoja DIN A4 horizontal. */
+@media print {
+  body.imprimiendo-semana-catering #catering-semana-imprimible {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-titulo {
+    margin-bottom: 2mm !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-titulo h3 {
+    font-size: 14pt !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-titulo p,
+  body.imprimiendo-semana-catering .catering-semana-titulo strong {
+    font-size: 9pt !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-tabla {
+    grid-template-columns: 11mm repeat(7, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-dia-cabecera {
+    padding: 1mm .5mm !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-dia-cabecera strong,
+  body.imprimiendo-semana-catering .catering-semana-hora,
+  body.imprimiendo-semana-catering .catering-semana-hora-cabecera {
+    font-size: 8pt !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-dia-cabecera span {
+    font-size: 7pt !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-hora,
+  body.imprimiendo-semana-catering .catering-semana-hora-cabecera {
+    padding: .7mm .3mm !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-celda {
+    min-height: 7.5mm !important;
+    padding: .5mm !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-evento {
+    margin: 0 0 .5mm !important;
+    padding: .8mm !important;
+    border-radius: 1mm !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-evento > strong {
+    font-size: 8pt !important;
+    line-height: 1 !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-cliente {
+    margin-top: .2mm !important;
+    font-size: 7.5pt !important;
+    line-height: 1.05 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  body.imprimiendo-semana-catering .catering-semana-evento small {
+    display: none !important;
+  }
+}

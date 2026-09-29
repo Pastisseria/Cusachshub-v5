@@ -1,24 +1,11 @@
 import { useNavigate } from "react-router-dom";
 
 const modulosHigiene = [
-  [
-    "🩺",
-    "Preparación para Sanidad",
-    "Cuestionarios oficiales, carencias documentales y seguimiento de lo pendiente.",
-    "/higiene/preparacion-sanidad",
-  ],
-  [
-    "🌡️",
-    "Temperaturas",
-    "Registro de cámaras, congeladores y elaboraciones mediante PDF.",
-    "/higiene/temperaturas",
-  ],
-  [
-    "🧹",
-    "Limpieza y desinfección",
-    "Plan de tareas, responsables y comprobaciones.",
-    "/higiene/limpieza",
-  ],
+  ["🩺", "Preparación para Sanidad", "Cuestionarios oficiales, carencias documentales y seguimiento de lo pendiente.", "/higiene/preparacion-sanidad"],
+  ["🌡️", "Temperaturas", "Registro de cámaras, congeladores y elaboraciones mediante PDF.", "/higiene/temperaturas"],
+  ["🧹", "Limpieza y desinfección", "Plan de tareas, responsables y comprobaciones.", "/higiene/limpieza"],
+  ["🔧", "Plan de mantenimiento", "Mantenimiento preventivo de equipos, instalaciones y transporte.", "/higiene/plan-mantenimiento"],
+  ["🏷️", "Modelo de etiquetas", "Crear, guardar e imprimir etiquetas de materias primas y elaboraciones.", "/higiene/modelos-etiquetas"],
   ["📦", "Trazabilidad", "Control de lotes, materias primas y destino.", "/higiene/trazabilidad"],
   ["✅", "Control de recepción", "Fotos de albaranes convertidas y archivadas individualmente en PDF.", "/higiene/control-recepcion"],
   ["⚠️", "Incidencias", "Desviaciones detectadas y medidas correctoras.", "/higiene/incidencias"],
@@ -33,91 +20,15 @@ const modulosHigiene = [
 
 export default function Higiene() {
   const navigate = useNavigate();
-
-  return (
-    <div className="pagina-higiene">
-      <header className="cabecera-higiene">
-        <div>
-          <p className="etiqueta-acceso">ESPACIO PRIVADO · ADMINISTRADOR</p>
-          <h1>Bones pràctiques d’higiene</h1>
-          <p>El espacio de autocontrol de Pastisseria Cusachs.</p>
-        </div>
-        <span className="sello-higiene">🧼</span>
-      </header>
-
-      <section className="aviso-construccion">
-        <strong>Recepció i traçabilitat</strong>
-        <p>
-          Pots introduir els albarans manualment i crear un catàleg de productes
-          diferent per a cada proveïdor.
-        </p>
-      </section>
-
-      <div className="rejilla-higiene">
-        <article
-          className="tarjeta-higiene"
-          role="button"
-          tabIndex="0"
-          onClick={() => navigate("/higiene/albaran-manual")}
-          onKeyDown={(e) =>
-            e.key === "Enter" && navigate("/higiene/albaran-manual")
-          }
-          style={{ cursor: "pointer" }}
-        >
-          <span>📝</span>
-          <h2>Introduir albarà manual</h2>
-          <p>
-            Escull el proveïdor, busca els seus productes guardats o crea'n de
-            nous i guarda l'albarà.
-          </p>
-          <small style={{ fontWeight: 800 }}>OBRIR →</small>
-        </article>
-
-        <article
-          className="tarjeta-higiene"
-          role="button"
-          tabIndex="0"
-          onClick={() => navigate("/higiene/albaranes")}
-          onKeyDown={(e) => e.key === "Enter" && navigate("/higiene/albaranes")}
-          style={{ cursor: "pointer" }}
-        >
-          <span>📚</span>
-          <h2>Històric d’albarans</h2>
-          <p>
-            Consulta els albarans que ja tens guardats, tant manuals com llegits
-            automàticament.
-          </p>
-          <small style={{ fontWeight: 800 }}>OBRIR →</small>
-        </article>
-
-        <article
-          className="tarjeta-higiene"
-          role="button"
-          tabIndex="0"
-          onClick={() => navigate("/higiene/catalogo-proveedores")}
-          onKeyDown={(e) =>
-            e.key === "Enter" && navigate("/higiene/catalogo-proveedores")
-          }
-          style={{ cursor: "pointer" }}
-        >
-          <span>🗂️</span>
-          <h2>Productes per proveïdor</h2>
-          <p>
-            Consulta i edita el catàleg de productes que has anat guardant per a
-            cada proveïdor.
-          </p>
-          <small style={{ fontWeight: 800 }}>OBRIR →</small>
-        </article>
-
-        {modulosHigiene.map(([icono, titulo, descripcion, ruta]) => (
-          <article key={titulo} className="tarjeta-higiene" role="button" tabIndex="0" onClick={() => navigate(ruta)} onKeyDown={(e) => e.key === "Enter" && navigate(ruta)} style={{ cursor: "pointer" }}>
-            <span>{icono}</span>
-            <h2>{titulo}</h2>
-            <p>{descripcion}</p>
-            <small style={{ fontWeight: 800 }}>OBRIR →</small>
-          </article>
-        ))}
-      </div>
+  const tarjeta=(icono,titulo,descripcion,ruta)=><article key={titulo} className="tarjeta-higiene" role="button" tabIndex="0" onClick={()=>navigate(ruta)} onKeyDown={e=>e.key==="Enter"&&navigate(ruta)} style={{cursor:"pointer"}}><span>{icono}</span><h2>{titulo}</h2><p>{descripcion}</p><small style={{fontWeight:800}}>ABRIR →</small></article>;
+  return <div className="pagina-higiene">
+    <header className="cabecera-higiene"><div><p className="etiqueta-acceso">ESPACIO PRIVADO · ADMINISTRADOR</p><h1>Buenas Prácticas de Higiene</h1><p>El espacio de autocontrol de Pastisseria Cusachs.</p></div><span className="sello-higiene">🧼</span></header>
+    <section className="aviso-construccion"><strong>Recepción y trazabilidad</strong><p>Puedes introducir los albaranes manualmente y crear un catálogo de productos diferente para cada proveedor.</p></section>
+    <div className="rejilla-higiene">
+      {tarjeta("📝","Introducir albarán manual","Elige el proveedor, busca sus productos guardados o crea nuevos y guarda el albarán.","/higiene/albaran-manual")}
+      {tarjeta("📚","Histórico de albaranes","Consulta los albaranes guardados, tanto manuales como leídos automáticamente.","/higiene/albaranes")}
+      {tarjeta("🗂️","Productos por proveedor","Consulta y edita el catálogo de productos guardados para cada proveedor.","/higiene/catalogo-proveedores")}
+      {modulosHigiene.map(([i,t,d,r])=>tarjeta(i,t,d,r))}
     </div>
-  );
+  </div>;
 }

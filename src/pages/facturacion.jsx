@@ -177,7 +177,7 @@ function Facturacion() {
     setMensaje("");
   }
 
-  function editarFactura(factura) {
+  function esFacturaPendiente(factura) {\n    return (factura?.estado || "pendiente") === "pendiente";\n  }\n\n  function editarFactura(factura) {
     setFormulario({
       numero: factura.numero || "",
       fecha_factura: factura.fecha_factura || fechaActual(),
@@ -204,7 +204,7 @@ function Facturacion() {
     setMostrarFormulario(true);
   }
 
-  function duplicarFactura(factura) {
+  function añadirLineasFactura(factura) {\n    if (!esFacturaPendiente(factura)) {\n      setError("Solo se pueden añadir líneas a facturas pendientes.");\n      return;\n    }\n    editarFactura(factura);\n    setFormulario((anterior) => ({\n      ...anterior,\n      lineas: [...anterior.lineas, nuevaLinea()],\n    }));\n    setMensaje("Añade el nuevo concepto y pulsa Guardar cambios. Se mantendrán las líneas que ya tenía el pedido.");\n  }\n\n  function duplicarFactura(factura) {
     editarFactura(factura);
     setEditandoId(null);
     setFormulario((anterior) => ({
@@ -556,7 +556,7 @@ function Facturacion() {
           <div className="factura-barra-acciones no-imprimir">
             <div><strong>Factura abierta</strong><span>{facturaAbierta.nombre_cliente || "Sin datos de cliente"}</span></div>
             <div className="grupo-botones">
-              <button type="button" onClick={() => editarFactura(facturaAbierta)}>✏ Editar</button>
+              {esFacturaPendiente(facturaAbierta) && <button type="button" className="boton-principal" onClick={() => añadirLineasFactura(facturaAbierta)}>➕ Añadir línea</button>}<button type="button" onClick={() => editarFactura(facturaAbierta)}>✏ Editar</button>
               <button type="button" onClick={imprimirDocumento}>🖨 Imprimir / PDF</button>
               <button type="button" className="boton-cancelar" onClick={() => setFacturaAbierta(null)}>Cerrar</button>
             </div>
@@ -584,7 +584,7 @@ function Facturacion() {
                   <td>{etiquetaPago(factura.forma_pago)}</td>
                   <td><span className={`factura-estado ${factura.estado || "pendiente"}`}>{factura.estado || "pendiente"}</span></td>
                   <td><strong>{moneda(factura.total)}</strong></td>
-                  <td><div className="acciones"><button onClick={() => setFacturaAbierta(factura)}>👁 Abrir</button><button onClick={() => editarFactura(factura)}>✏ Editar</button><button onClick={() => duplicarFactura(factura)}>📋 Duplicar</button><button className="boton-peligro" onClick={() => eliminarFactura(factura)}>🗑</button></div></td>
+                  <td><div className="acciones"><button onClick={() => setFacturaAbierta(factura)}>👁 Abrir</button>{esFacturaPendiente(factura) && <button className="boton-principal" onClick={() => añadirLineasFactura(factura)}>➕ Añadir línea</button>}<button onClick={() => editarFactura(factura)}>✏ Editar</button><button onClick={() => duplicarFactura(factura)}>📋 Duplicar</button><button className="boton-peligro" onClick={() => eliminarFactura(factura)}>🗑</button></div></td>
                 </tr>
               ))}
               {!facturasFiltradas.length && <tr><td colSpan="7">No hay facturas.</td></tr>}

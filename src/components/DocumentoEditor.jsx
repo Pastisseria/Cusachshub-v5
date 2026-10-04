@@ -184,6 +184,7 @@ function DocumentoEditor({
   const [idioma, setIdioma] = useState("es");
 
   const [horaEntrega, setHoraEntrega] = useState("");
+  const [numeroPersonas, setNumeroPersonas] = useState("");
   const [direccionEntrega, setDireccionEntrega] = useState("");
   const [personaContacto, setPersonaContacto] = useState("");
   const [telefonoContacto, setTelefonoContacto] = useState("");
@@ -270,6 +271,7 @@ function DocumentoEditor({
     if (datos.cliente?.id) setClienteId(String(datos.cliente.id));
     if (datos.fecha) setFecha(datos.fecha);
     if (datos.hora) setHoraEntrega(datos.hora);
+    if (datos.personas) setNumeroPersonas(String(datos.personas));
     if (datos.idioma) setIdioma(datos.idioma);
 
     if (datos.lineas?.length) {
@@ -504,6 +506,7 @@ function DocumentoEditor({
     setEstado("Borrador");
     setIdioma("es");
     setHoraEntrega("");
+    setNumeroPersonas("");
     setDireccionEntrega("");
     setPersonaContacto("");
     setTelefonoContacto("");
@@ -650,6 +653,7 @@ function DocumentoEditor({
       estado,
       idioma,
       hora_entrega: horaEntrega || null,
+      numero_personas: tipoDocumento === "Catering" && numeroPersonas !== "" ? Math.max(0, Math.round(convertirNumero(numeroPersonas))) : null,
       direccion_entrega: direccionEntrega.trim() || null,
       persona_contacto: personaContacto.trim() || null,
       telefono_contacto: telefonoContacto.trim() || null,
@@ -831,6 +835,7 @@ function DocumentoEditor({
       setEstado(documento.estado || "Borrador");
       setIdioma(documento.idioma || "es");
       setHoraEntrega(documento.hora_entrega || "");
+      setNumeroPersonas(documento.numero_personas != null ? String(documento.numero_personas) : "");
       setDireccionEntrega(documento.direccion_entrega || "");
       setPersonaContacto(documento.persona_contacto || "");
       setTelefonoContacto(documento.telefono_contacto || "");
@@ -922,6 +927,7 @@ function DocumentoEditor({
       setEstado("Borrador");
       setIdioma(documento.idioma || "es");
       setHoraEntrega(documento.hora_entrega || "");
+      setNumeroPersonas(documento.numero_personas != null ? String(documento.numero_personas) : "");
       setDireccionEntrega(documento.direccion_entrega || "");
       setPersonaContacto(documento.persona_contacto || "");
       setTelefonoContacto(documento.telefono_contacto || "");
@@ -1017,36 +1023,48 @@ function DocumentoEditor({
 
   async function marcarEnviadoAFacturar(documento = documentoAbierto) {
     if (!documento) return;
+    if (documento.estado !== "Aceptado") {
+      setError("Primero debes aceptar el presupuesto.");
+      return;
+    }
 
     setFacturando(true);
     setError("");
     setMensaje("");
 
     try {
-      const cambiosPresupuesto = {
-        facturado_externamente: true,
-        fecha_facturacion: fechaActual(),
-        updated_at: new Date().toISOString(),
-      };
+      const fechaCatering = documento.fecha || fechaActual();
+      const [ano, mes, dia] = String(fechaCatering).slice(0, 10).split("-");
+      const fechaConcepto = ano && mes && dia ? `${dia}/${mes}/${ano}` : fechaCatering;
+      const personas = Number(documento.numero_personas || 0);
+      const concepto = `Servei de catering dia ${fechaConcepto}${personas > 0 ? ` per a ${personas} persones` : ""}`;
+      const cliente = documento.clientes || {};
 
-      const { error: errorPresupuesto } = await supabase
-        .from("presupuestos")
-        .update(cambiosPresupuesto)
-        .eq("id", documento.id);
-
-      if (errorPresupuesto) throw errorPresupuesto;
-
-      setDocumentoAbierto((anterior) =>
-        anterior?.id === documento.id
-          ? { ...anterior, ...cambiosPresupuesto }
-          : anterior,
+      sessionStorage.setItem(
+        "cusachs_presupuesto_pendiente_facturar",
+        JSON.stringify({
+          presupuestoId: documento.id,
+          numero: documento.numero || "",
+          fecha: fechaCatering,
+          numeroPersonas: personas || null,
+          concepto,
+          clienteId: documento.cliente_id || "",
+          nombreCliente: cliente.empresa || cliente.nombre || "",
+          cif: cliente.nif_cif || "",
+          direccion: cliente.direccion || "",
+          codigoPostal: cliente.codigo_postal || "",
+          poblacion: cliente.poblacion || "",
+          provincia: cliente.provincia || "",
+          email: cliente.email || "",
+          baseImponible: convertirNumero(documento.subtotal),
+          iva: convertirNumero(documento.iva_total),
+          total: convertirNumero(documento.total),
+        }),
       );
 
-      setMensaje("✅ Presupuesto marcado como enviado a facturar.");
-      await cargarDatos();
+      window.location.hash = "#/facturacion";
     } catch (err) {
-      setError(err?.message || "No se ha podido marcar como enviado a facturar.");
-    } finally {
+      setError(err?.message || "No se ha podido preparar el presupuesto para facturar.");
       setFacturando(false);
     }
   }
@@ -1313,6 +1331,7 @@ function DocumentoEditor({
       titulo: `${tituloCliente} · ${documento.numero || "Catering"}`,
       fecha: documento.fecha || fechaActual(),
       hora_inicio: documento.hora_entrega || null,
+      numero_personas: documento.numero_personas || 0,
       direccion: documento.direccion_entrega || cliente.direccion || null,
       poblacion: cliente.poblacion || null,
       codigo_postal: cliente.codigo_postal || null,
@@ -2047,6 +2066,21 @@ function DocumentoEditor({
                 disabled={guardando}
               />
             </label>
+
+            {tipoDocumento === "Catering" && (
+              <label>
+                N.º de personas
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={numeroPersonas}
+                  onChange={(event) => setNumeroPersonas(event.target.value)}
+                  placeholder="Ej. 25"
+                  disabled={guardando}
+                />
+              </label>
+            )}
 
             <label>
               Dirección de entrega

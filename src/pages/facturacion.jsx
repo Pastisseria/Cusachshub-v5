@@ -414,7 +414,31 @@ function Facturacion() {
       setFacturaAbierta(data);
       setMostrarFormulario(false);
       setEditandoId(null);
-      setMensaje(editandoId ? "Factura actualizada." : "Factura manual creada.");
+
+      let presupuestoPendiente = null;
+      try {
+        presupuestoPendiente = JSON.parse(sessionStorage.getItem("cusachs_presupuesto_pendiente_facturar") || "null");
+      } catch {
+        presupuestoPendiente = null;
+      }
+
+      if (!editandoId && presupuestoPendiente?.presupuestoId) {
+        const { error: errorPresupuesto } = await supabase
+          .from("presupuestos")
+          .update({
+            facturado_externamente: true,
+            fecha_facturacion: fechaActual(),
+            factura_id: data.id,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", presupuestoPendiente.presupuestoId);
+
+        if (errorPresupuesto) throw errorPresupuesto;
+        sessionStorage.removeItem("cusachs_presupuesto_pendiente_facturar");
+        setMensaje("Factura creada desde el presupuesto y presupuesto marcado como facturado.");
+      } else {
+        setMensaje(editandoId ? "Factura actualizada." : "Factura manual creada.");
+      }
     } catch (guardarError) {
       setError(guardarError.message || "No se ha podido guardar la factura.");
     } finally {

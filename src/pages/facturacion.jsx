@@ -78,7 +78,44 @@ function Facturacion() {
 
   useEffect(() => {
     cargarDatosIniciales();
+    cargarPresupuestoPendiente();
   }, []);
+
+  function cargarPresupuestoPendiente() {
+    let pendiente = null;
+    try {
+      pendiente = JSON.parse(sessionStorage.getItem("cusachs_presupuesto_pendiente_facturar") || "null");
+    } catch {
+      pendiente = null;
+    }
+    if (!pendiente?.presupuestoId) return;
+
+    setFormulario({
+      ...facturaVacia(),
+      fecha_factura: pendiente.fecha || fechaActual(),
+      cliente_id: pendiente.clienteId || "",
+      numero_pedido: pendiente.numero || "",
+      nombre_cliente: pendiente.nombreCliente || "",
+      cif: pendiente.cif || "",
+      direccion: pendiente.direccion || "",
+      codigo_postal: pendiente.codigoPostal || "",
+      poblacion: pendiente.poblacion || "",
+      provincia: pendiente.provincia || "",
+      email: pendiente.email || "",
+      detalle_concepto: pendiente.concepto || "",
+      lineas: [
+        nuevaLinea({
+          descripcion: pendiente.concepto || "Servei de catering",
+          cantidad: 1,
+          precio_unitario: pendiente.baseImponible ?? "",
+          iva: 10,
+        }),
+      ],
+    });
+    setEditandoId(null);
+    setMostrarFormulario(true);
+    setMensaje("Presupuesto cargado. Revisa los datos y guarda la factura para finalizar.");
+  }
 
   async function cargarDatosIniciales() {
     setCargando(true);

@@ -169,7 +169,7 @@ async function crearImportacion({ archivo, proveedorId, proveedorNombre, lectura
   return data;
 }
 
-export async function importarAlbaranCompletoIA({ archivo, proveedorId, proveedorNombre, lectura, analisis, lineas = [] }) {
+export async function importarAlbaranCompletoIA({ archivo, proveedorId, proveedorNombre, lectura, analisis, lineas = [], recargarAlFinal = true }) {
   if (!proveedorId) throw new Error("Falta el proveedor.");
   const importacion = await crearImportacion({ archivo, proveedorId, proveedorNombre, lectura, analisis, lineas });
   const resumen = { articulos_creados: 0, precios_actualizados: 0, precios_sin_cambios: 0, articulos_omitidos: 0, errores: [] };
@@ -202,9 +202,11 @@ export async function importarAlbaranCompletoIA({ archivo, proveedorId, proveedo
   }).eq("id", importacion.id).select().single();
   if (errorFinal) throw errorFinal;
 
-  limpiarLectorTrasImportacion(
-    `Albarán ${analisis.numero_albaran || ""} guardado correctamente. El lector está listo para el siguiente.`,
-  );
+  if (recargarAlFinal) {
+    limpiarLectorTrasImportacion(
+      `Albarán ${analisis.numero_albaran || ""} guardado correctamente. El lector está listo para el siguiente.`,
+    );
+  }
 
   return { importacion: final, resumen };
 }

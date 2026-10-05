@@ -3,6 +3,10 @@ import { supabase } from "../supabase.js";
 import { imagenAPdf } from "../services/imagenAPdf.js";
 import { crearPdfConSello } from "../services/selloRecepcionPdf.js";
 import { leerControlRecepcion } from "../services/lectorControlRecepcion.js";
+import { leerDocumentoInteligenteV3 } from "../services/lectorInteligenteV3.js";
+import { analizarDocumentoIA, recalcularDocumentoIA } from "../ai/parserIA.js";
+import { cargarCatalogoIA, compararLineasIA, ESTADOS_COMPARACION_IA } from "../services/comparadorIA.js";
+import { importarAlbaranCompletoIA } from "../services/actualizadorCatalogoIA.js";
 import "../styles/controlrecepcion.css";
 
 const HOY = new Date().toISOString().slice(0, 10);
@@ -19,6 +23,8 @@ export default function ControlRecepcion() {
   const [subiendo, setSubiendo] = useState(false);
   const [asignandoId, setAsignandoId] = useState(null);
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState("");
+  const [resumenCatalogo, setResumenCatalogo] = useState(null);
+  const [gastoMes, setGastoMes] = useState([]);
   const input = useRef(null);
   const cameraInput = useRef(null);
   const relecturas = useRef(new Set());
@@ -73,7 +79,7 @@ export default function ControlRecepcion() {
   }
 
   useEffect(() => { cargarProveedores(); }, []);
-  useEffect(() => { if (proveedores.length) cargar(); }, [proveedores]);
+  useEffect(() => { if (proveedores.length) { cargar(); cargarGastoMes(); } }, [proveedores]);
   useEffect(() => {
     function pegar(evento) {
       const pegados = [...(evento.clipboardData?.files || [])].filter((archivo) => archivo.type === "application/pdf" || archivo.type.startsWith("image/"));
@@ -92,10 +98,65 @@ export default function ControlRecepcion() {
     if (validos.length) setMensaje(`${validos.length} documento(s) añadido(s). Total en cola: ${archivos.length + validos.length}.`);
   }
 
+  async function actualizarCatalogoDesdeAlbaran(archivo) {
+    const lectura = await leerDocumentoInteligenteV3(archivo, {
+      proveedores,
+      onProgreso: ({ estado, progreso }) => setMensaje(`${estado} · ${Math.round(progreso || 0)}%`),
+    });
+    const analisis = analizarDocumentoIA(lectura);
+    const proveedorId = analisis.proveedor_id || lectura.proveedor_id || "";
+    if (!proveedorId) return { omitido: true, motivo: "Proveedor pendiente de asignar" };
+    const proveedor = proveedores.find((p) => String(p.id) === String(proveedorId));
+    const catalogo = await cargarCatalogoIA(proveedorId);
+    const comparadas = compararLineasIA(analisis.lineas || [], catalogo);
+    const seguras = comparadas.map((linea) => {
+      if (linea.estado_ia === ESTADOS_COMPARACION_IA.POSIBLE_COINCIDENCIA || linea.estado_ia === ESTADOS_COMPARACION_IA.REVISAR) {
+        return { ...linea, confirmado: false, crear_articulo: false, actualizar_precio: false };
+      }
+      return linea;
+    });
+    if (!seguras.length) return { omitido: true, motivo: "Sin artículos detectados" };
+    const totales = recalcularDocumentoIA(seguras);
+    const resultado = await importarAlbaranCompletoIA({
+      archivo,
+      proveedorId,
+      proveedorNombre: proveedor?.nombre || analisis.proveedor_nombre || "",
+      lectura,
+      analisis: { ...analisis, ...totales },
+      lineas: seguras,
+      recargarAlFinal: false,
+    });
+    return { ...resultado, proveedor: proveedor?.nombre || analisis.proveedor_nombre || "" };
+  }
+
+  async function cargarGastoMes() {
+    const inicio = new Date();
+    inicio.setDate(1);
+    const desde = inicio.toISOString().slice(0, 10);
+    const siguiente = new Date(inicio.getFullYear(), inicio.getMonth() + 1, 1).toISOString().slice(0, 10);
+    const { data, error } = await supabase.from("importaciones_albaran_v3")
+      .select("proveedor_id,proveedor_nombre,total,fecha_albaran")
+      .gte("fecha_albaran", desde).lt("fecha_albaran", siguiente)
+      .in("estado", ["importado", "importado_con_errores", "importado_pendiente_revision"]);
+    if (error) return;
+    const mapa = new Map();
+    for (const fila of data || []) {
+      const clave = fila.proveedor_id || fila.proveedor_nombre || "sin-proveedor";
+      const actual = mapa.get(clave) || { proveedor: fila.proveedor_nombre || "Sin proveedor", total: 0, albaranes: 0 };
+      actual.total += Number(fila.total || 0);
+      actual.albaranes += 1;
+      mapa.set(clave, actual);
+    }
+    setGastoMes([...mapa.values()].sort((a,b) => b.total - a.total));
+  }
+
   async function subirTodos() {
     if (!archivos.length) return setMensaje("Selecciona, arrastra o pega una foto o un PDF.");
     setSubiendo(true);
     let guardados = 0;
+    let creados = 0;
+    let actualizados = 0;
+    let pendientesCatalogo = 0;
     for (const archivo of archivos) {
       try {
         setMensaje(`Leyendo ${guardados + 1} de ${archivos.length}: ${archivo.name}`);
@@ -109,6 +170,18 @@ export default function ControlRecepcion() {
         const { error } = await supabase.from("higiene_control_recepcion").insert({ fecha_recepcion: lectura.fecha_recepcion || HOY, hora_recepcion: lectura.hora_recepcion || null, proveedor_id: proveedor?.id || null, proveedor: proveedor?.nombre || lectura.proveedor || null, responsable_recepcion: lectura.responsable_recepcion || null, temperatura: lectura.temperatura, estado_revision: lectura.estado_revision, nombre_original: archivo.name, archivo_nombre: pdf.name, archivo_ruta: ruta, controles: lectura.controles, sello_detectado: lectura.sello_detectado, lectura_automatica: lectura });
         if (error) { await supabase.storage.from("higiene-pdfs").remove([ruta]); throw error; }
         guardados += 1;
+        try {
+          setMensaje(`Actualizando artículos y precios de ${archivo.name}…`);
+          const catalogoResultado = await actualizarCatalogoDesdeAlbaran(archivo);
+          if (catalogoResultado?.resumen) {
+            creados += catalogoResultado.resumen.articulos_creados || 0;
+            actualizados += catalogoResultado.resumen.precios_actualizados || 0;
+            pendientesCatalogo += catalogoResultado.resumen.articulos_omitidos || 0;
+          } else if (catalogoResultado?.omitido) pendientesCatalogo += 1;
+        } catch (errorCatalogo) {
+          if (errorCatalogo?.codigo !== "ALBARAN_DUPLICADO") pendientesCatalogo += 1;
+          console.warn("No se pudo actualizar el catálogo desde Control de recepción:", errorCatalogo);
+        }
       } catch (error) {
         setMensaje(`Error en ${archivo.name}: ${error.message}. Continúo con los demás documentos…`);
       }
@@ -117,8 +190,9 @@ export default function ControlRecepcion() {
     if (input.current) input.current.value = "";
     if (cameraInput.current) cameraInput.current.value = "";
     setSubiendo(false);
-    setMensaje(`${guardados} documento(s) leído(s) y guardado(s). Los que ya tenían sello no se volverán a sellar.`);
-    await cargar();
+    setResumenCatalogo({ guardados, creados, actualizados, pendientes: pendientesCatalogo });
+    setMensaje(`${guardados} albarán(es) guardado(s) · ${creados} artículo(s) nuevo(s) · ${actualizados} precio(s) actualizado(s)${pendientesCatalogo ? ` · ${pendientesCatalogo} pendiente(s) de revisar` : ""}.`);
+    await Promise.all([cargar(), cargarGastoMes()]);
   }
 
   function revisar(registro) {
@@ -230,6 +304,8 @@ export default function ControlRecepcion() {
     <header><div><span>RECEPCIÓ DE MERCADERIES</span><h1>Control de recepción</h1><p>Pega, sube o arrastra un albarán y añade el sello de recepción al propio PDF.</p></div><strong>{pendientes} pendientes</strong></header>
     <section className="recepcion-upload"><label onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); agregarArchivos(e.dataTransfer.files); }}><input ref={input} type="file" multiple accept="image/*,application/pdf,.pdf" onChange={(e) => { agregarArchivos(e.target.files); e.target.value = ""; }} /><b>{archivos.length ? `${archivos.length} documentos seleccionados` : "Pegar, arrastrar o seleccionar fotos y PDF"}</b><small>En ordenador puedes pegar con Ctrl + V. En móvil pulsa aquí para elegir varios PDF o fotos.</small></label><div className="recepcion-mobile-actions"><button type="button" onClick={() => input.current?.click()}>📁 Elegir PDF o fotos</button><button type="button" onClick={() => cameraInput.current?.click()}>📷 Hacer foto</button><input ref={cameraInput} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => { agregarArchivos(e.target.files); e.target.value = ""; }} /></div>{archivos.length > 0 && <div className="recepcion-seleccion">{archivos.map((archivo, indice) => <span key={`${archivo.name}-${archivo.lastModified}-${indice}`}>📄 {archivo.name}</span>)}</div>}<button onClick={subirTodos} disabled={subiendo}>{subiendo ? `Procesando ${archivos.length} documento(s)…` : `Guardar documentos${archivos.length ? ` (${archivos.length})` : ""}`}</button></section>
     {mensaje && <p className="mensaje-control">{mensaje}</p>}
+    {resumenCatalogo && <section className="recepcion-resumen-catalogo"><strong>Última importación</strong><span>📄 {resumenCatalogo.guardados} albaranes</span><span>🆕 {resumenCatalogo.creados} artículos nuevos</span><span>💶 {resumenCatalogo.actualizados} precios actualizados</span>{resumenCatalogo.pendientes > 0 && <span>⚠️ {resumenCatalogo.pendientes} pendientes de revisar</span>}</section>}
+    {gastoMes.length > 0 && <section className="recepcion-gasto"><h2>Gasto por proveedor · mes actual</h2><div>{gastoMes.map((fila) => <article key={fila.proveedor}><strong>{fila.proveedor}</strong><span>{fila.albaranes} albarán(es)</span><b>{fila.total.toLocaleString("es-ES",{style:"currency",currency:"EUR"})}</b></article>)}</div></section>}
     {editando && <form className="recepcion-revision" onSubmit={guardarRevision}><div className="recepcion-form-title"><h2>{editando.proveedor_id ? "Completar y pegar sello" : "Asignar proveedor y revisar"}</h2><button type="button" onClick={() => setEditando(null)}>×</button></div><div className="recepcion-toolbar"><button type="button" onClick={todoConforme}>✓ Todo conforme</button><button type="button" onClick={() => abrir(editando, true)}>Ver albarán original</button></div><div className="recepcion-grid"><label>Fecha<input required type="date" value={form.fecha_recepcion} onChange={(e) => setForm({ ...form, fecha_recepcion: e.target.value })} /></label><label>Hora<input required type="time" value={form.hora_recepcion} onChange={(e) => setForm({ ...form, hora_recepcion: e.target.value })} /></label><label>Proveedor<select required value={form.proveedor_id} onChange={(e) => { const proveedor = proveedores.find((item) => item.id === e.target.value); setForm({ ...form, proveedor_id: e.target.value, proveedor: proveedor?.nombre || "" }); }}><option value="">Selecciona proveedor</option>{proveedores.map((proveedor) => <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre}</option>)}</select></label><label>Responsable<input required value={form.responsable_recepcion} onChange={(e) => setForm({ ...form, responsable_recepcion: e.target.value })} /></label><label>Temperatura °C<input type="number" step="0.1" value={form.temperatura} onChange={(e) => setForm({ ...form, temperatura: e.target.value })} /></label><label>Control temperatura<select value={form.temperatura_estado} onChange={(e) => setForm({ ...form, temperatura_estado: e.target.value })}><option value="conforme">Conforme</option><option value="no_conforme">No conforme</option></select></label><label>Resultado<select value={form.estado_revision} onChange={(e) => setForm({ ...form, estado_revision: e.target.value })}><option value="pendiente">Pendiente</option><option value="conforme">Aceptación</option><option value="incidencia">Devolución / incidencia</option></select></label><label>Posición del sello<select value={form.posicion_sello} onChange={(e) => setForm({ ...form, posicion_sello: e.target.value })}><option value="abajo_izquierda">Abajo izquierda</option><option value="abajo_derecha">Abajo derecha</option><option value="arriba_izquierda">Arriba izquierda</option><option value="arriba_derecha">Arriba derecha</option></select></label></div><div className="recepcion-checks">{CAMPOS_CONTROL.map(([clave, etiqueta]) => <label key={clave}>{etiqueta}<select value={form[clave]} onChange={(e) => setForm({ ...form, [clave]: e.target.value })}><option value="pendiente">Pendiente</option><option value="conforme">Conforme</option><option value="no_conforme">No conforme</option></select></label>)}</div><label>Observaciones<textarea rows="3" value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} /></label><button disabled={subiendo}>{subiendo ? "Guardando…" : editando.sello_detectado ? "Guardar proveedor y revisión" : "Guardar control y PDF sellado"}</button></form>}
     <section className="recepcion-lista"><h2>Documentos recibidos</h2>{registros.length === 0 ? <p>No hay documentos guardados.</p> : registros.map((registro) => <article key={registro.id}><div><span className={`recepcion-estado ${registro.estado_revision}`}>{registro.sello_detectado ? "LEÍDO" : registro.estado_revision}</span><strong>{registro.proveedor || "Proveedor pendiente"}</strong><small>{registro.fecha_recepcion}{registro.hora_recepcion ? ` · ${registro.hora_recepcion.slice(0, 5)}` : ""}{registro.responsable_recepcion ? ` · ${registro.responsable_recepcion}` : ""} · {registro.archivo_sellado_nombre || registro.archivo_nombre}</small></div><div className="recepcion-acciones"><button onClick={() => abrir(registro)}>{registro.archivo_sellado_ruta ? "Ver PDF sellado" : "Ver PDF"}</button>{!registro.sello_detectado && <button onClick={() => marcarSelladoExistente(registro)}>Ya está sellado</button>}{!registro.proveedor_id ? (asignandoId === registro.id ? <><select value={proveedorSeleccionado} onChange={(e) => setProveedorSeleccionado(e.target.value)}><option value="">Selecciona proveedor</option>{proveedores.map((proveedor) => <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre}</option>)}</select><button onClick={() => guardarProveedorDirecto(registro)}>Guardar proveedor</button><button onClick={() => { setAsignandoId(null); setProveedorSeleccionado(""); }}>Cancelar</button></> : <button onClick={() => iniciarAsignacion(registro)}>Asignar proveedor</button>) : registro.sello_detectado ? <button onClick={() => revisar(registro)}>Ver lectura</button> : <button onClick={() => revisar(registro)}>{registro.archivo_sellado_ruta ? "Modificar sello" : "Completar sello"}</button>}<button className="peligro" onClick={() => eliminar(registro)}>Eliminar</button></div></article>)}</section>
   </main>;

@@ -1,0 +1,1 @@
+.estado-conexion{position:fixed;right:14px;bottom:14px;z-index:9999;padding:8px 12px;border-radius:999px;font:600 13px/1.2 system-ui,sans-serif;box-shadow:0 2px 10px #0002;background:#fff}.estado-conexion.online{color:#287a45}.estado-conexion.offline{color:#8a5b00;background:#fff6dc}@media print{.estado-conexion{display:none!important}}

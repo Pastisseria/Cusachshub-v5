@@ -88,7 +88,7 @@ function Facturacion() {
     } catch {
       pendiente = null;
     }
-    if (!pendiente?.presupuestoId) return;
+    if (!pendiente?.presupuestoId && !pendiente?.facturaManualId) return;
 
     setFormulario({
       ...facturaVacia(),
@@ -103,14 +103,23 @@ function Facturacion() {
       provincia: pendiente.provincia || "",
       email: pendiente.email || "",
       detalle_concepto: pendiente.concepto || "",
-      lineas: [
-        nuevaLinea({
-          descripcion: pendiente.concepto || "Servei de catering",
-          cantidad: 1,
-          precio_unitario: pendiente.baseImponible ?? "",
-          iva: 10,
-        }),
-      ],
+      lineas: Array.isArray(pendiente.lineas) && pendiente.lineas.length
+        ? pendiente.lineas.map((linea) =>
+            nuevaLinea({
+              descripcion: linea.descripcion || pendiente.concepto || "Concepto",
+              cantidad: linea.cantidad ?? 1,
+              precio_unitario: linea.precio_unitario ?? "",
+              iva: linea.iva ?? 10,
+            }),
+          )
+        : [
+            nuevaLinea({
+              descripcion: pendiente.concepto || "Servei de catering",
+              cantidad: 1,
+              precio_unitario: pendiente.baseImponible ?? "",
+              iva: 10,
+            }),
+          ],
     });
     setEditandoId(null);
     setMostrarFormulario(true);

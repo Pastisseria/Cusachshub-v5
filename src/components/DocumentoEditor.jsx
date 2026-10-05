@@ -773,9 +773,11 @@ function DocumentoEditor({
 
       documentoGuardado = documentoFinal;
 
+      const eraEdicion = Boolean(documentoEditando);
+
       setMensaje(
-        documentoEditando
-          ? `Documento ${numero} actualizado correctamente.`
+        eraEdicion
+          ? `Documento ${numero} actualizado correctamente. Ya puedes pasarlo a factura.`
           : `Documento ${numero} guardado correctamente.`,
       );
 
@@ -787,6 +789,26 @@ function DocumentoEditor({
       setObservaciones("");
       setTransporte("");
       setTransporteIva("10");
+
+      if (eraEdicion) {
+        const clienteActualizado =
+          clientes.find((cliente) => String(cliente.id) === String(documentoGuardado.cliente_id)) ||
+          documentoEditando?.clientes ||
+          null;
+
+        setDocumentoAbierto({
+          ...documentoEditando,
+          ...documentoGuardado,
+          clientes: clienteActualizado,
+        });
+        setLineasAbiertas(
+          datosLineas.map((linea, indice) => ({
+            id: `editada-${documentoGuardado.id}-${indice}`,
+            ...linea,
+          })),
+        );
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
 
       await cargarDatos();
     } catch (err) {

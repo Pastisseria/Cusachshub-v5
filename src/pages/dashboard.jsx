@@ -24,7 +24,7 @@ export default function Dashboard() {
       const fin = `${anio}-${mm}-${String(ultimo).padStart(2,"0")}`;
       const [pRes, fRes] = await Promise.all([
         supabase.from("presupuestos").select("id,numero,fecha,estado,tipo_documento,subtotal,iva_total,total,facturado_externamente,fecha_facturacion,factura_id,cliente_id,clientes(id,nombre,empresa)").gte("fecha",inicio).lte("fecha",fin).order("fecha",{ascending:true}),
-        supabase.from("facturas").select("id,numero,presupuesto_id,fecha_factura,total,estado,nombre_cliente,fecha_pago")
+        supabase.from("facturas").select("id,numero,presupuesto_id,fecha_factura,total,estado,nombre_cliente,fecha_pago").gte("fecha_factura",inicio).lte("fecha_factura",fin)
       ]);
       if (pRes.error) throw pRes.error;
       if (fRes.error) throw fRes.error;
@@ -42,14 +42,23 @@ export default function Dashboard() {
     });
   }, [presupuestos, facturas]);
 
-  const resumen = useMemo(() => ({
-    presupuestados: filas.length,
-    aceptados: filas.filter(p => ["Facturado","Aceptado · pendiente de facturar"].includes(p.estadoControl)).length,
-    pendientes: filas.filter(p => p.estadoControl === "Aceptado · pendiente de facturar").length,
-    facturados: filas.filter(p => p.estadoControl === "Facturado").length,
-    cancelados: filas.filter(p => p.estadoControl === "Cancelado").length,
-    dinero: facturas.reduce((s,f) => s + Number(f.total || 0), 0)
-  }), [filas, facturas]);
+  const resumen = useMemo(() => {
+    const facturasValidas = facturas.filter(f => normalizar(f.estado) !== "anulada");
+    const dinero = facturasValidas.reduce((s,f) => s + Number(f.total || 0), 0);
+    const cobrado = facturasValidas
+      .filter(f => normalizar(f.estado) === "pagada" || Boolean(f.fecha_pago))
+      .reduce((s,f) => s + Number(f.total || 0), 0);
+    return {
+      presupuestados: filas.length,
+      aceptados: filas.filter(p => ["Facturado","Aceptado · pendiente de facturar"].includes(p.estadoControl)).length,
+      pendientes: filas.filter(p => p.estadoControl === "Aceptado · pendiente de facturar").length,
+      facturados: filas.filter(p => p.estadoControl === "Facturado").length,
+      cancelados: filas.filter(p => p.estadoControl === "Cancelado").length,
+      dinero,
+      cobrado,
+      pendienteCobro: Math.max(0, dinero - cobrado)
+    };
+  }, [filas, facturas]);
 
   const visibles = filas.filter(p => filtro === "todos" || (filtro === "pendientes" && p.estadoControl === "Aceptado · pendiente de facturar") || (filtro === "facturados" && ["Facturado","Pagado"].includes(p.estadoControl)) || (filtro === "cancelados" && p.estadoControl === "Cancelado"));
 

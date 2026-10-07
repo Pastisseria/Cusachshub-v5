@@ -38,7 +38,7 @@ export default function Dashboard() {
     const mapa = new Map(facturas.filter(f => f.presupuesto_id).map(f => [String(f.presupuesto_id), f]));
     return presupuestos.map(p => {
       const factura = mapa.get(String(p.id)) || null;
-      return {...p, factura, estadoControl: factura ? "Facturado" : obtenerEstado(p)};
+      return {...p, factura, estadoControl: factura ? "Facturado" : obtenerEstadoReal(p)};
     });
   }, [presupuestos, facturas]);
 

@@ -145,7 +145,7 @@ function Catering() {
     const ids = presupuestosCatering.map((presupuesto) => presupuesto.id);
     const { data: existentes, error: errorExistentes } = await supabase
       .from("caterings")
-      .select("id, presupuesto_id, estado")
+      .select("id, presupuesto_id")
       .in("presupuesto_id", ids);
     if (errorExistentes) throw errorExistentes;
 
@@ -155,39 +155,8 @@ function Catering() {
         catering,
       ]),
     );
-    const pendientes = presupuestosCatering.filter(
-      (presupuesto) => !existentesPorPresupuesto.has(String(presupuesto.id)),
-    );
 
-    const actualizaciones = presupuestosCatering
-      .map((presupuesto) => {
-        const catering = existentesPorPresupuesto.get(String(presupuesto.id));
-        const estado = estadoCateringDesdePresupuesto(presupuesto.estado);
-        return catering && catering.estado !== estado
-          ? { id: catering.id, estado }
-          : null;
-      })
-      .filter(Boolean);
-
-    if (actualizaciones.length > 0) {
-      const resultados = await Promise.all(
-        actualizaciones.map((catering) =>
-          supabase
-            .from("caterings")
-            .update({
-              estado: catering.estado,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", catering.id),
-        ),
-      );
-      const resultadoConError = resultados.find((resultado) => resultado.error);
-      if (resultadoConError?.error) throw resultadoConError.error;
-    }
-
-    if (!pendientes.length) return;
-
-    const nuevosCaterings = pendientes.map((presupuesto) => {
+    function datosCateringDesdePresupuesto(presupuesto) {
       const cliente = presupuesto.clientes || {};
       const esVisitador = presupuesto.tipo_documento === "Visitador médico";
       const nombre = esVisitador
@@ -196,6 +165,7 @@ function Catering() {
       const titulo = esVisitador && presupuesto.laboratorio
         ? `${nombre} · ${presupuesto.laboratorio}`
         : `${nombre} · ${presupuesto.numero || presupuesto.tipo_documento}`;
+
       return {
         cliente_id: presupuesto.cliente_id || null,
         presupuesto_id: presupuesto.id,
@@ -216,7 +186,38 @@ function Catering() {
         observaciones: presupuesto.observaciones || null,
         updated_at: new Date().toISOString(),
       };
-    });
+    }
+
+    // Los caterings vinculados deben reflejar siempre los datos actuales
+    // del presupuesto. Así, si cambia la fecha, desaparece del día antiguo.
+    const actualizaciones = presupuestosCatering
+      .map((presupuesto) => {
+        const catering = existentesPorPresupuesto.get(String(presupuesto.id));
+        return catering
+          ? { id: catering.id, datos: datosCateringDesdePresupuesto(presupuesto) }
+          : null;
+      })
+      .filter(Boolean);
+
+    if (actualizaciones.length > 0) {
+      const resultados = await Promise.all(
+        actualizaciones.map(({ id, datos }) =>
+          supabase
+            .from("caterings")
+            .update(datos)
+            .eq("id", id),
+        ),
+      );
+      const resultadoConError = resultados.find((resultado) => resultado.error);
+      if (resultadoConError?.error) throw resultadoConError.error;
+    }
+
+    const pendientes = presupuestosCatering.filter(
+      (presupuesto) => !existentesPorPresupuesto.has(String(presupuesto.id)),
+    );
+    if (!pendientes.length) return;
+
+    const nuevosCaterings = pendientes.map(datosCateringDesdePresupuesto);
 
     const { error: errorInsercion } = await supabase
       .from("caterings")

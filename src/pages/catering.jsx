@@ -2138,6 +2138,132 @@ const ESTILOS_CATERING = `
       display: block;
     }
   }
+
+  @media print {
+    @page {
+      size: A4 landscape;
+      margin: 6mm;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: auto;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: visible !important;
+      background: #ffffff !important;
+    }
+
+    body.imprimiendo-semana-catering * {
+      visibility: hidden !important;
+    }
+
+    body.imprimiendo-semana-catering #catering-semana-imprimible,
+    body.imprimiendo-semana-catering #catering-semana-imprimible * {
+      visibility: visible !important;
+    }
+
+    body.imprimiendo-semana-catering #catering-semana-imprimible {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: visible !important;
+      break-inside: avoid-page !important;
+      page-break-inside: avoid !important;
+      color: #000 !important;
+      background: #fff !important;
+    }
+
+    body.imprimiendo-semana-catering .no-imprimir {
+      display: none !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-titulo {
+      margin: 0 0 3mm !important;
+      padding: 0 !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-titulo p {
+      margin: 0 !important;
+      font-size: 7pt !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-titulo h3 {
+      margin: 0 !important;
+      font-size: 12pt !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-titulo strong {
+      font-size: 9pt !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-tabla {
+      width: 100% !important;
+      max-width: none !important;
+      overflow: visible !important;
+      font-size: 7pt !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-hora-cabecera,
+    body.imprimiendo-semana-catering .catering-semana-dia-cabecera,
+    body.imprimiendo-semana-catering .catering-semana-hora,
+    body.imprimiendo-semana-catering .catering-semana-celda {
+      min-height: 0 !important;
+      padding: 2px 3px !important;
+      border-color: #777 !important;
+      color: #000 !important;
+      background: #fff !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-fila {
+      min-height: 0 !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-evento {
+      min-height: 0 !important;
+      margin: 1px 0 !important;
+      padding: 2px !important;
+      gap: 0 !important;
+      border: 1px solid #777 !important;
+      border-radius: 2px !important;
+      color: #000 !important;
+      background: #fff !important;
+      box-shadow: none !important;
+      line-height: 1.05 !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-evento strong,
+    body.imprimiendo-semana-catering .catering-semana-cliente {
+      display: inline !important;
+      width: auto !important;
+      overflow: visible !important;
+      font-size: 7pt !important;
+      text-overflow: clip !important;
+      white-space: normal !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-evento small {
+      display: none !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-evento small:has(+ *) {
+      display: none !important;
+    }
+
+    body.imprimiendo-semana-catering .catering-semana-evento small:nth-of-type(4) {
+      display: block !important;
+      font-size: 6pt !important;
+      line-height: 1.05 !important;
+    }
+  }
+
 `;
 
 export default Catering;

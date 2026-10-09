@@ -2122,6 +2122,18 @@ function DocumentoEditor({
               </label>
             )}
 
+            {tipoDocumento === "Catering" && (
+              <div style={{ gridColumn: "1 / -1", padding: "14px 18px", border: "1px solid #ddd", borderRadius: 10, background: "#faf8fc" }}>
+                <strong>Control interno · Precio por persona</strong>
+                <p style={{ margin: "8px 0" }}>
+                  {Number(numeroPersonas) > 0
+                    ? `${(totales.subtotal / Number(numeroPersonas)).toLocaleString("es-ES", { style: "currency", currency: "EUR" })} por persona (sin IVA)`
+                    : "Indica el número de personas para calcular el precio por persona."}
+                </p>
+                <small>Solo visible en el editor. No aparece en el presupuesto ni en su PDF.</small>
+              </div>
+            )}
+
             <label>
               Dirección de entrega
               <input

@@ -793,49 +793,9 @@ function Catering() {
                               {obtenerClienteEvento(evento)}
                             </span>
 
-                            <small className="catering-semana-estado">
-                              Estado: {evento.estado || "Pendiente"}
-                            </small>
-
-                            {Number(evento.numero_personas || 0) > 0 && (
-                              <small>
-                                Personas: {evento.numero_personas}
-                              </small>
-                            )}
-
-                            {evento.tipo_servicio && (
-                              <small>
-                                Servicio: {evento.tipo_servicio}
-                              </small>
-                            )}
-
                             {evento.direccion && (
-                              <small>
-                                Dirección: {evento.direccion}
-                              </small>
-                            )}
-
-                            {evento.responsable && (
-                              <small>
-                                Responsable: {evento.responsable}
-                              </small>
-                            )}
-
-                            {evento.transporte_tipo && (
-                              <small>
-                                Transporte: {evento.transporte_tipo}
-                              </small>
-                            )}
-
-                            {evento.telefono_contacto && (
-                              <small>
-                                Tel.: {evento.telefono_contacto}
-                              </small>
-                            )}
-
-                            {obtenerNumeroPresupuesto(evento) && (
-                              <small>
-                                Presupuesto: {obtenerNumeroPresupuesto(evento)}
+                              <small className="catering-semana-direccion">
+                                {evento.direccion}
                               </small>
                             )}
                           </button>
@@ -2137,6 +2097,50 @@ const ESTILOS_CATERING = `
     .calendario-evento strong {
       display: block;
     }
+  }
+
+
+  /* Agenda semanal compacta: 7 dias, 07:00–16:00, como la plantilla impresa. */
+  .catering-semana-tabla {
+    display: grid;
+    grid-template-columns: 58px repeat(7, minmax(0, 1fr));
+    width: 100%;
+    border-top: 1px solid #bdbdbd;
+    border-left: 1px solid #bdbdbd;
+  }
+  .catering-semana-fila { display: contents; }
+  .catering-semana-hora-cabecera,
+  .catering-semana-dia-cabecera,
+  .catering-semana-hora,
+  .catering-semana-celda {
+    box-sizing: border-box;
+    min-width: 0;
+    border-right: 1px solid #bdbdbd;
+    border-bottom: 1px solid #bdbdbd;
+  }
+  .catering-semana-dia-cabecera { padding: 8px 2px; text-align: center; background: #f8f8f8; }
+  .catering-semana-dia-cabecera strong { display: block; }
+  .catering-semana-hora { padding: 8px 3px; font-weight: 800; }
+  .catering-semana-celda { min-height: 62px; padding: 3px; }
+  .catering-semana-evento { box-sizing: border-box; min-width: 0; margin-bottom: 3px; padding: 4px; border-radius: 1px; box-shadow: none; }
+  .catering-semana-evento strong { font-size: 11px; }
+  .catering-semana-cliente { font-size: 11px; white-space: normal; overflow-wrap: anywhere; }
+  .catering-semana-direccion { font-size: 9px; }
+  @media print {
+    body.imprimiendo-semana-catering #catering-semana-imprimible { width: 100% !important; }
+    body.imprimiendo-semana-catering .catering-semana-tabla {
+      display: grid !important;
+      grid-template-columns: 12mm repeat(7, minmax(0, 1fr)) !important;
+      width: 100% !important;
+      break-inside: avoid !important;
+    }
+    body.imprimiendo-semana-catering .catering-semana-fila { display: contents !important; }
+    body.imprimiendo-semana-catering .catering-semana-celda { min-height: 15mm !important; padding: 1mm !important; }
+    body.imprimiendo-semana-catering .catering-semana-dia-cabecera { background: #f8f8f8 !important; }
+    body.imprimiendo-semana-catering .catering-semana-evento { display: block !important; padding: 1mm !important; margin: 0 0 1mm !important; }
+    body.imprimiendo-semana-catering .catering-semana-evento strong,
+    body.imprimiendo-semana-catering .catering-semana-cliente { display: block !important; font-size: 7pt !important; line-height: 1.1 !important; }
+    body.imprimiendo-semana-catering .catering-semana-evento small.catering-semana-direccion { display: block !important; font-size: 6pt !important; }
   }
 
   @media print {

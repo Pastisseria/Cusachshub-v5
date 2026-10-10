@@ -1141,7 +1141,11 @@ function Produccion() {
                 </span>
               </div>
 
-              <div className="barra-semanal-grid">
+              <div className="barra-semanal-grid" style={{ gridTemplateColumns: diasSemanaBarra.map((dia) => {
+                const pedidos = Object.values(produccionBarraSemana[dia.fecha] || {});
+                const lineas = pedidos.reduce((total, pedido) => total + (pedido.lineas?.length || 0), 0);
+                return pedidos.length === 0 ? "0.65fr" : `${Math.min(2.8, 1.2 + lineas * 0.13 + pedidos.length * 0.1)}fr`;
+              }).join(" ") }}>
                 {diasSemanaBarra.map((dia) => {
                   const pedidosDia = Object.values(
                     produccionBarraSemana[dia.fecha] || {},
@@ -3186,6 +3190,12 @@ const ESTILOS_PRODUCCION = `
     }
   }
 
+  /* Distribución flexible también en la vista previa. */
+  .barra-semanal-grid { width: 100%; }
+  .barra-semanal-dia { min-width: 0; }
+  .barra-semanal-linea { grid-template-columns: 15px 25px minmax(0,1fr); gap: 3px; }
+  .barra-semanal-producto, .barra-producto { overflow-wrap: break-word; word-break: normal; }
+
   @media print {
     body.imprimiendo-barra-semanal * {
       visibility: hidden !important;
@@ -3197,21 +3207,55 @@ const ESTILOS_PRODUCCION = `
     }
 
     body.imprimiendo-barra-semanal .barra-semanal-hoja {
-      position: fixed;
-      inset: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
+      max-width: 100%;
       height: auto;
+      overflow: visible;
       border: 0;
       border-radius: 0;
+      box-shadow: none;
+      background: white;
     }
 
     body.imprimiendo-barra-semanal .barra-semanal-grid {
-      grid-template-columns: repeat(7, 1fr);
+      display: grid !important;
+      width: 100%;
+      /* Respetar los anchos dinámicos calculados por día. */
     }
 
     body.imprimiendo-barra-semanal .barra-semanal-dia {
       min-height: 0;
+      min-width: 0;
+      break-inside: avoid;
     }
+    body.imprimiendo-barra-semanal .barra-semanal-titulo-print {
+      padding: 4px 8px 6px;
+      background: white;
+    }
+    body.imprimiendo-barra-semanal .barra-semanal-titulo-print h2 { font-size: 16px; }
+    body.imprimiendo-barra-semanal .barra-semanal-titulo-print strong { font-size: 8px; }
+    body.imprimiendo-barra-semanal .barra-semanal-dia-cabecera { padding: 5px 2px; }
+    body.imprimiendo-barra-semanal .barra-semanal-dia-cabecera strong { font-size: 10px; }
+    body.imprimiendo-barra-semanal .barra-semanal-dia-cabecera span { font-size: 9px; }
+    body.imprimiendo-barra-semanal .barra-semanal-vacio { padding: 9px 2px; font-size: 8px; }
+    body.imprimiendo-barra-semanal .barra-semanal-pedido { padding: 5px 4px; }
+    body.imprimiendo-barra-semanal .barra-semanal-pedido-cabecera { margin-bottom: 3px; }
+    body.imprimiendo-barra-semanal .barra-semanal-pedido-cabecera strong { font-size: 10px; }
+    body.imprimiendo-barra-semanal .barra-semanal-pedido-cabecera span { font-size: 8px; }
+    body.imprimiendo-barra-semanal .barra-semanal-lineas { gap: 2px; }
+    body.imprimiendo-barra-semanal .barra-semanal-linea {
+      grid-template-columns: 11px 20px minmax(0,1fr);
+      gap: 2px;
+      font-size: 9px;
+      line-height: 1.18;
+    }
+    body.imprimiendo-barra-semanal .barra-check { font-size: 11px; }
+    body.imprimiendo-barra-semanal .barra-producto { overflow-wrap: break-word; }
+    body.imprimiendo-barra-semanal .barra-semanal-hoja,
+    body.imprimiendo-barra-semanal .barra-semanal-grid { break-inside: avoid; }
 
     @page {
       size: A4 landscape;

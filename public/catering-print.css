@@ -277,3 +277,36 @@
     line-height: 1.15 !important;
   }
 }
+
+/* Conservar colores de estado en la impresion semanal. */
+@media print {
+  body.imprimiendo-semana-catering .catering-semana-evento {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body.imprimiendo-semana-catering .catering-semana-evento.estado-confirmado {
+    background: #dcecff !important;
+    color: #174b83 !important;
+    border: 1px solid #5185ba !important;
+  }
+  body.imprimiendo-semana-catering .catering-semana-evento.estado-pendiente {
+    background: #fff0bd !important;
+    color: #78510b !important;
+    border: 1px dashed #b78927 !important;
+  }
+  body.imprimiendo-semana-catering .catering-semana-evento.estado-realizado {
+    background: #dff2e4 !important;
+    color: #24683d !important;
+    border: 1px solid #6da27a !important;
+  }
+  body.imprimiendo-semana-catering .catering-semana-evento.estado-cancelado {
+    background: #fbe4e7 !important;
+    color: #9c3346 !important;
+    border: 1px solid #c36a7b !important;
+  }
+  body.imprimiendo-semana-catering .catering-semana-evento strong,
+  body.imprimiendo-semana-catering .catering-semana-evento span,
+  body.imprimiendo-semana-catering .catering-semana-evento small {
+    color: inherit !important;
+  }
+}

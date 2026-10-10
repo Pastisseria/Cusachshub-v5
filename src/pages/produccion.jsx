@@ -1029,7 +1029,7 @@ function Produccion() {
   return (
     <>
       <style>{ESTILOS_PRODUCCION}</style>
-      <style>{`.produccion-solo-resumen > :not(.produccion-resumen-enlace):not(.produccion-fecha-barra):not(.produccion-totales-productos){display:none!important}.produccion-solo-resumen .produccion-fecha-barra .produccion-impresion-diaria{display:none!important}.produccion-resumen-enlace{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.produccion-resumen-enlace h2{margin:0}@media print{.produccion-resumen-enlace{display:none!important}}`}</style>
+      <style>{`.produccion-solo-resumen > :not(.produccion-resumen-enlace):not(.produccion-totales-productos){display:none!important}.produccion-solo-resumen .produccion-fecha-barra .produccion-impresion-diaria{display:none!important}.produccion-resumen-enlace{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.produccion-resumen-enlace h2{margin:0}@media print{.produccion-resumen-enlace{display:none!important}body.imprimiendo-resumen-productos .produccion-solo-resumen,body.imprimiendo-resumen-productos .produccion-solo-resumen .produccion-totales-productos{display:block!important;visibility:visible!important}body.imprimiendo-resumen-productos .produccion-totales-productos{position:static!important;width:100%!important}body.imprimiendo-resumen-productos .produccion-totales-tabla{font-size:11px!important}@page{size:A4 landscape;margin:8mm}}`}</style>
 
       <section className={`panel produccion-panel${esResumenIndependiente ? " produccion-solo-resumen" : ""}`}>
         {esResumenIndependiente && <div className="produccion-resumen-enlace"><button type="button" onClick={() => navigate("/produccion")}>← Volver a Producción</button><h2>Resumen de productos</h2></div>}

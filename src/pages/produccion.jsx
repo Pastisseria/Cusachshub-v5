@@ -537,12 +537,13 @@ function Produccion() {
     setZonaImpresionDiaria(zona);
 
     const limpiar = () => {
-      document.body.classList.remove("imprimiendo-zona-diaria");
+      document.body.classList.remove("imprimiendo-zona-diaria", "cusachs-imprimir-obrador-a5");
       setZonaImpresionDiaria("");
       window.removeEventListener("afterprint", limpiar);
     };
 
     document.body.classList.add("imprimiendo-zona-diaria");
+    document.body.classList.toggle("cusachs-imprimir-obrador-a5", zona === "Obrador");
     window.addEventListener("afterprint", limpiar);
 
     window.setTimeout(() => {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../supabase.js";
 
 const ZONAS = ["Obrador", "Cocina", "Barra"];
@@ -32,6 +32,7 @@ const FORMULARIO_INICIAL = {
 
 function Produccion() {
   const navigate = useNavigate();
+  const esResumenIndependiente = useLocation().pathname === "/produccion/resumen-productos";
   const hoy = obtenerFechaISO(new Date());
 
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoy);
@@ -53,7 +54,7 @@ function Produccion() {
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [vistaBarraSemanal, setVistaBarraSemanal] = useState(false);
-  const [mostrarTotales, setMostrarTotales] = useState(true);
+  const [mostrarTotales, setMostrarTotales] = useState(false);
   const [fechaSemanaBarra, setFechaSemanaBarra] = useState(hoy);
   const [zonaImpresionDiaria, setZonaImpresionDiaria] = useState("");
 
@@ -1028,8 +1029,10 @@ function Produccion() {
   return (
     <>
       <style>{ESTILOS_PRODUCCION}</style>
+      <style>{`.produccion-solo-resumen > :not(.produccion-resumen-enlace):not(.produccion-fecha-barra):not(.produccion-totales-productos){display:none!important}.produccion-solo-resumen .produccion-fecha-barra .produccion-impresion-diaria{display:none!important}.produccion-resumen-enlace{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.produccion-resumen-enlace h2{margin:0}@media print{.produccion-resumen-enlace{display:none!important}}`}</style>
 
-      <section className="panel produccion-panel">
+      <section className={`panel produccion-panel${esResumenIndependiente ? " produccion-solo-resumen" : ""}`}>
+        {esResumenIndependiente && <div className="produccion-resumen-enlace"><button type="button" onClick={() => navigate("/produccion")}>← Volver a Producción</button><h2>Resumen de productos</h2></div>}
         <div className="produccion-cabecera">
           <div>
             <p className="produccion-etiqueta">
@@ -1285,7 +1288,7 @@ function Produccion() {
         </div>
 
 
-        {mostrarTotales && (
+        {esResumenIndependiente && (
           <section className="produccion-totales-productos">
             <div className="produccion-totales-cabecera">
               <div>

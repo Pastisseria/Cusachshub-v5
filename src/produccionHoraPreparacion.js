@@ -112,6 +112,77 @@ function aplicarImpresionProduccion() {
       margin: 8mm;
     }
   `;
+  // Solo Obrador: A5 horizontal, tipografia grande y una ficha por pedido.
+  // Las otras zonas conservan el formato de impresion existente.
+  const esObrador = [...document.querySelectorAll(".zona-diaria-titulo-pedido-print h2")]
+    .some((titulo) => titulo.textContent.includes("Producción Obrador"));
+  document.body.classList.toggle("cusachs-imprimir-obrador-a5", esObrador && document.body.classList.contains("imprimiendo-zona-diaria"));
+  let a5 = document.getElementById("cusachs-obrador-a5-print");
+  if (!a5) {
+    a5 = document.createElement("style");
+    a5.id = "cusachs-obrador-a5-print";
+    document.head.appendChild(a5);
+  }
+  a5.textContent = `
+    @media print {
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-hoja-print,
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-pedido-print {
+        page: cusachs-obrador-a5 !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-pedido-print {
+        height: auto !important;
+        max-height: none !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        border: 0 !important;
+        break-inside: avoid-page !important;
+        page-break-inside: avoid !important;
+        break-after: page !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-pedido-print:last-child {
+        break-after: auto !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-titulo-pedido-print {
+        padding: 0 0 3mm !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-titulo-pedido-print h2 {
+        font-size: 20px !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-pedido-cabecera-print strong {
+        font-size: 16px !important;
+        overflow-wrap: anywhere !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-lineas-print {
+        padding: 0 !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-linea-print {
+        display: grid !important;
+        grid-template-columns: 9mm 37mm minmax(0, 1fr) !important;
+        align-items: center !important;
+        gap: 2mm !important;
+        padding: 2mm !important;
+        font-size: 17px !important;
+        line-height: 1.14 !important;
+        border-bottom: 1px solid #999 !important;
+        break-inside: avoid !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-linea-print strong {
+        font-size: 17px !important;
+        font-weight: 800 !important;
+        overflow-wrap: anywhere !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-check-print {
+        font-size: 23px !important;
+        line-height: 1 !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-linea-print small {
+        display: none !important;
+      }
+    }
+    @page cusachs-obrador-a5 { size: A5 landscape; margin: 6mm; }
+  `;
+
 }
 
 let programado = false;

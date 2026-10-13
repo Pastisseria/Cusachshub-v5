@@ -154,6 +154,29 @@ function aplicarImpresionProduccion() {
         line-height: 1.2 !important;
         font-weight: 800 !important;
       }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-titulo-pedido-print {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 2mm !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-fecha-hora-print {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 1mm !important;
+        width: 100% !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-fecha-hora-print > span {
+        font-size: 18px !important;
+        line-height: 1.2 !important;
+        font-weight: 800 !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-linea-print strong {
+        font-size: 19px !important;
+        line-height: 1.14 !important;
+        font-weight: 800 !important;
+      }
       body.cusachs-imprimir-obrador-a5 .zona-diaria-pedido-cabecera-print strong {
         font-size: 18px !important;
         line-height: 1.2 !important;

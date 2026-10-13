@@ -1653,14 +1653,21 @@ function Produccion() {
                     : "🍳 Producción Cocina"}
                       </h2>
                     </div>
-                    <span>{formatearFecha(fechaSeleccionada)}</span>
+                    <div className="zona-diaria-fecha-hora-print">
+                      <span>{formatearFecha(fechaSeleccionada)}</span>
+                      {zonaImpresionDiaria === "Obrador" && pedido.hora_limite && (
+                        <span className="zona-diaria-hora-catering-print">
+                          Hora del catering: {cortarHora(pedido.hora_limite)}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="zona-diaria-pedido-cabecera-print">
                     <div>
                       <strong>{pedido.cliente_nombre}</strong>
                       <span>{pedido.pedido_nombre}</span>
-                      {pedido.hora_limite && (
+                      {zonaImpresionDiaria !== "Obrador" && pedido.hora_limite && (
                         <span className="zona-diaria-hora-catering-print">
                           Hora del catering: {cortarHora(pedido.hora_limite)}
                         </span>

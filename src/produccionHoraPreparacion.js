@@ -149,9 +149,21 @@ function aplicarImpresionProduccion() {
       body.cusachs-imprimir-obrador-a5 .zona-diaria-titulo-pedido-print h2 {
         font-size: 20px !important;
       }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-titulo-pedido-print > span {
+        font-size: 18px !important;
+        line-height: 1.2 !important;
+        font-weight: 800 !important;
+      }
       body.cusachs-imprimir-obrador-a5 .zona-diaria-pedido-cabecera-print strong {
-        font-size: 16px !important;
+        font-size: 18px !important;
+        line-height: 1.2 !important;
+        font-weight: 800 !important;
         overflow-wrap: anywhere !important;
+      }
+      body.cusachs-imprimir-obrador-a5 .zona-diaria-hora-catering-print {
+        font-size: 18px !important;
+        line-height: 1.2 !important;
+        font-weight: 800 !important;
       }
       body.cusachs-imprimir-obrador-a5 .zona-diaria-lineas-print {
         padding: 0 !important;
@@ -162,13 +174,13 @@ function aplicarImpresionProduccion() {
         align-items: center !important;
         gap: 2mm !important;
         padding: 2mm !important;
-        font-size: 17px !important;
+        font-size: 16px !important;
         line-height: 1.14 !important;
         border-bottom: 1px solid #999 !important;
         break-inside: avoid !important;
       }
       body.cusachs-imprimir-obrador-a5 .zona-diaria-linea-print strong {
-        font-size: 17px !important;
+        font-size: 16px !important;
         font-weight: 800 !important;
         overflow-wrap: anywhere !important;
       }

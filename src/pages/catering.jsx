@@ -988,7 +988,7 @@ function Catering() {
                     key={evento.id}
                     className={`catering-dia-evento estado-${normalizarEstado(
                       evento.estado,
-                    )}`}\u0020style={estaFacturado(evento) ? {background:"#e3f5e8",borderColor:"#79bf8c"} : undefined}
+                    )}`}\u0020style={estaFacturado(evento) ? {background:"#fce4ef",borderColor:"#e49abd"} : undefined}
                     onClick={() => editarDesdeDia(evento)}
                     role="button"
                     tabIndex={0}
@@ -1041,7 +1041,7 @@ function Catering() {
                     <button type="button"
                       onClick={event => { event.stopPropagation(); marcarFacturadoDesdeDia(evento); }}
                       disabled={estaFacturado(evento)}
-                      style={{padding:"10px 12px",borderRadius:9,border:"1px solid #43935b",background:estaFacturado(evento)?"#b8e7c5":"#fff",color:"#226638",fontWeight:800,cursor:estaFacturado(evento)?"default":"pointer"}}>
+                      style={{padding:"10px 12px",borderRadius:9,border:"1px solid #d06a9d",background:estaFacturado(evento)?"#f6b8d4":"#fff",color:"#92265b",fontWeight:800,cursor:estaFacturado(evento)?"default":"pointer"}}>
                       {estaFacturado(evento) ? "✓ Facturado" : "✓ Marcar facturado"}
                     </button>
                     <span className="catering-dia-abrir">{evento.presupuesto_id ? "Abrir presupuesto →" : "Editar catering →"}</span>

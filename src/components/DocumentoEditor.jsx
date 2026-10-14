@@ -1083,22 +1083,14 @@ function DocumentoEditor({
           total: convertirNumero(documento.total),
           transporte: convertirNumero(documento.transporte),
           transporteIva: convertirNumero(documento.transporte_iva) || 10,
-          lineas: [
-            {
-              descripcion: concepto,
-              cantidad: 1,
-              precio_unitario: Math.max(0, redondear(convertirNumero(documento.subtotal) - convertirNumero(documento.transporte))),
-              iva: 10,
-            },
-            ...(convertirNumero(documento.transporte) > 0
-              ? [{
-                  descripcion: "Transporte",
-                  cantidad: 1,
-                  precio_unitario: convertirNumero(documento.transporte),
-                  iva: convertirNumero(documento.transporte_iva) || 10,
-                }]
-              : []),
-          ],
+          // Transporte integrado en el concepto; no mostrar línea ni importe separado.
+          // El subtotal guardado del presupuesto ya incluye el transporte.
+          lineas: [{
+            descripcion: concepto,
+            cantidad: 1,
+            precio_unitario: convertirNumero(documento.subtotal),
+            iva: 10,
+          }],
         }),
       );
 

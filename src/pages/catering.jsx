@@ -101,7 +101,7 @@ function Catering() {
 
         supabase
           .from("presupuestos")
-          .select("id, numero, cliente_id, estado")
+          .select("id, numero, cliente_id, estado, facturado_externamente, fecha_facturacion, factura_id")
           .order("created_at", { ascending: false }),
       ]);
 
@@ -391,6 +391,29 @@ function Catering() {
     navigate(
       `/presupuestos?presupuesto_id=${catering.presupuesto_id}&editar=1`,
     );
+  }
+
+  function estaFacturado(evento) {
+    const p = presupuestos.find(item => String(item.id) === String(evento.presupuesto_id));
+    return Boolean(p && (p.facturado_externamente || p.fecha_facturacion || p.factura_id || String(p.estado || "").toLowerCase() === "facturado"));
+  }
+
+  async function marcarFacturadoDesdeDia(evento) {
+    if (!evento.presupuesto_id) {
+      setError("Este catering no tiene presupuesto asociado. Ábrelo para revisar su facturación.");
+      return;
+    }
+    if (estaFacturado(evento)) return;
+    if (!window.confirm("¿Confirmas que este catering ya está facturado? Se marcará como facturado sin crear una factura nueva.")) return;
+    setError("");
+    const { data, error: fallo } = await supabase.from("presupuestos")
+      .update({ facturado_externamente: true, fecha_facturacion: new Date().toISOString().slice(0,10), updated_at: new Date().toISOString() })
+      .eq("id", evento.presupuesto_id)
+      .select("id, facturado_externamente, fecha_facturacion, factura_id")
+      .single();
+    if (fallo) { setError(fallo.message || "No se pudo marcar como facturado."); return; }
+    setPresupuestos(anteriores => anteriores.map(p => String(p.id) === String(data.id) ? {...p,...data} : p));
+    setMensaje("Catering marcado como facturado.");
   }
 
   async function cambiarTransporteDesdeDia(catering, transporteTipo) {
@@ -965,7 +988,7 @@ function Catering() {
                     key={evento.id}
                     className={`catering-dia-evento estado-${normalizarEstado(
                       evento.estado,
-                    )}`}
+                    )}`}\u0020style={estaFacturado(evento) ? {background:"#e3f5e8",borderColor:"#79bf8c"} : undefined}
                     onClick={() => editarDesdeDia(evento)}
                     role="button"
                     tabIndex={0}
@@ -1015,6 +1038,12 @@ function Catering() {
                       </select>
                     </label>
 
+                    <button type="button"
+                      onClick={event => { event.stopPropagation(); marcarFacturadoDesdeDia(evento); }}
+                      disabled={estaFacturado(evento)}
+                      style={{padding:"10px 12px",borderRadius:9,border:"1px solid #43935b",background:estaFacturado(evento)?"#b8e7c5":"#fff",color:"#226638",fontWeight:800,cursor:estaFacturado(evento)?"default":"pointer"}}>
+                      {estaFacturado(evento) ? "✓ Facturado" : "✓ Marcar facturado"}
+                    </button>
                     <span className="catering-dia-abrir">{evento.presupuesto_id ? "Abrir presupuesto →" : "Editar catering →"}</span>
                   </div>
                 ))

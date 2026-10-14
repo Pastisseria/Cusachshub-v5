@@ -988,7 +988,7 @@ function Catering() {
                     key={evento.id}
                     className={`catering-dia-evento estado-${normalizarEstado(
                       evento.estado,
-                    )}`}\u0020style={estaFacturado(evento) ? {background:"#fce4ef",borderColor:"#e49abd"} : undefined}
+                    )}`} style={estaFacturado(evento) ? {background:"#fce4ef",borderColor:"#e49abd"} : undefined}
                     onClick={() => editarDesdeDia(evento)}
                     role="button"
                     tabIndex={0}

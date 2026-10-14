@@ -28,8 +28,16 @@ export default function Dashboard() {
       ]);
       if (pRes.error) throw pRes.error;
       if (fRes.error) throw fRes.error;
-      setPresupuestos((pRes.data || []).filter(esCatering));
-      setFacturas((fRes.data || []).filter(f => normalizar(f.estado) !== "anulada"));
+      const caterings = (pRes.data || []).filter(esCatering);
+      // Consultar facturas asociadas aunque se emitieran en un mes distinto al catering.
+      const ids = caterings.map(p => p.id);
+      const vinculadas = ids.length
+        ? await supabase.from("facturas").select("id,numero,presupuesto_id,fecha_factura,total,estado,nombre_cliente,fecha_pago").in("presupuesto_id", ids)
+        : { data: [], error: null };
+      if (vinculadas.error) throw vinculadas.error;
+      const unicas = new Map([...(fRes.data || []), ...(vinculadas.data || [])].map(f => [String(f.id), f]));
+      setPresupuestos(caterings);
+      setFacturas([...unicas.values()].filter(f => normalizar(f.estado) !== "anulada"));
     } catch (e) { setError(e?.message || "No se ha podido cargar el Dashboard."); }
     finally { setCargando(false); }
   }
@@ -37,15 +45,16 @@ export default function Dashboard() {
   const filas = useMemo(() => {
     const mapa = new Map(facturas.filter(f => f.presupuesto_id).map(f => [String(f.presupuesto_id), f]));
     return presupuestos.map(p => {
-      const factura = mapa.get(String(p.id)) || null;
-      return {...p, factura, estadoControl: factura ? "Facturado" : obtenerEstadoReal(p)};
+      const factura = mapa.get(String(p.id)) || facturas.find(f => String(f.id) === String(p.factura_id)) || null;
+      return {...p, factura, estadoControl: obtenerEstadoReal(p, factura)};
     });
   }, [presupuestos, facturas]);
 
   const resumen = useMemo(() => {
     const facturasValidas = facturas.filter(f => normalizar(f.estado) !== "anulada");
-    const dinero = facturasValidas.reduce((s,f) => s + Number(f.total || 0), 0);
-    const cobrado = facturasValidas
+    const facturasDelMes = facturasValidas.filter(f => String(f.fecha_factura || "").slice(0,7) === `${anio}-${String(mes).padStart(2,"0")}`);
+    const dinero = facturasDelMes.reduce((s,f) => s + Number(f.total || 0), 0);
+    const cobrado = facturasDelMes
       .filter(f => normalizar(f.estado) === "pagada" || Boolean(f.fecha_pago))
       .reduce((s,f) => s + Number(f.total || 0), 0);
     return {
@@ -58,7 +67,7 @@ export default function Dashboard() {
       cobrado,
       pendienteCobro: Math.max(0, dinero - cobrado)
     };
-  }, [filas, facturas]);
+  }, [filas, facturas, mes, anio]);
 
   const visibles = filas.filter(p => filtro === "todos" || (filtro === "pendientes" && p.estadoControl === "Aceptado · pendiente de facturar") || (filtro === "facturados" && ["Facturado","Pagado"].includes(p.estadoControl)) || (filtro === "cancelados" && p.estadoControl === "Cancelado"));
 
@@ -95,7 +104,7 @@ export default function Dashboard() {
 function Card({titulo,valor}) { return <div className="dm-card"><span>{titulo}</span><strong>{valor}</strong></div>; }
 function normalizar(v){return String(v||"").trim().toLowerCase();}
 function esCatering(p){return !["visitador médico","visitador medico","tienda"].includes(normalizar(p.tipo_documento));}
-function obtenerEstadoReal(p){if(normalizar(p.estado)==="cancelado")return"Cancelado";if(normalizar(p.estado)==="aceptado"||p.facturado_externamente||p.fecha_facturacion||normalizar(p.estado).includes("factur"))return"Aceptado · pendiente de facturar";if(normalizar(p.estado)==="enviado")return"Enviado";if(normalizar(p.estado)==="borrador")return"Borrador";return p.estado||"Sin estado";}
+function obtenerEstadoReal(p, factura){if(normalizar(p.estado)==="cancelado")return"Cancelado";if(factura || p.facturado_externamente === true || Boolean(p.fecha_facturacion) || Boolean(p.factura_id) || ["facturado","facturada","pagado","pagada"].includes(normalizar(p.estado)))return"Facturado";if(normalizar(p.estado)==="aceptado")return"Aceptado · pendiente de facturar";if(normalizar(p.estado)==="enviado")return"Enviado";if(normalizar(p.estado)==="borrador")return"Borrador";return p.estado||"Sin estado";}
 function clase(e){e=normalizar(e);if(e.startsWith("facturado")||e==="pagado")return"facturado";if(e.startsWith("cancelado"))return"cancelado";if(e.includes("pendiente de facturar"))return"pendiente";if(e==="enviado")return"enviado";return"borrador";}
 function euros(v){return Number(v||0).toLocaleString("es-ES",{style:"currency",currency:"EUR"});}
 function fecha(v){if(!v)return"—";const[y,m,d]=String(v).slice(0,10).split("-");return `${d}/${m}/${y}`;}

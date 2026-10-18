@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase.js";
 import { ESTILOS_PRODUCCION, determinarZonaProduccion } from "./produccion.jsx";
 import PedidosCompra from "./compras.jsx";
+import RecipientesCocina from "./recipientes-cocina.jsx";
 
 const normalizar = (valor) => String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 const iso = (fecha) => [fecha.getFullYear(), String(fecha.getMonth()+1).padStart(2,"0"), String(fecha.getDate()).padStart(2,"0")].join("-");
@@ -136,6 +137,7 @@ export default function ComprasSemanal() {
               <tbody>{filas.map(fila => <tr key={fila.clave}><th scope="row">{fila.nombre}<small style={{display:"block"}}>{fila.unidad} · {Array.from(fila.origenes).join(", ")}</small></th>{dias.map(d => <td key={d}>{fila.dias[d] ? numero(fila.dias[d]) : "—"}</td>)}<td><strong>{numero(fila.total)} {fila.unidad}</strong></td></tr>)}</tbody>
             </table>
           </div>}
+          {zona === "Cocina" && <RecipientesCocina datos={datos} dias={dias} tipo={tipo}/>}
         </>}
       </>}
     </section>

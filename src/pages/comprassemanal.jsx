@@ -47,7 +47,7 @@ export default function ComprasSemanal() {
         for (let i=0; i<ids.length; i+=100) {
           const lote = ids.slice(i,i+100);
           lineas.push(...await leerTodo(() => supabase.from("presupuesto_lineas")
-            .select("id, presupuesto_id, producto_id, descripcion, cantidad, productos(id, nombre, unidad, unidad_medida, zona_produccion, zona, seccion)")
+            .select("id, presupuesto_id, producto_id, descripcion, cantidad, unidad, productos(id, nombre, unidad, zona_produccion)")
             .in("presupuesto_id", lote).order("id")));
         }
         if (activo) setDatos({caterings, lineas});
@@ -82,7 +82,7 @@ export default function ComprasSemanal() {
         if (!Number.isFinite(cantidad) || cantidad <= 0) return;
         const producto = linea.productos;
         const nombre = producto?.nombre || linea.descripcion || "Producto sin nombre";
-        const unidad = producto?.unidad || producto?.unidad_medida || "unidades";
+        const unidad = linea.unidad || producto?.unidad || "unidades";
         const zona = determinarZonaProduccion(producto, nombre);
         const clave = JSON.stringify([zona, linea.producto_id || normalizar(nombre), normalizar(unidad)]);
         if (!grupos[tipo].has(clave)) grupos[tipo].set(clave, {clave, zona, nombre, unidad, total:0, dias:{}, origenes:new Set()});

@@ -3330,4 +3330,5 @@ const ESTILOS_PRODUCCION = `
   }
 `;
 
+export { ESTILOS_PRODUCCION, determinarZonaProduccion };
 export default Produccion;

@@ -7,6 +7,7 @@ function mejorasCusachs() {
     name: "mejoras-cusachs",
     enforce: "pre",
     transform(code, id) {
+      code = code.replace(/\r\n/g, "\n");
       const ruta = String(id || "").replace(/\\/g, "/");
 
       if (ruta.endsWith("/src/components/DocumentoEditor.jsx")) {

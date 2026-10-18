@@ -33,7 +33,7 @@ jobs:
         run: npm ci
 
       - name: Compilar aplicación
-        run: npm run test:offline && node --test tests/compras-recipientes.test.js && npm run build
+        run: npm run test:offline && node --test tests/compras-recipientes.test.js tests/service-worker.test.js && npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}

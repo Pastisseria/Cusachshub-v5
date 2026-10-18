@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase.js";
+import CateringChecklist from "../components/CateringChecklist.jsx";
 
 const MESES = [
   "enero",
@@ -656,7 +657,7 @@ function Catering() {
             </p>
           </div>
 
-          <div className="catering-acciones-cabecera no-imprimir">
+          <div className="catering-acciones-cabecera no-imprimir"><button type="button" className={vista === "checklist" ? "" : "boton-secundario"} onClick={() => setVista("checklist")}>Checklist de facturación</button>
             <button
               type="button"
               className={vista === "mes" ? "" : "boton-secundario"}
@@ -684,7 +685,7 @@ function Catering() {
           </div>
         </div>
 
-        <div className={vista === "mes" ? "catering-barra" : "catering-barra oculto"}>
+        <div className={vista !== "semana" ? "catering-barra" : "catering-barra oculto"}>
           <div className="catering-navegacion">
             <button
               type="button"
@@ -739,6 +740,7 @@ function Catering() {
           <div className="catering-mensaje">{mensaje}</div>
         )}
 
+        {vista === "checklist" && !cargando && <CateringChecklist caterings={cateringsMes} presupuestos={presupuestos} clientes={clientes} mes={`${fechaVisible.getFullYear()}-${String(fechaVisible.getMonth()+1).padStart(2,"0")}`} onActualizar={data => setCaterings(actuales => actuales.map(c => String(c.id) === String(data.id) ? {...c, ...data} : c))} />}
         {vista === "semana" && (
           <section className="catering-semana" id="catering-semana-imprimible">
             <div className="catering-semana-cabecera no-imprimir">

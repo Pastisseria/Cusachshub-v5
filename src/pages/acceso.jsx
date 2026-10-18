@@ -21,6 +21,7 @@ export default function Acceso() {
 
   async function iniciarSesion(event) {
     event.preventDefault();
+    if(!navigator.onLine){setError('Necesitas Internet para iniciar sesión por primera vez.');return}
     setEnviando(true);
     setError("");
 

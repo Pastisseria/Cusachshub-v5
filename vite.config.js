@@ -1,3 +1,4 @@
+import offlineBuild from './scripts/offline-build.js';
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -181,6 +182,6 @@ function borrarBorradorPresupuesto() {
 }
 
 export default defineConfig({
-  plugins: [mejorasCusachs(), react()],
+  plugins: [offlineBuild(), mejorasCusachs(), react()],
   base: "/Cusachshub-v5/",
 });

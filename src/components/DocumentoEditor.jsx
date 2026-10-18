@@ -361,12 +361,19 @@ function DocumentoEditor({
           )
           .eq("activo", true)
           .order("nombre"),
-        consultaDocumentos,
+        Promise.resolve(consultaDocumentos).then(respuesta => {
+          if(!respuesta.error){
+            setDocumentos(respuesta.data ?? []);
+            setCargando(false);
+          }
+          return respuesta;
+        }),
       ]);
 
-      if (respuestaClientes.error) throw respuestaClientes.error;
-      if (respuestaVisitadores.error) throw respuestaVisitadores.error;
-      if (respuestaProductos.error) throw respuestaProductos.error;
+      // Missing reference lists must not hide budgets already available locally.
+      if (respuestaClientes.error || respuestaVisitadores.error || respuestaProductos.error) {
+        setError('Algunos datos de clientes, productos o visitadores no están disponibles. Puedes consultar los presupuestos guardados; conecta a Internet antes de modificarlos.');
+      }
       if (respuestaDocumentos.error) throw respuestaDocumentos.error;
 
       setClientes(respuestaClientes.data ?? []);
@@ -2865,7 +2872,7 @@ function DocumentoEditor({
         </p>
       )}
 
-      {!mostrarFormulario && !documentoAbierto && !cargando && documentosFiltrados.length === 0 && (
+      {!mostrarFormulario && !documentoAbierto && !cargando && !error && documentosFiltrados.length === 0 && (
         <div className="estado-vacio">
           <h3>No hay documentos guardados</h3>
           <p>

@@ -1,4 +1,4 @@
-import { offlineFetch } from './lib/local-data.js';
+import { readLocal, offlineFetch } from './lib/local-data.js';
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -10,15 +10,28 @@ const onlineClient = createClient(
   supabaseAnonKey || "clave-temporal",
   { auth: { storageKey: authStorageKey }, global: { fetch: offlineFetch(supabaseUrl || "https://ejemplo.supabase.co") } }
 );
-// Offline reads must not wait for the auth SDK to refresh an expired JWT.
-// This client never sends a network request while offline (offlineFetch enforces it).
-const localClient = createClient(supabaseUrl || 'https://ejemplo.supabase.co',supabaseAnonKey || 'clave-temporal',{
-  accessToken: async () => null,
+// Data queries have their own token callback so a blocked refresh cannot
+// indefinitely hold a query before it reaches the local snapshot transport.
+const dataClient = createClient(supabaseUrl || 'https://ejemplo.supabase.co',supabaseAnonKey || 'clave-temporal',{
+  accessToken: async () => {
+    if(!navigator.onLine)return null;
+    const stored=readLocal(authStorageKey);
+    if(stored?.expires_at > Date.now()/1000 + 30)return stored.access_token;
+    let timer;
+    try {
+      const result=await Promise.race([
+        onlineClient.auth.getSession(),
+        new Promise(resolve=>{timer=setTimeout(()=>resolve(null),2500)}),
+      ]);
+      return result?.data?.session?.access_token || readLocal(authStorageKey)?.access_token || null;
+    } catch {return readLocal(authStorageKey)?.access_token || null}
+    finally {clearTimeout(timer)}
+  },
   global: { fetch: offlineFetch(supabaseUrl || 'https://ejemplo.supabase.co') },
 });
 export const supabase = new Proxy(onlineClient, {
   get(target, property) {
-    if(property === 'from' && !navigator.onLine)return localClient.from.bind(localClient);
+    if(property === 'from')return dataClient.from.bind(dataClient);
     const value=Reflect.get(target,property);
     return typeof value === 'function' ? value.bind(target) : value;
   },

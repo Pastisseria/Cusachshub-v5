@@ -29,3 +29,13 @@ test('disabled or corrupt storage does not crash startup',()=>{
  const original=localStorage.setItem;localStorage.setItem=()=>{throw new Error('quota')};
  assert.doesNotThrow(()=>writeLocal('x',{}));localStorage.setItem=original;
 });
+
+test('blocked IndexedDB falls back to legacy snapshots without breaking successful queries',async()=>{
+ globalThis.indexedDB={open(){throw new Error('blocked storage')}};
+ navigator.onLine=true;setLocalUser('storage-test');
+ const transport=offlineFetch('https://project.supabase.co',async()=>new Response('[{"id":9}]'));
+ const url='https://project.supabase.co/rest/v1/presupuestos?select=*';
+ assert.equal((await transport(url)).status,200);
+ navigator.onLine=false;assert.deepEqual(await (await transport(url)).json(),[{id:9}]);
+ navigator.onLine=true;delete globalThis.indexedDB;
+});

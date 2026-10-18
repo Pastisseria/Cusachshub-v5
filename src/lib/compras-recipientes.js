@@ -43,11 +43,23 @@ export function resumirRecipientes(filas, reglas) {
   for (const fila of filas) {
     const regla = reglas[fila.clave];
     if (!regla?.activo || !regla.recipiente?.trim()) continue;
-    const clave = normalizar(regla.recipiente);
-    if (!mapa.has(clave)) mapa.set(clave, {clave, nombre:regla.recipiente.trim(), dias:{}, total:0});
+    const clave = regla.menaje_id != null ? "menaje:" + regla.menaje_id : normalizar(regla.recipiente);
+    if (!mapa.has(clave)) mapa.set(clave, {clave, menaje_id:regla.menaje_id ?? null, nombre:regla.recipiente.trim(), dias:{}, total:0});
     const resumen = mapa.get(clave);
     resumen.total += fila.total;
     for (const [dia, cantidad] of Object.entries(fila.dias)) resumen.dias[dia] = (resumen.dias[dia] || 0) + cantidad;
   }
   return [...mapa.values()].sort((a,b) => a.nombre.localeCompare(b.nombre, "es"));
+}
+
+export function calcularFaltantes(resumen, menaje, confirmados = []) {
+  const porId = new Map(menaje.map(m => [String(m.id),m]));
+  const confirmado = new Map(confirmados.map(r => [r.clave,r.total]));
+  return resumen.map(r => {
+    const articulo = r.menaje_id != null ? porId.get(String(r.menaje_id)) : null;
+    if (!articulo) return {...r, disponible:null, comprar:null, proveedor_id:null};
+    const disponible = Math.max(0, Number(articulo.stock_total || 0) - Number(articulo.stock_reservado || 0));
+    const trasConfirmados = Math.max(0, disponible - (confirmado.get(r.clave) || 0));
+    return {...r, nombre:articulo.nombre, disponible, trasConfirmados, comprar:Math.ceil(Math.max(0,r.total-trasConfirmados)), proveedor_id:articulo.proveedor_id, articulo};
+  });
 }

@@ -15,3 +15,11 @@ Verificación manual pendiente: dispositivo Android real, iniciar con red, abrir
 Las consultas de datos usan un cliente independiente de los bloqueos de renovación de sesión. El listado no se oculta si faltan clientes, productos o visitadores locales. Las respuestas grandes se conservan en IndexedDB, manteniendo compatibilidad con las copias pequeñas anteriores. La lista y las líneas de detalle deben haberse descargado con Internet; no se pueden recuperar documentos nunca consultados mientras no hay conexión.
 
 Prueba de navegador reproducible (requiere Playwright y Edge): después de npm run build, ejecutar node tests/offline-budgets.browser.cjs. Puede indicarse la ruta del módulo mediante PLAYWRIGHT_MODULE y el navegador mediante TEST_BROWSER_CHANNEL. Verifica listado de más de 1,5 MB, detalle, sesión caducada, ausencia de catálogos y red local sin salida a Internet. Utiliza datos simulados y no escribe en Supabase.
+
+## Guardar presupuestos en el dispositivo
+
+Sin conexión, Guardar conserva un documento local en IndexedDB, con sus líneas y todos los campos del formulario. También existe la acción explícita Guardar copia en este dispositivo cuando el navegador indica conexión. Solo se confirma después de completar la transacción; si falla el almacenamiento se mantiene el formulario. Si una petición de guardado pierde la conexión y no puede confirmarse su resultado, se conserva una copia local y se pide revisar el original antes de repetir una operación.
+
+Las copias se muestran en Guardados en este dispositivo, se pueden abrir, editar y eliminar localmente. Se separan por proyecto y cuenta. Editar offline un presupuesto de Supabase crea una copia local independiente: no reemplaza el original. Recuperar Internet NO envía estas copias al servidor. No se ha implementado cola de escritura, envío posterior ni resolución automática de conflictos. No se modifican esquemas de Supabase.
+
+Verificación reproducible del guardado local: con Playwright disponible, npm run build y node tests/local-save.browser.cjs. Verifica crear offline, recargar, editar sin duplicar, copia independiente de un presupuesto remoto, fallo de almacenamiento sin perder el formulario y separación entre cuentas, sin mutaciones al servidor.

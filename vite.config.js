@@ -112,8 +112,8 @@ function borrarBorradorPresupuesto() {
         }
 
         nuevoCodigo = nuevoCodigo.replace(
-          `}) {\n  const [clientes, setClientes] = useState([]);`,
-          `}) {\n  const borradorInicial = leerBorradorPresupuesto();\n\n  const [clientes, setClientes] = useState([]);`,
+          `  const { usuario } = useAuth();`,
+          `  const borradorInicial = leerBorradorPresupuesto();\n  const { usuario } = useAuth();`,
         );
         nuevoCodigo = nuevoCodigo.replace(`const [mostrarFormulario, setMostrarFormulario] = useState(false);`, `const [mostrarFormulario, setMostrarFormulario] = useState(Boolean(borradorInicial?.activo));`);
         nuevoCodigo = nuevoCodigo.replace(`const [documentoEditando, setDocumentoEditando] = useState(null);`, `const [documentoEditando, setDocumentoEditando] = useState(borradorInicial?.documentoEditando || null);`);

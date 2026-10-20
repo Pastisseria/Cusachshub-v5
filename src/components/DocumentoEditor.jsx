@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../supabase.js";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { supabase, authStorageKey } from "../supabase.js";
+import { useAuth } from '../auth/useAuth.js';
+import { listLocalBudgets, saveLocalBudget, deleteLocalBudget } from '../lib/local-budgets.js';
+import LocalBudgetView from './LocalBudgetView.jsx';
 import logoCusachs from "../assets/logo-cusachs.png";
 import { escucharUnaOrden, navegadorAdmiteVoz } from "../ai/voz.js";
 import { prepararPropuestaAsistente } from "../ai/asistente.js";
@@ -157,6 +160,25 @@ function DocumentoEditor({
   etiqueta = "Documentos",
   icono = "📝",
 }) {
+  const { usuario } = useAuth();
+  const usuarioActual = useRef(usuario?.id);
+  usuarioActual.current = usuario?.id;
+  const [documentosLocales, setDocumentosLocales] = useState([]);
+  const [online, setOnline] = useState(navigator.onLine);
+  const [documentoLocalAbierto, setDocumentoLocalAbierto] = useState(null);
+  useEffect(() => {
+    let activo = true;
+    setDocumentosLocales([]);setDocumentoLocalAbierto(null);
+    const reload = () => {
+      if (!usuario?.id) return;
+      listLocalBudgets(authStorageKey, usuario.id).then(records => { if(activo) setDocumentosLocales(records); }).catch(() => {});
+    };
+    const connection = () => setOnline(navigator.onLine);
+    reload();
+    window.addEventListener('cusachs:presupuesto-local', reload);
+    window.addEventListener('online', connection);window.addEventListener('offline', connection);
+    return () => { activo=false;window.removeEventListener('cusachs:presupuesto-local', reload);window.removeEventListener('online', connection);window.removeEventListener('offline', connection); };
+  }, [usuario?.id]);
   const [clientes, setClientes] = useState([]);
   const [visitadoresMedicos, setVisitadoresMedicos] = useState([]);
   const [visitadorSeleccionadoId, setVisitadorSeleccionadoId] = useState("");
@@ -528,6 +550,7 @@ function DocumentoEditor({
     setLineasAbiertas([]);
     setError("");
     setMensaje("");
+    setDocumentoLocalAbierto(null);
     setMostrarFormulario(true);
 
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -610,8 +633,22 @@ function DocumentoEditor({
     });
   }
 
+  async function guardarCopiaLocal(datosDocumento, lineasValidas, incierto = false) {
+    const cliente = clientes.find(item => String(item.id) === String(clienteId)) || documentoEditando?.clientes || null;
+    const propietario = usuario?.id;
+    const saved = await saveLocalBudget(authStorageKey, propietario, {...datosDocumento, clientes: cliente}, lineasValidas, documentoEditando);
+    if(usuarioActual.current !== propietario)return;
+    setDocumentosLocales(previous => [saved, ...previous.filter(item => item.id !== saved.id)]);
+    window.dispatchEvent(new Event('cusachs:presupuesto-local'));
+    try { localStorage.removeItem('cusachs:borrador-presupuesto:v2'); } catch { /* The confirmed local document is already durable. */ }
+    setMostrarFormulario(false);setDocumentoEditando(null);setDocumentoAbierto(null);setDocumentoLocalAbierto(saved);
+    setError('');
+    setMensaje(incierto ? 'Copia guardada en este dispositivo. No se pudo confirmar el guardado en Supabase; revisa el original al volver a conectarte.' : 'Presupuesto guardado en este dispositivo. No se ha enviado a Supabase y no se sincroniza automáticamente.');
+  }
+
   async function guardarDocumento(event) {
     event.preventDefault();
+    const solicitarLocal = event.nativeEvent?.submitter?.value === 'local';
 
     if (!tipoDocumento) {
       setError("Selecciona el tipo de documento.");
@@ -690,6 +727,10 @@ function DocumentoEditor({
     }
 
     try {
+      if (solicitarLocal || !navigator.onLine || documentoEditando?.solo_local) {
+        await guardarCopiaLocal(datosDocumento, lineasValidas);
+        return;
+      }
       let documentoGuardado = null;
 
       if (documentoEditando) {
@@ -819,6 +860,10 @@ function DocumentoEditor({
 
       await cargarDatos();
     } catch (err) {
+      if (!navigator.onLine || /AbortError|FetchError|fetch|network|signal is aborted|sin conexión/i.test(String(err.message || err))) {
+        try { await guardarCopiaLocal(datosDocumento, lineasValidas, true); return; }
+        catch (localError) { setError(localError.message); return; }
+      }
       setError(
         err.message ||
           (documentoEditando
@@ -831,12 +876,14 @@ function DocumentoEditor({
   }
 
   async function editarDocumento(documento) {
+    setDocumentoLocalAbierto(null);
+    if(documento.solo_local && documento.clientes && !clientes.some(item => String(item.id) === String(documento.clientes.id)))setClientes(previous => [...previous, documento.clientes]);
     setAbriendo(true);
     setError("");
     setMensaje("");
 
     try {
-      const { data, error: supabaseError } = await supabase
+      const { data, error: supabaseError } = documento.solo_local ? {data: documento.lineas_locales, error: null} : await supabase
         .from("presupuesto_lineas")
         .select(`
           *,
@@ -1864,7 +1911,7 @@ function DocumentoEditor({
         </div>
       )}
 
-      {!mostrarFormulario && !documentoAbierto && <div
+      {!mostrarFormulario && !documentoAbierto && !documentoLocalAbierto && <div
         className="formulario"
         style={{
           marginBottom: "22px",
@@ -1922,6 +1969,23 @@ function DocumentoEditor({
 
       {error && <p className="mensaje-error">Error: {error}</p>}
       {mensaje && <p className="mensaje">{mensaje}</p>}
+
+      {!mostrarFormulario && !documentoAbierto && !documentoLocalAbierto && documentosLocales.some(item => !tipoDocumentoFijo || item.tipo_documento === tipoDocumentoFijo) && (
+        <section className="formulario" aria-label="Presupuestos locales">
+          <h2>Guardados en este dispositivo</h2>
+          <p>Estas copias no están en Supabase y no se envían automáticamente al recuperar Internet.</p>
+          {documentosLocales.filter(item => !tipoDocumentoFijo || item.tipo_documento === tipoDocumentoFijo).map(item => <div key={item.id}>
+            <strong>{item.numero} · {item.clientes?.empresa || item.clientes?.nombre || item.visitador_nombre} · Solo local</strong>{' '}
+            <button type="button" onClick={() => {setDocumentoLocalAbierto(item);setError('');}}>Abrir copia local</button>{' '}
+            <button type="button" onClick={() => editarDocumento(item)}>Editar copia local</button>{' '}
+            <button type="button" onClick={async () => {
+              if(!window.confirm('¿Eliminar esta copia solo de este dispositivo? El presupuesto de Supabase no se modifica.'))return;
+              try {await deleteLocalBudget(authStorageKey,usuario.id,item.id);setDocumentosLocales(await listLocalBudgets(authStorageKey,usuario.id));} catch(err){setError(err.message);}
+            }}>Eliminar copia local</button>
+          </div>)}
+        </section>
+      )}
+      {documentoLocalAbierto && <LocalBudgetView document={documentoLocalAbierto} onEdit={() => editarDocumento(documentoLocalAbierto)} onClose={() => setDocumentoLocalAbierto(null)} />}
 
       {mostrarFormulario && (
         <form className="formulario" onSubmit={guardarDocumento}>
@@ -2412,10 +2476,11 @@ function DocumentoEditor({
               marginTop: "24px",
             }}
           >
+            {online && !documentoEditando?.solo_local && <button type="submit" value="local" name="destino" disabled={guardando}>Guardar copia en este dispositivo</button>}
             <button type="submit" disabled={guardando}>
               {guardando
                 ? "Guardando..."
-                : documentoEditando
+                : (!online || documentoEditando?.solo_local) ? "💾 Guardar en este dispositivo" : documentoEditando
                   ? "💾 Guardar cambios"
                   : "💾 Guardar documento"}
             </button>

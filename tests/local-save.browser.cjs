@@ -49,12 +49,12 @@ async function run(){
   await page.locator('.tabla-facturas').first().getByRole('button',{name:/Editar/}).click();
   await page.getByLabel(/Descripción/).fill('CAMBIO SOLO LOCAL');
   await page.getByRole('button',{name:'💾 Guardar en este dispositivo',exact:true}).click();await page.getByText('CAMBIO SOLO LOCAL',{exact:true}).waitFor();
-  await page.reload();assert.equal(await page.getByRole('button',{name:'Abrir copia local',exact:true}).count(),2);
+  await page.reload();await page.getByRole('button',{name:'Abrir copia local',exact:true}).nth(1).waitFor();assert.equal(await page.getByRole('button',{name:'Abrir copia local',exact:true}).count(),2);
   // An explicit device save works even when navigator reports online but Internet is unreachable.
   unavailable=true;await context.setOffline(false);
   await page.getByRole('button',{name:/Nuevo documento/}).click();await page.getByLabel(/Cliente/).selectOption('client-1');await page.getByLabel(/Descripción/).fill('GUARDADO SIN RED REAL');
   await page.getByRole('button',{name:'Guardar copia en este dispositivo',exact:true}).click();await page.getByText('GUARDADO SIN RED REAL',{exact:true}).waitFor();
-  await context.setOffline(true);await page.reload();assert.equal(await page.getByRole('button',{name:'Abrir copia local',exact:true}).count(),3);
+  await context.setOffline(true);await page.reload();await page.getByRole('button',{name:'Abrir copia local',exact:true}).nth(2).waitFor();assert.equal(await page.getByRole('button',{name:'Abrir copia local',exact:true}).count(),3);
   // Storage failure must keep the form and never claim success.
   await page.getByRole('button',{name:/Nuevo documento/}).click();await page.getByLabel(/Cliente/).selectOption('client-1');await page.getByLabel(/Descripción/).fill('NO PERDER FORMULARIO');
   await page.evaluate(()=>{const original=indexedDB.open.bind(indexedDB);indexedDB.open=(name,...args)=>{if(name==='cusachs-local-budgets')throw new Error('quota');return original(name,...args)}});
@@ -71,4 +71,5 @@ async function run(){
  finally {await browser.close();await new Promise(resolve=>server.close(resolve))}
 }
 run().catch(error=>{console.error(error);process.exitCode=1});
+
 

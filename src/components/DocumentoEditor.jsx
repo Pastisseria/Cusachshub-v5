@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase, authStorageKey } from "../supabase.js";
 import { useAuth } from '../auth/useAuth.js';
 import { listLocalBudgets, saveLocalBudget, deleteLocalBudget } from '../lib/local-budgets.js';
@@ -160,7 +161,8 @@ function DocumentoEditor({
   etiqueta = "Documentos",
   icono = "📝",
 }) {
-  const { usuario } = useAuth();
+  const { usuario, esAdministrador } = useAuth();
+  const navigate = useNavigate();
   const usuarioActual = useRef(usuario?.id);
   usuarioActual.current = usuario?.id;
   const [documentosLocales, setDocumentosLocales] = useState([]);
@@ -3109,6 +3111,8 @@ function TablaDocumentos({
                       >
                         👁 Abrir
                       </button>
+
+                      {esAdministrador && <button type="button" style={{background:"#bb4385",color:"#fff"}} onClick={() => navigate(`/catering/escandallos?presupuesto_id=${documento.id}`)}>📊 Ver escandallo</button>}
 
                       <button
                         type="button"

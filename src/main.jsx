@@ -11,14 +11,15 @@ import './datosFacturaSimplificado.js'
 import './historicoFacturacionFiltro.js'
 import './produccionPrintA4.css'
 import App from './App.jsx'
+import LimiteErrores from './components/LimiteErrores.jsx'
 import { AuthProvider } from './auth/AuthContext.jsx'
 
 iniciarOffline()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AuthProvider>
+    <LimiteErrores><AuthProvider>
       <App />
-    </AuthProvider>
+    </AuthProvider></LimiteErrores>
   </StrictMode>,
 )

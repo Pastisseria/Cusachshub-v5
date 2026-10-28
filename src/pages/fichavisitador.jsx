@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../supabase.js";
+import { leerTodasLasFilas, resolverVisitador } from "../lib/visitador-presupuestos.js";
 
 const VISITADOR_VACIO = {
   nombre: "",
@@ -25,6 +26,7 @@ function FichaVisitador() {
     useState(VISITADOR_VACIO);
 
   const [pedidos, setPedidos] = useState([]);
+  const [errorPedidos, setErrorPedidos] = useState("");
 
   const [editando, setEditando] = useState(false);
   const [cargando, setCargando] = useState(true);
@@ -68,26 +70,14 @@ function FichaVisitador() {
     setCargandoPedidos(true);
 
     try {
-      const nombreCompleto = [
-        datosVisitador?.nombre,
-        datosVisitador?.apellidos,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .trim();
-
-      const { data, error: supabaseError } = await supabase
-        .from("presupuestos")
-        .select("*")
-        .eq("tipo_documento", "Visitador médico")
-        .ilike("visitador_nombre", nombreCompleto)
-        .order("created_at", { ascending: false });
-
-      if (supabaseError) {
-        throw supabaseError;
-      }
-
-      setPedidos(data ?? []);
+      setErrorPedidos("");
+      const [documentos, visitadores] = await Promise.all([
+        leerTodasLasFilas(supabase, "presupuestos", query => query.eq("tipo_documento", "Visitador médico")),
+        leerTodasLasFilas(supabase, "visitadores_medicos"),
+      ]);
+      setPedidos(documentos.filter(documento =>
+        String(resolverVisitador(documento, visitadores)?.id ?? "") === String(datosVisitador.id),
+      ).sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""))));
     } catch (err) {
       console.error(
         "No se han podido cargar los pedidos:",
@@ -95,6 +85,7 @@ function FichaVisitador() {
       );
 
       setPedidos([]);
+      setErrorPedidos("No se han podido cargar los presupuestos. Vuelve a intentarlo.");
     } finally {
       setCargandoPedidos(false);
     }
@@ -190,6 +181,7 @@ function FichaVisitador() {
 
       setVisitador(data);
       cargarFormulario(data);
+      await cargarPedidos(data);
 
       setEditando(false);
       setMensaje(
@@ -591,7 +583,9 @@ function FichaVisitador() {
         </p>
       )}
 
-      {!cargandoPedidos && pedidos.length === 0 && (
+      {errorPedidos && <p className="mensaje-error" role="alert">{errorPedidos} <button type="button" onClick={() => cargarPedidos(visitador)}>Reintentar</button></p>}
+
+      {!cargandoPedidos && !errorPedidos && pedidos.length === 0 && (
         <div className="estado-vacio">
           <h3>Este visitador todavía no tiene pedidos</h3>
 

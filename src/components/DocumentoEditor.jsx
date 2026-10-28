@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase, authStorageKey } from "../supabase.js";
 import { useAuth } from '../auth/useAuth.js';
 import { listLocalBudgets, saveLocalBudget, deleteLocalBudget } from '../lib/local-budgets.js';
+import { nombreVisitador, resolverVisitador, leerTodasLasFilas, admiteVinculoVisitador } from '../lib/visitador-presupuestos.js';
 import LocalBudgetView from './LocalBudgetView.jsx';
 import logoCusachs from "../assets/logo-cusachs.png";
 import { escucharUnaOrden, navegadorAdmiteVoz } from "../ai/voz.js";
@@ -163,6 +164,9 @@ function DocumentoEditor({
 }) {
   const { usuario, esAdministrador } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [admiteVisitadorId, setAdmiteVisitadorId] = useState(false);
+  const rutaProcesada = useRef(null);
   const usuarioActual = useRef(usuario?.id);
   usuarioActual.current = usuario?.id;
   const [documentosLocales, setDocumentosLocales] = useState([]);
@@ -377,7 +381,7 @@ function DocumentoEditor({
           .select("id, nombre, empresa")
           .eq("activo", true)
           .order("nombre"),
-        supabase.from("visitadores_medicos").select("*"),
+        leerTodasLasFilas(supabase, "visitadores_medicos").then(data => ({ data, error: null })).catch(error => ({ data: [], error })),
         supabase
           .from("productos")
           .select(
@@ -400,6 +404,12 @@ function DocumentoEditor({
       }
       if (respuestaDocumentos.error) throw respuestaDocumentos.error;
 
+      try {
+        setAdmiteVisitadorId(await admiteVinculoVisitador(supabase));
+      } catch {
+        // Keep the document list usable offline or while schema access is unavailable.
+        setAdmiteVisitadorId(false);
+      }
       setClientes(respuestaClientes.data ?? []);
       setVisitadoresMedicos(
         [...(respuestaVisitadores.data ?? [])].sort((a, b) =>
@@ -413,20 +423,30 @@ function DocumentoEditor({
       setProductos(respuestaProductos.data ?? []);
       setDocumentos(respuestaDocumentos.data ?? []);
 
+      const rutaSolicitada = location.pathname + location.search;
+      if (rutaProcesada.current !== rutaSolicitada) {
+      rutaProcesada.current = rutaSolicitada;
       const parametros = new URLSearchParams(
         String(window.location.hash || "").split("?")[1] || "",
       );
       const presupuestoId = parametros.get("presupuesto_id");
+      const visitadorSolicitado = (respuestaVisitadores.data ?? []).find(v => String(v.id) === parametros.get("visitador_id"));
+      if (!presupuestoId && visitadorSolicitado) {
+        abrirNuevoDocumento();
+        setTipoDocumento("Visitador médico");
+        seleccionarVisitador(String(visitadorSolicitado.id), respuestaVisitadores.data ?? []);
+      }
       const abrirEnEdicion = parametros.get("editar") === "1";
       const documentoSolicitado = (respuestaDocumentos.data ?? []).find(
         (documento) => String(documento.id) === String(presupuestoId),
       );
       if (documentoSolicitado) {
         if (abrirEnEdicion) {
-          await editarDocumento(documentoSolicitado);
+          await editarDocumento(documentoSolicitado, respuestaVisitadores.data ?? []);
         } else {
           await abrirDocumento(documentoSolicitado);
         }
+      }
       }
     } catch (err) {
       setError(err.message || "No se han podido cargar los documentos.");
@@ -437,7 +457,7 @@ function DocumentoEditor({
 
   useEffect(() => {
     cargarDatos();
-  }, [tipoDocumentoFijo]);
+  }, [tipoDocumentoFijo, location.search]);
 
   const totales = useMemo(
     () => calcularTotales(lineas, transporte, transporteIva),
@@ -567,10 +587,10 @@ function DocumentoEditor({
     setCentroMedico("");
   }
 
-  function seleccionarVisitador(visitadorId) {
+  function seleccionarVisitador(visitadorId, listaVisitadores = visitadoresMedicos) {
     setVisitadorSeleccionadoId(visitadorId);
 
-    const visitador = visitadoresMedicos.find(
+    const visitador = listaVisitadores.find(
       (elemento) => String(elemento.id) === String(visitadorId),
     );
 
@@ -658,7 +678,7 @@ function DocumentoEditor({
     }
 
     if (tipoDocumento === "Visitador médico") {
-      if (!visitadorSeleccionadoId && !visitadorNombre.trim()) {
+      if (!visitadorSeleccionadoId) {
         setError("Selecciona un visitador médico.");
         return;
       }
@@ -694,6 +714,7 @@ function DocumentoEditor({
       numero,
       cliente_id: clienteId || null,
       tipo_documento: tipoDocumento,
+      ...(admiteVisitadorId ? { visitador_id: tipoDocumento === "Visitador médico" ? visitadorSeleccionadoId || null : null } : {}),
       fecha,
       validez_hasta: validezHasta || null,
       estado,
@@ -705,7 +726,7 @@ function DocumentoEditor({
       telefono_contacto: telefonoContacto.trim() || null,
       visitador_nombre:
         tipoDocumento === "Visitador médico"
-          ? visitadorNombre.trim() || null
+          ? nombreVisitador(visitadoresMedicos.find(v => String(v.id) === String(visitadorSeleccionadoId))) || visitadorNombre.trim() || null
           : null,
       laboratorio:
         tipoDocumento === "Visitador médico"
@@ -877,7 +898,7 @@ function DocumentoEditor({
     }
   }
 
-  async function editarDocumento(documento) {
+  async function editarDocumento(documento, listaVisitadores = visitadoresMedicos) {
     setDocumentoLocalAbierto(null);
     if(documento.solo_local && documento.clientes && !clientes.some(item => String(item.id) === String(documento.clientes.id)))setClientes(previous => [...previous, documento.clientes]);
     setAbriendo(true);
@@ -919,11 +940,7 @@ function DocumentoEditor({
       setTelefonoContacto(documento.telefono_contacto || "");
       setVisitadorNombre(documento.visitador_nombre || "");
 
-      const visitadorCoincidente = visitadoresMedicos.find(
-        (visitador) =>
-          obtenerNombreVisitador(visitador).trim().toLowerCase() ===
-          String(documento.visitador_nombre || "").trim().toLowerCase(),
-      );
+      const visitadorCoincidente = resolverVisitador(documento, listaVisitadores);
 
       setVisitadorSeleccionadoId(
         visitadorCoincidente ? String(visitadorCoincidente.id) : "",
@@ -1011,11 +1028,7 @@ function DocumentoEditor({
       setTelefonoContacto(documento.telefono_contacto || "");
       setVisitadorNombre(documento.visitador_nombre || "");
 
-      const visitadorCoincidente = visitadoresMedicos.find(
-        (visitador) =>
-          obtenerNombreVisitador(visitador).trim().toLowerCase() ===
-          String(documento.visitador_nombre || "").trim().toLowerCase(),
-      );
+      const visitadorCoincidente = resolverVisitador(documento, visitadoresMedicos);
 
       setVisitadorSeleccionadoId(
         visitadorCoincidente ? String(visitadorCoincidente.id) : "",
@@ -3276,7 +3289,7 @@ function normalizarTextoProducto(valor) {
 }
 
 function obtenerNombreVisitador(visitador) {
-  return String(
+  return nombreVisitador(visitador) || String(
     visitador?.nombre ??
       visitador?.nombre_visitador ??
       visitador?.visitador_nombre ??

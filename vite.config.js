@@ -112,8 +112,8 @@ function borrarBorradorPresupuesto() {
         }
 
         nuevoCodigo = nuevoCodigo.replace(
-          `  const { usuario } = useAuth();`,
-          `  const borradorInicial = leerBorradorPresupuesto();\n  const { usuario } = useAuth();`,
+          /^(\s*const\s+\{[^}]*\}\s*=\s*useAuth\(\);)/m,
+          `  const borradorInicial = leerBorradorPresupuesto();\n$1`,
         );
         nuevoCodigo = nuevoCodigo.replace(`const [mostrarFormulario, setMostrarFormulario] = useState(false);`, `const [mostrarFormulario, setMostrarFormulario] = useState(Boolean(borradorInicial?.activo));`);
         nuevoCodigo = nuevoCodigo.replace(`const [documentoEditando, setDocumentoEditando] = useState(null);`, `const [documentoEditando, setDocumentoEditando] = useState(borradorInicial?.documentoEditando || null);`);
@@ -136,6 +136,9 @@ function borrarBorradorPresupuesto() {
         nuevoCodigo = nuevoCodigo.replace(`const [transporteIva, setTransporteIva] = useState("10");`, `const [transporteIva, setTransporteIva] = useState(borradorInicial?.transporteIva || "10");`);
         nuevoCodigo = nuevoCodigo.replace(`const [lineas, setLineas] = useState([nuevaLinea()]);`, `const [lineas, setLineas] = useState(\n    Array.isArray(borradorInicial?.lineas) && borradorInicial.lineas.length\n      ? borradorInicial.lineas\n      : [nuevaLinea()],\n  );`);
 
+        if (!nuevoCodigo.includes('const borradorInicial = leerBorradorPresupuesto();')) {
+          throw new Error('No se pudo inicializar el borrador del presupuesto');
+        }
         const marcadorEfecto = `  async function iniciarDictadoAsistente() {`;
         if (!nuevoCodigo.includes("Guardado automático del presupuesto") && nuevoCodigo.includes(marcadorEfecto)) {
           const efecto = `  // Guardado automático del presupuesto para no perderlo al cambiar de pantalla.\n  useEffect(() => {\n    if (!mostrarFormulario) return;\n    try {\n      window.localStorage.setItem(CLAVE_BORRADOR_PRESUPUESTO, JSON.stringify({\n        activo: true, documentoEditando, visitadorSeleccionadoId, tipoDocumento, clienteId, fecha, validezHasta, estado, idioma, horaEntrega, direccionEntrega, personaContacto, telefonoContacto, visitadorNombre, laboratorio, centroMedico, observaciones, transporte, transporteIva, lineas, actualizadoEn: new Date().toISOString(),\n      }));\n    } catch {}\n  }, [mostrarFormulario, documentoEditando, visitadorSeleccionadoId, tipoDocumento, clienteId, fecha, validezHasta, estado, idioma, horaEntrega, direccionEntrega, personaContacto, telefonoContacto, visitadorNombre, laboratorio, centroMedico, observaciones, transporte, transporteIva, lineas]);\n\n`;

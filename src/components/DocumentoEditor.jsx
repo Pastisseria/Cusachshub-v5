@@ -3047,6 +3047,8 @@ function TablaDocumentos({
   eliminarDocumento,
   imprimirDocumento,
 }) {
+  const { esAdministrador } = useAuth();
+  const navigate = useNavigate();
   return (
     <div className="tabla-responsive">
           <table className="tabla-facturas">

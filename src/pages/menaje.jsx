@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase.js";
+import ImportarMenaje from "../components/ImportarMenaje.jsx";
 
 const FORMULARIO_INICIAL = {
   nombre: "",
@@ -382,6 +383,8 @@ function Menaje() {
         />
         <TarjetaResumen titulo="Stock bajo" valor={resumen.stockBajo} />
       </div>
+
+      <ImportarMenaje articulos={articulos} recargar={cargarMenaje} />
 
       <form onSubmit={guardarArticulo} style={estiloFormulario}>
         <div style={estiloCabeceraFormulario}>

@@ -60,14 +60,14 @@ export default function DatosFactura(){
   function elegirPresupuesto(p){setSeleccionPresupuestos(prev=>prev.includes(String(p.id))?prev.filter(id=>id!==String(p.id)):prev.length&&String(clientePresupuesto)!==String(p.cliente_id)?prev:[...prev,String(p.id)]);}
   async function emitirFacturaAgrupada(){
     if(presupuestosElegidos.length<2||!clientePresupuesto)return;
-    if(!window.confirm("¿Crear una única factura para estos "+presupuestosElegidos.length+" presupuestos? Esta acción los marcará como facturados."))return;
+    if(!window.confirm("¿Preparar un único registro agrupado para estos "+presupuestosElegidos.length+" presupuestos? Esta acción los marcará como enviados para facturar externamente."))return;
     setEmitiendoGrupo(true);setError("");setMensaje("");
     try{
       const {data,error:err}=await supabase.rpc("crear_factura_agrupada",{p_presupuestos:presupuestosElegidos.map(p=>p.id)});
       if(err)throw err;
       setSeleccionPresupuestos([]);
       await cargar();
-      setMensaje("Factura agrupada creada correctamente: "+(data?.numero||"consulta el listado de facturas"));
+      setMensaje("Agrupación preparada correctamente: "+(data?.numero||"consulta el listado de facturas"));
     }catch(err){setError("No se ha podido crear la factura agrupada: "+(err.message||"error desconocido"));}
     finally{setEmitiendoGrupo(false);}
   }
@@ -79,7 +79,7 @@ export default function DatosFactura(){
     {error&&<p className="mensaje-error no-imprimir">{error}</p>}{mensaje&&<p className="mensaje no-imprimir">{mensaje}</p>}
     <div className="no-imprimir" style={{padding:16,border:"1px solid #ddd",borderRadius:10,marginBottom:14}}>
       <h3>Agrupar presupuestos del mismo cliente</h3>
-      <p>Selecciona al menos dos registros pendientes del mismo cliente en la tabla inferior. Esta opción prepara un resumen conjunto; todavía no emite una factura fiscal ni cambia estados.</p>
+      <p>Selecciona al menos dos registros pendientes del mismo cliente en la tabla inferior. Esta opción permite revisar un resumen conjunto sin modificar estados.</p>
       <strong>{seleccionados.length} seleccionados · {moneda(resumenAgrupado.total)}</strong>
       <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}><button type="button" disabled={seleccionados.length<2} onClick={()=>setVistaAgrupada(true)}>Ver resumen agrupado</button><button type="button" onClick={()=>{setSeleccionAgrupada([]);setVistaAgrupada(false);}}>Limpiar selección</button></div>
     </div>
@@ -89,7 +89,7 @@ export default function DatosFactura(){
       <p>Selecciona dos o más presupuestos del mismo cliente. Solo aparecen los aceptados sin factura vinculada. La vista previa no modifica los datos.</p>
       <div className="tabla-responsive"><table className="tabla-facturas"><thead><tr><th>Seleccionar</th><th>Presupuesto</th><th>Cliente</th><th>Fecha servicio</th><th>Total presupuesto</th></tr></thead><tbody>{presupuestosAgrupables.map(p=><tr key={p.id}><td><input type="checkbox" aria-label={`Seleccionar presupuesto ${p.numero||p.id}`} checked={seleccionPresupuestos.includes(String(p.id))} disabled={!p.cliente_id||(presupuestosElegidos.length>0&&String(clientePresupuesto)!==String(p.cliente_id)&&!seleccionPresupuestos.includes(String(p.id)))} onChange={()=>elegirPresupuesto(p)}/></td><td>{p.numero||"—"}</td><td>{clienteNombre(p.cliente_id)}</td><td>{fechaES(p.fecha_evento||p.fecha)}</td><td>{moneda(p.total)}</td></tr>)}</tbody></table></div>
       <p><strong>{presupuestosElegidos.length} presupuestos · {moneda(totalPresupuestos)}</strong></p>
-      {presupuestosElegidos.length>=2&&<div><h3>Vista previa conjunta — {clienteNombre(clientePresupuesto)}</h3><p>Documento interno, todavía no es una factura. Los totales proceden de los presupuestos guardados; revisa el tratamiento del transporte antes de emitir.</p><table className="tabla-facturas"><thead><tr><th>Presupuesto</th><th>Fecha</th><th>Personas</th><th>Total</th></tr></thead><tbody>{presupuestosElegidos.map(p=><tr key={p.id}><td>{p.numero}</td><td>{fechaES(p.fecha_evento||p.fecha)}</td><td>{p.numero_personas??"—"}</td><td>{moneda(p.total)}</td></tr>)}</tbody></table><strong>Total conjunto: {moneda(totalPresupuestos)}</strong><div style={{marginTop:12}}><button className="boton-principal" type="button" disabled={emitiendoGrupo} onClick={emitirFacturaAgrupada}>{emitiendoGrupo?"Creando factura...":"Crear factura única"}</button></div></div>}
+      {presupuestosElegidos.length>=2&&<div><h3>Vista previa conjunta — {clienteNombre(clientePresupuesto)}</h3><p>Documento interno, todavía no es una factura. Los totales proceden de los presupuestos guardados; revisa el tratamiento del transporte antes de emitir.</p><table className="tabla-facturas"><thead><tr><th>Presupuesto</th><th>Fecha</th><th>Personas</th><th>Total</th></tr></thead><tbody>{presupuestosElegidos.map(p=><tr key={p.id}><td>{p.numero}</td><td>{fechaES(p.fecha_evento||p.fecha)}</td><td>{p.numero_personas??"—"}</td><td>{moneda(p.total)}</td></tr>)}</tbody></table><strong>Total conjunto: {moneda(totalPresupuestos)}</strong><div style={{marginTop:12}}><button className="boton-principal" type="button" disabled={emitiendoGrupo} onClick={emitirFacturaAgrupada}>{emitiendoGrupo?"Creando factura...":"Preparar agrupación para facturar"}</button></div></div>}
     </section>
     <div className="facturacion-resumen no-imprimir"><article><span>Registros</span><strong>{registros.length}</strong></article><article><span>Pendientes</span><strong>{pendientesRegistros.length}</strong></article><article><span>Preparados</span><strong>{preparadosRegistros.length}</strong></article><article><span>Total pendiente</span><strong>{moneda(pendientesRegistros.reduce((a,r)=>a+numero(r.total??r.importe),0))}</strong></article></div>
     <div className="facturacion-filtros no-imprimir"><input type="search" placeholder="Buscar cliente..." value={busqueda} onChange={e=>setBusqueda(e.target.value)}/></div>

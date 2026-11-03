@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../supabase.js";
+import { cargarProduccionesCompletas } from "../lib/cargar-producciones.js";
 
 const ZONAS = ["Obrador", "Cocina", "Barra"];
 
@@ -293,12 +294,7 @@ function Produccion() {
         respuestaClientes,
         respuestaProductos,
       ] = await Promise.all([
-        supabase
-          .from("producciones")
-          .select("*")
-          .order("fecha", { ascending: true })
-          .order("hora_limite", { ascending: true })
-          .order("created_at", { ascending: true }),
+        cargarProduccionesCompletas(supabase),
 
         supabase
           .from("caterings")

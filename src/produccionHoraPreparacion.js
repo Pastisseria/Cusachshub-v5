@@ -135,13 +135,13 @@ function aplicarImpresionProduccion() {
   }
   cocina.textContent = \`
     @media print {
-      body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print h2 { font-size: 22px !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print h2 { font-size: 24px !important; }
       body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print > span,
-      body.cusachs-imprimir-cocina-grande .zona-diaria-fecha-hora-print > span { font-size: 18px !important; line-height: 1.2 !important; }
-      body.cusachs-imprimir-cocina-grande .zona-diaria-pedido-cabecera-print strong { font-size: 22px !important; line-height: 1.18 !important; overflow-wrap: anywhere !important; }
-      body.cusachs-imprimir-cocina-grande .zona-diaria-hora-catering-print { font-size: 20px !important; line-height: 1.2 !important; font-weight: 800 !important; }
-      body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print { grid-template-columns: 24px 110px minmax(0, 1fr) !important; font-size: 20px !important; line-height: 1.2 !important; padding: 5px 0 !important; }
-      body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print strong { font-size: 22px !important; line-height: 1.2 !important; font-weight: 800 !important; overflow-wrap: anywhere !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-fecha-hora-print > span { font-size: 20px !important; line-height: 1.2 !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-pedido-cabecera-print strong { font-size: 24px !important; line-height: 1.18 !important; overflow-wrap: anywhere !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-hora-catering-print { font-size: 22px !important; line-height: 1.2 !important; font-weight: 800 !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print { grid-template-columns: 24px 110px minmax(0, 1fr) !important; font-size: 22px !important; line-height: 1.2 !important; padding: 5px 0 !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print strong { font-size: 24px !important; line-height: 1.2 !important; font-weight: 800 !important; overflow-wrap: anywhere !important; }
     }
   \`;
 

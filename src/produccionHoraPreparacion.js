@@ -123,6 +123,28 @@ function aplicarImpresionProduccion() {
     a5.id = "cusachs-obrador-a5-print";
     document.head.appendChild(a5);
   }
+  // Solo Cocina: tipografía ampliada en la impresión, sin alterar pantalla ni otras zonas.
+  const esCocina = [...document.querySelectorAll(".zona-diaria-titulo-pedido-print h2")]
+    .some((titulo) => titulo.textContent.includes("Producción Cocina"));
+  document.body.classList.toggle("cusachs-imprimir-cocina-grande", esCocina && document.body.classList.contains("imprimiendo-zona-diaria"));
+  let cocina = document.getElementById("cusachs-cocina-grande-print");
+  if (!cocina) {
+    cocina = document.createElement("style");
+    cocina.id = "cusachs-cocina-grande-print";
+    document.head.appendChild(cocina);
+  }
+  cocina.textContent = \`
+    @media print {
+      body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print h2 { font-size: 22px !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print > span,
+      body.cusachs-imprimir-cocina-grande .zona-diaria-fecha-hora-print > span { font-size: 18px !important; line-height: 1.2 !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-pedido-cabecera-print strong { font-size: 22px !important; line-height: 1.18 !important; overflow-wrap: anywhere !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-hora-catering-print { font-size: 20px !important; line-height: 1.2 !important; font-weight: 800 !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print { grid-template-columns: 24px 110px minmax(0, 1fr) !important; font-size: 20px !important; line-height: 1.2 !important; padding: 5px 0 !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print strong { font-size: 22px !important; line-height: 1.2 !important; font-weight: 800 !important; overflow-wrap: anywhere !important; }
+    }
+  \`;
+
   a5.textContent = `
     @media print {
       body.cusachs-imprimir-obrador-a5 .zona-diaria-hoja-print,

@@ -133,7 +133,7 @@ function aplicarImpresionProduccion() {
     cocina.id = "cusachs-cocina-grande-print";
     document.head.appendChild(cocina);
   }
-  cocina.textContent = \`
+  cocina.textContent = `
     @media print {
       body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print h2 { font-size: 24px !important; }
       body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print > span,
@@ -143,7 +143,7 @@ function aplicarImpresionProduccion() {
       body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print { grid-template-columns: 28px 135px minmax(0, 1fr) !important; font-size: 26px !important; line-height: 1.2 !important; padding: 5px 0 !important; }
       body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print strong { font-size: 28px !important; line-height: 1.2 !important; font-weight: 800 !important; overflow-wrap: anywhere !important; }
     }
-  \`;
+  `;
 
   a5.textContent = `
     @media print {

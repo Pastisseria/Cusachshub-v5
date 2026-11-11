@@ -670,7 +670,10 @@ function DocumentoEditor({
 
   async function guardarDocumento(event) {
     event.preventDefault();
-    const solicitarLocal = event.nativeEvent?.submitter?.value === 'local';
+    const destino = event.nativeEvent?.submitter?.value;
+    const solicitarLocal = destino === 'local';
+    const publicarCopia = destino === 'publicar' && documentoEditando?.solo_local && !documentoEditando.origen_id;
+    const documentoOriginal = publicarCopia ? null : documentoEditando;
 
     if (!tipoDocumento) {
       setError("Selecciona el tipo de documento.");
@@ -708,7 +711,7 @@ function DocumentoEditor({
     );
 
     const numero =
-      documentoEditando?.numero || generarNumeroDocumento(tipoDocumento);
+      documentoOriginal?.numero || generarNumeroDocumento(tipoDocumento);
 
     const datosDocumento = {
       numero,
@@ -745,22 +748,22 @@ function DocumentoEditor({
       updated_at: new Date().toISOString(),
     };
 
-    if (!documentoEditando) {
+    if (!documentoOriginal) {
       datosDocumento.facturado_externamente = false;
     }
 
     try {
-      if (solicitarLocal || !navigator.onLine || documentoEditando?.solo_local) {
+      if (solicitarLocal || !navigator.onLine || documentoOriginal?.solo_local) {
         await guardarCopiaLocal(datosDocumento, lineasValidas);
         return;
       }
       let documentoGuardado = null;
 
-      if (documentoEditando) {
+      if (documentoOriginal) {
         const { data, error: errorDocumento } = await supabase
           .from("presupuestos")
           .update(datosDocumento)
-          .eq("id", documentoEditando.id)
+          .eq("id", documentoOriginal.id)
           .select("*")
           .single();
 
@@ -770,7 +773,7 @@ function DocumentoEditor({
         const { error: errorBorradoLineas } = await supabase
           .from("presupuesto_lineas")
           .delete()
-          .eq("presupuesto_id", documentoEditando.id);
+          .eq("presupuesto_id", documentoOriginal.id);
 
         if (errorBorradoLineas) throw errorBorradoLineas;
       } else {
@@ -810,7 +813,7 @@ function DocumentoEditor({
         .insert(datosLineas);
 
       if (errorLineas) {
-        if (!documentoEditando) {
+        if (!documentoOriginal) {
           await supabase
             .from("presupuestos")
             .delete()
@@ -844,7 +847,7 @@ function DocumentoEditor({
 
       documentoGuardado = documentoFinal;
 
-      const eraEdicion = Boolean(documentoEditando);
+      const eraEdicion = Boolean(documentoOriginal);
 
       setMensaje(
         eraEdicion
@@ -861,14 +864,15 @@ function DocumentoEditor({
       setTransporte("");
       setTransporteIva("10");
 
-      if (eraEdicion) {
+      if (eraEdicion || publicarCopia) {
         const clienteActualizado =
           clientes.find((cliente) => String(cliente.id) === String(documentoGuardado.cliente_id)) ||
-          documentoEditando?.clientes ||
+          documentoOriginal?.clientes ||
           null;
 
+        setDocumentoLocalAbierto(null);
         setDocumentoAbierto({
-          ...documentoEditando,
+          ...documentoOriginal,
           ...documentoGuardado,
           clientes: clienteActualizado,
         });
@@ -879,6 +883,15 @@ function DocumentoEditor({
           })),
         );
         window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      if (publicarCopia) {
+        try {
+          await deleteLocalBudget(authStorageKey, usuario.id, documentoEditando.id);
+          setDocumentosLocales(previous => previous.filter(item => item.id !== documentoEditando.id));
+        } catch {
+          setMensaje(`Documento ${numero} guardado correctamente. La copia sigue disponible en este dispositivo.`);
+        }
       }
 
       await cargarDatos();
@@ -2499,6 +2512,12 @@ function DocumentoEditor({
                   ? "💾 Guardar cambios"
                   : "💾 Guardar documento"}
             </button>
+
+            {online && documentoEditando?.solo_local && !documentoEditando.origen_id && (
+              <button type="submit" name="destino" value="publicar" disabled={guardando}>
+                Guardar como documento nuevo
+              </button>
+            )}
 
             <button
               type="button"

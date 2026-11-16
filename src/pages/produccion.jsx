@@ -1683,7 +1683,11 @@ function Produccion() {
                       >
                         <span className="zona-diaria-check-print">☐</span>
                         <strong>
-                          {formatearCantidad(linea.cantidad)} {linea.unidad}
+                          {formatearCantidad(linea.cantidad)}
+                          {linea.zona === "Cocina" &&
+                          /^(?:u|unidad(?:es)?|unitat(?:s)?)$/i.test(linea.unidad?.trim())
+                            ? "\u00a0U"
+                            : ` ${linea.unidad ?? ""}`}
                         </strong>
                         <span>
                           {zonaImpresionDiaria === "Todas" && (

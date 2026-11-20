@@ -1,11 +1,12 @@
 // Fetch every page: a single SELECT can silently stop at the API's row limit.
-export async function cargarProduccionesCompletas(supabase) {
+export async function cargarProduccionesCompletas(supabase, { desde, hasta } = {}) {
   const data = [];
   const tamanoPagina = 500;
   while (true) {
-    const respuesta = await supabase
-      .from("producciones")
-      .select("*", { count: "exact" })
+    let consulta = supabase.from("producciones").select("*", { count: "exact" });
+    if (desde) consulta = consulta.gte("fecha", desde);
+    if (hasta) consulta = consulta.lte("fecha", hasta);
+    const respuesta = await consulta
       .order("fecha", { ascending: true })
       .order("hora_limite", { ascending: true })
       .order("created_at", { ascending: true })

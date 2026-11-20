@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase.js";
-import { cargarProduccionesCompletas } from "../lib/cargar-producciones.js";
+import { determinarZonaProduccion, normalizarTextoProduccion } from "../lib/zona-produccion.js";
 
 const ZONAS = ["Cocina", "Obrador"];
 const FORMATO_TOTAL = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 6 });
@@ -8,16 +8,18 @@ const FORMATO_TOTAL = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 6 
 function sumarPorProducto(lineas) {
   const grupos = new Map(ZONAS.map(zona => [zona, new Map()]));
   for (const linea of lineas) {
-    const productos = grupos.get(linea.zona);
+    const nombre = String(linea.descripcion || linea.productos?.nombre || "").trim();
+    const zona = determinarZonaProduccion(linea.productos, nombre, linea.departamento);
+    const productos = grupos.get(zona);
     const cantidad = Number(linea.cantidad);
-    if (!productos || String(linea.estado || "").trim().toLowerCase() === "cancelado" || !Number.isFinite(cantidad)) continue;
+    if (!productos || !nombre || !Number.isFinite(cantidad) || cantidad <= 0) continue;
 
-    const nombre = String(linea.producto_nombre || "").trim() || "Producto sin nombre";
-    const unidad = String(linea.unidad || "").trim() || "unidades";
-    const clave = JSON.stringify([linea.producto_id || nombre.toLowerCase().replace(/\s+/g, " "), unidad.toLowerCase()]);
-    const producto = productos.get(clave) || { clave, nombre, unidad, total: 0, terminado: 0 };
+    const unidad = String(linea.unidad || linea.productos?.unidad || "").trim() || "unidades";
+    const unidadNormalizada = normalizarTextoProduccion(unidad);
+    const unidadAgrupada = ["u", "ud", "uds", "unidad", "unidades"].includes(unidadNormalizada) ? "unidades" : unidadNormalizada;
+    const clave = JSON.stringify([normalizarTextoProduccion(nombre), unidadAgrupada]);
+    const producto = productos.get(clave) || { clave, nombre, unidad: unidadAgrupada === "unidades" ? "unidades" : unidad, total: 0 };
     producto.total += cantidad;
-    if (String(linea.estado || "").trim().toLowerCase() === "terminado") producto.terminado += cantidad;
     productos.set(clave, producto);
   }
   return ZONAS.map(zona => ({
@@ -44,12 +46,28 @@ export default function ProduccionTotal() {
 
     async function cargar() {
       try {
-        const { data, error } = await cargarProduccionesCompletas(supabase, {
-          desde: `${mes}-01`,
-          hasta: `${mes}-${ultimoDia}`,
-        });
-        if (error) throw error;
-        if (vigente) setResultado({ mes, grupos: sumarPorProducto(data) });
+        const lineas = [];
+        const tamanoPagina = 500;
+        while (vigente) {
+          const { data, error, count } = await supabase
+            .from("presupuesto_lineas")
+            .select("id,descripcion,cantidad,unidad,departamento,productos(nombre,unidad,zona_produccion),presupuestos!inner(fecha,tipo_documento,estado,facturado_externamente,fecha_facturacion,factura_id)", { count: "exact" })
+            .ilike("presupuestos.tipo_documento", "catering")
+            .gte("presupuestos.fecha", `${mes}-01`)
+            .lte("presupuestos.fecha", `${mes}-${ultimoDia}`)
+            .order("id")
+            .range(lineas.length, lineas.length + tamanoPagina - 1);
+          if (error) throw error;
+          lineas.push(...data);
+          if (lineas.length >= count && count != null) break;
+          if (!data.length && count != null) throw new Error("No se han podido cargar todas las líneas de presupuesto.");
+          if (count == null && data.length < tamanoPagina) break;
+        }
+        if (vigente) setResultado({ mes, grupos: sumarPorProducto(lineas.filter(({ presupuestos: p }) => {
+          const estado = normalizarTextoProduccion(p.estado);
+          return estado !== "cancelado" && (["aceptado", "facturado", "facturada", "pagado", "pagada"].includes(estado) ||
+            p.facturado_externamente || p.fecha_facturacion || p.factura_id);
+        })) });
       } catch (error) {
         if (vigente) setResultado({ mes, error: error.message || "No se ha podido cargar la producción del mes." });
       }
@@ -60,7 +78,7 @@ export default function ProduccionTotal() {
 
   return <section className="panel">
     <h1>Producción total</h1>
-    <p>Cantidades registradas en Producción para el mes seleccionado. La columna «Terminado» suma las cantidades marcadas como terminadas.</p>
+    <p>Cantidades de las líneas de los presupuestos de catering aceptados o facturados del mes, incluidas las introducidas a mano.</p>
     <label>Mes <input type="month" value={mes} onChange={event => {
       if (event.target.value && event.target.value !== mes) {
         setResultado(null);
@@ -74,15 +92,14 @@ export default function ProduccionTotal() {
         <h2>{zona}</h2>
         {productos.length ? <div className="tabla-responsive">
           <table>
-            <thead><tr><th scope="col">Producto</th><th scope="col">Unidad</th><th scope="col">Total registrado</th><th scope="col">Terminado</th></tr></thead>
+            <thead><tr><th scope="col">Producto</th><th scope="col">Unidad</th><th scope="col">Total presupuestado</th></tr></thead>
             <tbody>{productos.map(producto => <tr key={producto.clave}>
               <td>{producto.nombre}</td>
               <td>{producto.unidad}</td>
               <td><strong>{FORMATO_TOTAL.format(producto.total)}</strong></td>
-              <td>{FORMATO_TOTAL.format(producto.terminado)}</td>
             </tr>)}</tbody>
           </table>
-        </div> : <p>No hay líneas de producción para este mes.</p>}
+        </div> : <p>No hay productos de esta zona para este mes.</p>}
       </section>)}
   </section>;
 }

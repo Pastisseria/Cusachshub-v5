@@ -85,8 +85,7 @@ export default function Dashboard() {
       facturados: filas.filter(p => p.estadoControl === "Facturado").length,
       cancelados: filas.filter(p => p.estadoControl === "Cancelado").length,
       dinero,
-      cobrado,
-      pendienteCobro: Math.max(0, dinero - cobrado)
+      cobrado
     };
   }, [filas, facturas, mes, anio]);
 
@@ -108,7 +107,7 @@ export default function Dashboard() {
     {aviso && <div className="dm-aviso" role="status">{aviso}</div>}
     {cargando ? <div className="dm-cargando">Cargando el mes completo...</div> : <>
       <div className="dm-cards">
-        <Card titulo="Caterings presupuestados" valor={resumen.presupuestados}/><Card titulo="Aceptados" valor={resumen.aceptados} detalle={porcentajeDelMes(resumen.aceptados, resumen.presupuestados)}/><Card titulo="Pendientes de facturar" valor={resumen.pendientes}/><Card titulo="Caterings facturados" valor={resumen.facturados}/><Card titulo="Cancelados" valor={resumen.cancelados} detalle={porcentajeDelMes(resumen.cancelados, resumen.presupuestados)}/><Card titulo="Facturación real" valor={euros(resumen.dinero)}/><Card titulo="Cobrado" valor={euros(resumen.cobrado)}/><Card titulo="Pendiente de cobro" valor={euros(resumen.pendienteCobro)}/>
+        <Card titulo="Caterings presupuestados" valor={resumen.presupuestados}/><Card titulo="Aceptados" valor={resumen.aceptados} detalle={porcentajeDelMes(resumen.aceptados, resumen.presupuestados)}/><Card titulo="Pendientes de facturar" valor={resumen.pendientes}/><Card titulo="Caterings facturados" valor={resumen.facturados}/><Card titulo="Cancelados" valor={resumen.cancelados} detalle={porcentajeDelMes(resumen.cancelados, resumen.presupuestados)}/><Card titulo="Facturación real" valor={euros(resumen.dinero)}/><Card titulo="Cobrado" valor={euros(resumen.cobrado)}/>
       </div>
 
       <section className="dm-listado">

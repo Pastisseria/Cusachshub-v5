@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../supabase.js";
 
 const FORMATO_PORCENTAJE = new Intl.NumberFormat("es-ES", { style: "percent", maximumFractionDigits: 1 });
@@ -11,6 +11,12 @@ export default function Dashboard() {
   const [presupuestos, setPresupuestos] = useState([]);
   const [facturas, setFacturas] = useState([]);
   const [filtro, setFiltro] = useState("todos");
+  const tituloListado = useRef(null);
+
+  function abrirListado(estado) {
+    setFiltro(estado);
+    tituloListado.current?.focus();
+  }
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(null);
@@ -108,12 +114,12 @@ export default function Dashboard() {
     {aviso && <div className="dm-aviso" role="status">{aviso}</div>}
     {cargando ? <div className="dm-cargando">Cargando el mes completo...</div> : <>
       <div className="dm-cards">
-        <Card titulo="Caterings presupuestados" valor={resumen.presupuestados}/><Card titulo="Aceptados" valor={resumen.aceptados} detalle={porcentajeDelMes(resumen.aceptados, resumen.presupuestados)}/><Card titulo="Pendientes de facturar" valor={resumen.pendientes}/><Card titulo="Caterings facturados" valor={resumen.facturados}/><Card titulo="Cancelados" valor={resumen.cancelados} detalle={porcentajeDelMes(resumen.cancelados, resumen.presupuestados)}/><Card titulo="Otros estados" valor={resumen.otros} detalle={porcentajeDelMes(resumen.otros, resumen.presupuestados)}/><Card titulo="Facturación real" valor={euros(resumen.dinero)}/><Card titulo="Cobrado" valor={euros(resumen.cobrado)}/>
+        <Card titulo="Caterings presupuestados" valor={resumen.presupuestados}/><Card titulo="Aceptados" valor={resumen.aceptados} detalle={porcentajeDelMes(resumen.aceptados, resumen.presupuestados)}/><Card titulo="Pendientes de facturar" onClick={() => abrirListado("pendientes")} activo={filtro === "pendientes"} valor={resumen.pendientes}/><Card titulo="Caterings facturados" onClick={() => abrirListado("facturados")} activo={filtro === "facturados"} valor={resumen.facturados}/><Card titulo="Cancelados" onClick={() => abrirListado("cancelados")} activo={filtro === "cancelados"} valor={resumen.cancelados} detalle={porcentajeDelMes(resumen.cancelados, resumen.presupuestados)}/><Card titulo="Otros estados" onClick={() => abrirListado("otros")} activo={filtro === "otros"} valor={resumen.otros} detalle={porcentajeDelMes(resumen.otros, resumen.presupuestados)}/><Card titulo="Facturación real" valor={euros(resumen.dinero)}/><Card titulo="Cobrado" valor={euros(resumen.cobrado)}/>
       </div>
 
-      <section className="dm-listado">
-        <div className="dm-listado-head"><div><p className="dm-kicker">MES COMPLETO</p><h2>Todos los caterings de {MESES[mes-1]} {anio}</h2><p>{visibles.length} de {filas.length} caterings.</p></div>
-          <div className="dm-filtros">{[["todos","Todos"],["pendientes","Pendientes de facturar"],["facturados","Facturados"],["cancelados","Cancelados"],["otros","Otros estados"]].map(([v,t])=><button key={v} className={filtro===v?"activo":""} onClick={()=>setFiltro(v)}>{t}</button>)}</div>
+      <section className="dm-listado" id="dm-listado">
+        <div className="dm-listado-head"><div><p className="dm-kicker">MES COMPLETO</p><h2 ref={tituloListado} tabIndex={-1}>Caterings de {MESES[mes-1]} {anio}</h2><p>{visibles.length} de {filas.length} caterings.</p></div>
+          <div className="dm-filtros">{[["todos","Todos"],["pendientes","Pendientes de facturar"],["facturados","Facturados"],["cancelados","Cancelados"],["otros","Otros estados"]].map(([v,t])=><button key={v} type="button" aria-pressed={filtro === v} className={filtro===v?"activo":""} onClick={()=>setFiltro(v)}>{t}</button>)}</div>
         </div>
         <div className="dm-tabla-wrap"><table><thead><tr><th>Fecha catering</th><th>Nº presupuesto</th><th>Cliente</th><th>Importe</th><th>Estado</th><th>Nº factura</th><th></th></tr></thead><tbody>
           {visibles.length===0 ? <tr><td colSpan="7" className="dm-vacio">No hay caterings con este estado en el mes seleccionado.</td></tr> : visibles.map(p => <tr key={p.id}><td><strong>{fecha(p.fecha)}</strong></td><td>{p.numero || "—"}</td><td>{p.clientes?.empresa || p.clientes?.nombre || p.factura?.nombre_cliente || "Sin cliente"}</td><td><strong>{euros(p.total || p.subtotal)}</strong></td><td><span className={`dm-estado ${clase(p.estadoControl)}`}>{p.estadoControl}</span>{p.estadoControl === "Aceptado · pendiente de facturar" && <button type="button" className="dm-facturar" disabled={guardando !== null} onClick={() => marcarFacturado(p)}>{guardando === p.id ? "Guardando..." : "Marcar como facturado"}</button>}</td><td>{p.factura?.numero || (p.estadoControl==="Facturado"?"Facturado":"—")}</td><td><a href={`${import.meta.env.BASE_URL}#/presupuestos`}>Abrir</a></td></tr>)}
@@ -123,12 +129,19 @@ export default function Dashboard() {
   </section>;
 }
 
-function Card({ titulo, valor, detalle }) {
-  return <div className="dm-card">
+function Card({ titulo, valor, detalle, onClick, activo }) {
+  const contenido = <>
     <span>{titulo}</span>
     <strong>{valor}</strong>
     {detalle && <small className="dm-card-detalle">{detalle}</small>}
-  </div>;
+  </>;
+
+  if (onClick) {
+    return <button type="button" className="dm-card dm-card-boton" onClick={onClick} aria-controls="dm-listado" aria-pressed={activo}>
+      {contenido}
+    </button>;
+  }
+  return <div className="dm-card">{contenido}</div>;
 }
 
 function esAceptado(estado) {
@@ -151,5 +164,5 @@ function euros(v){return Number(v||0).toLocaleString("es-ES",{style:"currency",c
 function fecha(v){if(!v)return"—";const[y,m,d]=String(v).slice(0,10).split("-");return `${d}/${m}/${y}`;}
 
 const CSS=`
-.dm-facturar{display:block;margin-top:8px;padding:9px 12px;border:0;border-radius:8px;background:#5c257c;color:white;font-weight:800;cursor:pointer;white-space:nowrap}.dm-facturar:disabled{opacity:.6;cursor:wait}.dm-aviso{padding:14px;background:#e6f5ea;color:#26733c;border-radius:10px}.dm-wrap{padding:30px}.dm-header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}.dm-header h1,.dm-listado h2{margin:0;color:#21162a}.dm-header p,.dm-listado p{color:#766d7a}.dm-kicker{margin:0 0 7px!important;color:#6d2f8e!important;font-size:12px;font-weight:900;letter-spacing:2px}.dm-refresh{padding:11px 15px;border:0;border-radius:10px;background:#6d2f8e;color:#fff;font-weight:800}.dm-selectores{display:flex;gap:12px;margin:22px 0}.dm-selectores label{font-weight:800;color:#5c257c}.dm-selectores select{margin-left:7px;padding:9px 12px;border:1px solid #d8cadd;border-radius:9px;background:#fff}.dm-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.dm-card{padding:18px;border:1px solid #e2d6e7;border-radius:16px;background:#fff}.dm-card span{display:block;color:#765d7f;font-size:11px;font-weight:900;text-transform:uppercase}.dm-card strong{display:block;margin-top:7px;color:#5c257c;font-size:25px}.dm-card-detalle{display:block;margin-top:4px;color:#765d7f;font-size:13px}.dm-listado{margin-top:28px;padding:24px;border:1px solid #ddcfe3;border-radius:20px;background:#fff}.dm-listado-head{display:flex;justify-content:space-between;align-items:flex-end;gap:15px;flex-wrap:wrap;margin-bottom:16px}.dm-filtros{display:flex;gap:8px;flex-wrap:wrap}.dm-filtros button{padding:8px 12px;border:1px solid #d8cadd;border-radius:999px;background:#fff;color:#5c257c;font-weight:800}.dm-filtros button.activo{background:#5c257c;color:#fff}.dm-tabla-wrap{overflow:auto;border:1px solid #eee7f0;border-radius:14px}.dm-tabla-wrap table{width:100%;min-width:900px;border-collapse:collapse}.dm-tabla-wrap th{padding:11px 12px;text-align:left;background:#f7f2f9;color:#5c257c;font-size:12px;text-transform:uppercase}.dm-tabla-wrap td{padding:12px;border-top:1px solid #eee7f0}.dm-tabla-wrap a{padding:7px 10px;border-radius:8px;background:#5c257c;color:#fff;text-decoration:none;font-weight:800}.dm-estado{display:inline-flex;padding:6px 9px;border-radius:999px;font-size:12px;font-weight:900;white-space:nowrap}.dm-estado.facturado{background:#e6f5ea;color:#26733c}.dm-estado.cancelado{background:#fde7ec;color:#a42f46}.dm-estado.pendiente{background:#fff1c9;color:#805b00}.dm-estado.enviado{background:#e8f1ff;color:#285a9d}.dm-estado.borrador{background:#efedf0;color:#655d68}.dm-vacio,.dm-cargando{text-align:center;padding:30px;color:#766d7a}.dm-error{padding:14px;background:#fde7ec;color:#a42f46;border-radius:10px}@media(max-width:1100px){.dm-cards{grid-template-columns:repeat(3,1fr)}}@media(max-width:700px){.dm-wrap{padding:16px}.dm-cards{grid-template-columns:repeat(2,1fr)}.dm-listado{padding:15px}}
+.dm-facturar{display:block;margin-top:8px;padding:9px 12px;border:0;border-radius:8px;background:#5c257c;color:white;font-weight:800;cursor:pointer;white-space:nowrap}.dm-facturar:disabled{opacity:.6;cursor:wait}.dm-aviso{padding:14px;background:#e6f5ea;color:#26733c;border-radius:10px}.dm-wrap{padding:30px}.dm-header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}.dm-header h1,.dm-listado h2{margin:0;color:#21162a}.dm-header p,.dm-listado p{color:#766d7a}.dm-kicker{margin:0 0 7px!important;color:#6d2f8e!important;font-size:12px;font-weight:900;letter-spacing:2px}.dm-refresh{padding:11px 15px;border:0;border-radius:10px;background:#6d2f8e;color:#fff;font-weight:800}.dm-selectores{display:flex;gap:12px;margin:22px 0}.dm-selectores label{font-weight:800;color:#5c257c}.dm-selectores select{margin-left:7px;padding:9px 12px;border:1px solid #d8cadd;border-radius:9px;background:#fff}.dm-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.dm-card{padding:18px;border:1px solid #e2d6e7;border-radius:16px;background:#fff}.dm-card span{display:block;color:#765d7f;font-size:11px;font-weight:900;text-transform:uppercase}.dm-card strong{display:block;margin-top:7px;color:#5c257c;font-size:25px}.dm-card-boton{font:inherit;text-align:left;cursor:pointer}.dm-card-boton:hover,.dm-card-boton[aria-pressed="true"]{border-color:#6d2f8e;background:#f7f2f9}.dm-card-boton:focus-visible{outline:2px solid #6d2f8e;outline-offset:2px}.dm-card-detalle{display:block;margin-top:4px;color:#765d7f;font-size:13px}.dm-listado{margin-top:28px;padding:24px;border:1px solid #ddcfe3;border-radius:20px;background:#fff}.dm-listado-head{display:flex;justify-content:space-between;align-items:flex-end;gap:15px;flex-wrap:wrap;margin-bottom:16px}.dm-filtros{display:flex;gap:8px;flex-wrap:wrap}.dm-filtros button{padding:8px 12px;border:1px solid #d8cadd;border-radius:999px;background:#fff;color:#5c257c;font-weight:800}.dm-filtros button.activo{background:#5c257c;color:#fff}.dm-tabla-wrap{overflow:auto;border:1px solid #eee7f0;border-radius:14px}.dm-tabla-wrap table{width:100%;min-width:900px;border-collapse:collapse}.dm-tabla-wrap th{padding:11px 12px;text-align:left;background:#f7f2f9;color:#5c257c;font-size:12px;text-transform:uppercase}.dm-tabla-wrap td{padding:12px;border-top:1px solid #eee7f0}.dm-tabla-wrap a{padding:7px 10px;border-radius:8px;background:#5c257c;color:#fff;text-decoration:none;font-weight:800}.dm-estado{display:inline-flex;padding:6px 9px;border-radius:999px;font-size:12px;font-weight:900;white-space:nowrap}.dm-estado.facturado{background:#e6f5ea;color:#26733c}.dm-estado.cancelado{background:#fde7ec;color:#a42f46}.dm-estado.pendiente{background:#fff1c9;color:#805b00}.dm-estado.enviado{background:#e8f1ff;color:#285a9d}.dm-estado.borrador{background:#efedf0;color:#655d68}.dm-vacio,.dm-cargando{text-align:center;padding:30px;color:#766d7a}.dm-error{padding:14px;background:#fde7ec;color:#a42f46;border-radius:10px}@media(max-width:1100px){.dm-cards{grid-template-columns:repeat(3,1fr)}}@media(max-width:700px){.dm-wrap{padding:16px}.dm-cards{grid-template-columns:repeat(2,1fr)}.dm-listado{padding:15px}}
 `;

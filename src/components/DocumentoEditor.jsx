@@ -1127,6 +1127,10 @@ function DocumentoEditor({
 
   async function marcarEnviadoAFacturar(documento = documentoAbierto) {
     if (!documento) return;
+    if (documento.invitacion) {
+      setError("Este catering está marcado como invitación.");
+      return;
+    }
     if (documento.estado !== "Aceptado") {
       setError("Primero debes aceptar el presupuesto.");
       return;
@@ -2940,6 +2944,7 @@ function DocumentoEditor({
               }
               disabled={
                 facturando ||
+                documentoAbierto.invitacion ||
                 Boolean(
                   documentoAbierto.facturado_externamente ||
                     documentoAbierto.factura_id,
@@ -2952,7 +2957,9 @@ function DocumentoEditor({
                   : ""
               }
             >
-              {documentoAbierto.facturado_externamente ||
+              {documentoAbierto.invitacion
+                ? "Invitación · sin facturar"
+                : documentoAbierto.facturado_externamente ||
               documentoAbierto.factura_id
                 ? "✅ Enviado a facturar"
                 : facturando

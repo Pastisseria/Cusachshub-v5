@@ -10,13 +10,14 @@ function sumarPorProducto(lineas) {
   for (const linea of lineas) {
     const productos = grupos.get(linea.zona);
     const cantidad = Number(linea.cantidad);
-    if (!productos || !linea.catering_id || linea.estado !== "Terminado" || !Number.isFinite(cantidad)) continue;
+    if (!productos || String(linea.estado || "").trim().toLowerCase() === "cancelado" || !Number.isFinite(cantidad)) continue;
 
     const nombre = String(linea.producto_nombre || "").trim() || "Producto sin nombre";
     const unidad = String(linea.unidad || "").trim() || "unidades";
     const clave = JSON.stringify([linea.producto_id || nombre.toLowerCase().replace(/\s+/g, " "), unidad.toLowerCase()]);
-    const producto = productos.get(clave) || { clave, nombre, unidad, total: 0 };
+    const producto = productos.get(clave) || { clave, nombre, unidad, total: 0, terminado: 0 };
     producto.total += cantidad;
+    if (String(linea.estado || "").trim().toLowerCase() === "terminado") producto.terminado += cantidad;
     productos.set(clave, producto);
   }
   return ZONAS.map(zona => ({
@@ -59,7 +60,7 @@ export default function ProduccionTotal() {
 
   return <section className="panel">
     <h1>Producción total</h1>
-    <p>Totales por producto de las líneas de catering marcadas como terminadas, según su fecha de producción.</p>
+    <p>Cantidades registradas en Producción para el mes seleccionado. La columna «Terminado» suma las cantidades marcadas como terminadas.</p>
     <label>Mes <input type="month" value={mes} onChange={event => {
       if (event.target.value && event.target.value !== mes) {
         setResultado(null);
@@ -73,14 +74,15 @@ export default function ProduccionTotal() {
         <h2>{zona}</h2>
         {productos.length ? <div className="tabla-responsive">
           <table>
-            <thead><tr><th scope="col">Producto</th><th scope="col">Unidad</th><th scope="col">Total</th></tr></thead>
+            <thead><tr><th scope="col">Producto</th><th scope="col">Unidad</th><th scope="col">Total registrado</th><th scope="col">Terminado</th></tr></thead>
             <tbody>{productos.map(producto => <tr key={producto.clave}>
               <td>{producto.nombre}</td>
               <td>{producto.unidad}</td>
               <td><strong>{FORMATO_TOTAL.format(producto.total)}</strong></td>
+              <td>{FORMATO_TOTAL.format(producto.terminado)}</td>
             </tr>)}</tbody>
           </table>
-        </div> : <p>No hay líneas de catering terminadas en este mes.</p>}
+        </div> : <p>No hay líneas de producción para este mes.</p>}
       </section>)}
   </section>;
 }

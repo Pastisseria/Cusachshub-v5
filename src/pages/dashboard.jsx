@@ -80,16 +80,17 @@ export default function Dashboard() {
       .reduce((s,f) => s + Number(f.total || 0), 0);
     return {
       presupuestados: filas.length,
-      aceptados: filas.filter(p => ["Facturado","Aceptado · pendiente de facturar"].includes(p.estadoControl)).length,
+      aceptados: filas.filter(p => esAceptado(p.estadoControl)).length,
       pendientes: filas.filter(p => p.estadoControl === "Aceptado · pendiente de facturar").length,
       facturados: filas.filter(p => p.estadoControl === "Facturado").length,
       cancelados: filas.filter(p => p.estadoControl === "Cancelado").length,
+      otros: filas.filter(p => esOtroEstado(p.estadoControl)).length,
       dinero,
       cobrado
     };
   }, [filas, facturas, mes, anio]);
 
-  const visibles = filas.filter(p => filtro === "todos" || (filtro === "pendientes" && p.estadoControl === "Aceptado · pendiente de facturar") || (filtro === "facturados" && ["Facturado","Pagado"].includes(p.estadoControl)) || (filtro === "cancelados" && p.estadoControl === "Cancelado"));
+  const visibles = filas.filter(p => filtro === "todos" || (filtro === "pendientes" && p.estadoControl === "Aceptado · pendiente de facturar") || (filtro === "facturados" && ["Facturado","Pagado"].includes(p.estadoControl)) || (filtro === "cancelados" && p.estadoControl === "Cancelado") || (filtro === "otros" && esOtroEstado(p.estadoControl)));
 
   return <section className="dm-wrap">
     <style>{CSS}</style>
@@ -107,12 +108,12 @@ export default function Dashboard() {
     {aviso && <div className="dm-aviso" role="status">{aviso}</div>}
     {cargando ? <div className="dm-cargando">Cargando el mes completo...</div> : <>
       <div className="dm-cards">
-        <Card titulo="Caterings presupuestados" valor={resumen.presupuestados}/><Card titulo="Aceptados" valor={resumen.aceptados} detalle={porcentajeDelMes(resumen.aceptados, resumen.presupuestados)}/><Card titulo="Pendientes de facturar" valor={resumen.pendientes}/><Card titulo="Caterings facturados" valor={resumen.facturados}/><Card titulo="Cancelados" valor={resumen.cancelados} detalle={porcentajeDelMes(resumen.cancelados, resumen.presupuestados)}/><Card titulo="Facturación real" valor={euros(resumen.dinero)}/><Card titulo="Cobrado" valor={euros(resumen.cobrado)}/>
+        <Card titulo="Caterings presupuestados" valor={resumen.presupuestados}/><Card titulo="Aceptados" valor={resumen.aceptados} detalle={porcentajeDelMes(resumen.aceptados, resumen.presupuestados)}/><Card titulo="Pendientes de facturar" valor={resumen.pendientes}/><Card titulo="Caterings facturados" valor={resumen.facturados}/><Card titulo="Cancelados" valor={resumen.cancelados} detalle={porcentajeDelMes(resumen.cancelados, resumen.presupuestados)}/><Card titulo="Otros estados" valor={resumen.otros} detalle={porcentajeDelMes(resumen.otros, resumen.presupuestados)}/><Card titulo="Facturación real" valor={euros(resumen.dinero)}/><Card titulo="Cobrado" valor={euros(resumen.cobrado)}/>
       </div>
 
       <section className="dm-listado">
         <div className="dm-listado-head"><div><p className="dm-kicker">MES COMPLETO</p><h2>Todos los caterings de {MESES[mes-1]} {anio}</h2><p>{visibles.length} de {filas.length} caterings.</p></div>
-          <div className="dm-filtros">{[["todos","Todos"],["pendientes","Pendientes de facturar"],["facturados","Facturados"],["cancelados","Cancelados"]].map(([v,t])=><button key={v} className={filtro===v?"activo":""} onClick={()=>setFiltro(v)}>{t}</button>)}</div>
+          <div className="dm-filtros">{[["todos","Todos"],["pendientes","Pendientes de facturar"],["facturados","Facturados"],["cancelados","Cancelados"],["otros","Otros estados"]].map(([v,t])=><button key={v} className={filtro===v?"activo":""} onClick={()=>setFiltro(v)}>{t}</button>)}</div>
         </div>
         <div className="dm-tabla-wrap"><table><thead><tr><th>Fecha catering</th><th>Nº presupuesto</th><th>Cliente</th><th>Importe</th><th>Estado</th><th>Nº factura</th><th></th></tr></thead><tbody>
           {visibles.length===0 ? <tr><td colSpan="7" className="dm-vacio">No hay caterings con este estado en el mes seleccionado.</td></tr> : visibles.map(p => <tr key={p.id}><td><strong>{fecha(p.fecha)}</strong></td><td>{p.numero || "—"}</td><td>{p.clientes?.empresa || p.clientes?.nombre || p.factura?.nombre_cliente || "Sin cliente"}</td><td><strong>{euros(p.total || p.subtotal)}</strong></td><td><span className={`dm-estado ${clase(p.estadoControl)}`}>{p.estadoControl}</span>{p.estadoControl === "Aceptado · pendiente de facturar" && <button type="button" className="dm-facturar" disabled={guardando !== null} onClick={() => marcarFacturado(p)}>{guardando === p.id ? "Guardando..." : "Marcar como facturado"}</button>}</td><td>{p.factura?.numero || (p.estadoControl==="Facturado"?"Facturado":"—")}</td><td><a href={`${import.meta.env.BASE_URL}#/presupuestos`}>Abrir</a></td></tr>)}
@@ -128,6 +129,14 @@ function Card({ titulo, valor, detalle }) {
     <strong>{valor}</strong>
     {detalle && <small className="dm-card-detalle">{detalle}</small>}
   </div>;
+}
+
+function esAceptado(estado) {
+  return estado === "Facturado" || estado === "Aceptado · pendiente de facturar";
+}
+
+function esOtroEstado(estado) {
+  return !esAceptado(estado) && estado !== "Cancelado";
 }
 
 function porcentajeDelMes(cantidad, total) {

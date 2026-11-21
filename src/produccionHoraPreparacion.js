@@ -135,13 +135,62 @@ function aplicarImpresionProduccion() {
   }
   cocina.textContent = `
     @media print {
-      body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print h2 { font-size: 24px !important; }
+      /* Cocina: ficha compacta A4, un pedido por hoja, sin recortes por altura fija. */
+      body.cusachs-imprimir-cocina-grande .zona-diaria-pedido-print {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        padding: 0 !important;
+      }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print {
+        padding-bottom: 3px !important;
+        gap: 5px !important;
+      }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print h2 {
+        font-size: 18px !important;
+        line-height: 1.08 !important;
+      }
       body.cusachs-imprimir-cocina-grande .zona-diaria-titulo-pedido-print > span,
-      body.cusachs-imprimir-cocina-grande .zona-diaria-fecha-hora-print > span { font-size: 24px !important; line-height: 1.2 !important; }
-      body.cusachs-imprimir-cocina-grande .zona-diaria-pedido-cabecera-print strong { font-size: 24px !important; line-height: 1.18 !important; overflow-wrap: anywhere !important; }
-      body.cusachs-imprimir-cocina-grande .zona-diaria-hora-catering-print { font-size: 26px !important; line-height: 1.2 !important; font-weight: 800 !important; }
-      body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print { grid-template-columns: 28px 135px minmax(0, 1fr) !important; font-size: 26px !important; line-height: 1.2 !important; padding: 5px 0 !important; }
-      body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print strong { font-size: 28px !important; line-height: 1.2 !important; font-weight: 800 !important; overflow-wrap: anywhere !important; }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-fecha-hora-print > span {
+        font-size: 14px !important;
+        line-height: 1.12 !important;
+        white-space: normal !important;
+      }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-pedido-cabecera-print {
+        margin-top: 3px !important;
+        padding: 3px 5px !important;
+        gap: 5px !important;
+      }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-pedido-cabecera-print strong {
+        font-size: 16px !important;
+        line-height: 1.12 !important;
+        overflow-wrap: anywhere !important;
+      }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-hora-catering-print {
+        font-size: 16px !important;
+        line-height: 1.12 !important;
+        font-weight: 800 !important;
+      }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-lineas-print {
+        padding: 1px 5px !important;
+      }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print {
+        grid-template-columns: 20px 86px minmax(0, 1fr) !important;
+        gap: 4px !important;
+        font-size: 15px !important;
+        line-height: 1.1 !important;
+        padding: 2px 0 !important;
+      }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-linea-print strong {
+        font-size: 16px !important;
+        line-height: 1.1 !important;
+        font-weight: 800 !important;
+        overflow-wrap: anywhere !important;
+      }
+      body.cusachs-imprimir-cocina-grande .zona-diaria-check-print {
+        font-size: 15px !important;
+      }
     }
   `;
 

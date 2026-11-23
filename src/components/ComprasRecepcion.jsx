@@ -51,6 +51,7 @@ function acumular(registros, anio, proveedor) {
 export default function ComprasRecepcion({ registros, proveedores, recargar, abrir, ocupado }) {
   const [anio, setAnio] = useState(String(new Date().getFullYear()));
   const [proveedor, setProveedor] = useState("");
+  const [grupoDocumento, setGrupoDocumento] = useState("");
   const [documento, setDocumento] = useState("");
   const [revision, setRevision] = useState(null);
   const [mensaje, setMensaje] = useState("");
@@ -65,8 +66,25 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
   }
   const opciones = useMemo(() => [...new Map([...proveedores.map(p => [p.id, p.nombre]), ...registros.filter(r => r.proveedor_id && r.proveedor).map(r => [r.proveedor_id, r.proveedor])])], [proveedores, registros]);
 
+  const gruposDocumentos = useMemo(() => {
+    const nombres = new Map(opciones);
+    const idsPorNombre = new Map(opciones.map(([id, nombre]) => [normalizar(nombre), id]));
+    const grupos = new Map();
+    for (const registro of registros) {
+      const nombre = registro.proveedor?.trim();
+      const id = registro.proveedor_id || idsPorNombre.get(normalizar(nombre));
+      const clave = id ? `id:${id}` : nombre ? `nombre:${normalizar(nombre)}` : "sin-proveedor";
+      const grupo = grupos.get(clave) || { clave, nombre: nombres.get(id) || nombre || "Sin proveedor asignado", documentos: [] };
+      grupo.documentos.push(registro);
+      grupos.set(clave, grupo);
+    }
+    return [...grupos.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  }, [opciones, registros]);
+  const documentosProveedor = gruposDocumentos.find(g => g.clave === grupoDocumento)?.documentos || [];
+  const documentoSeleccionado = documentosProveedor.find(r => r.id === documento);
+
   async function revisar() {
-    const registro = registros.find(r => r.id === documento);
+    const registro = documentoSeleccionado;
     if (!registro) return;
     setMensaje("");
     setProcesando(true);
@@ -168,12 +186,20 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
     </table></div> : <p>Sin compras validadas para esta selección.</p>}
     <h3>Revisar un albarán</h3>
     <div className="recepcion-grid">
-      <label>Documento<select value={documento} disabled={!!revision || procesando || ocupado} onChange={e => setDocumento(e.target.value)}>
+      <label>Proveedor del albarán<select value={grupoDocumento} disabled={!!revision || procesando || ocupado} onChange={e => {
+        setGrupoDocumento(e.target.value);
+        setDocumento("");
+        setMensaje("");
+      }}>
+        <option value="">Selecciona un proveedor</option>
+        {gruposDocumentos.map(g => <option key={g.clave} value={g.clave}>{g.nombre} ({g.documentos.length})</option>)}
+      </select></label>
+      <label>Documento<select value={documentoSeleccionado?.id || ""} disabled={!documentosProveedor.length || !!revision || procesando || ocupado} onChange={e => setDocumento(e.target.value)}>
         <option value="">Selecciona un albarán</option>
-        {registros.map(r => <option key={r.id} value={r.id}>{r.fecha_recepcion} · {r.proveedor || "Proveedor pendiente"} · {r.compra_albaran?.numero || r.archivo_nombre} · {r.compra_albaran?.validado ? "Validado" : r.compra_albaran ? "Por revisar" : "Por leer"}</option>)}
+        {documentosProveedor.map(r => <option key={r.id} value={r.id}>{r.compra_albaran?.fecha || r.fecha_recepcion} · {r.compra_albaran?.numero || r.archivo_nombre} · {r.compra_albaran?.validado ? "Validado" : r.compra_albaran ? "Por revisar" : "Por leer"}</option>)}
       </select></label>
     </div>
-    <button type="button" disabled={!documento || procesando || ocupado || !!revision} onClick={revisar}>Leer o revisar artículos</button>
+    <button type="button" disabled={!documentoSeleccionado || procesando || ocupado || !!revision} onClick={revisar}>Leer o revisar artículos</button>
     {mensaje && <p role="status">{mensaje}</p>}
     {revision && <form onSubmit={guardar}>
       <button type="button" onClick={() => abrir(registros.find(r => r.id === revision.id), true)}>Ver albarán original</button>

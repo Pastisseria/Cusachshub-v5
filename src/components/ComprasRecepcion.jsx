@@ -37,7 +37,7 @@ function acumular(registros, anio, proveedor) {
       const unidad = normalizar(linea.unidad);
       const unidadAgrupada = unidades[unidad] || unidad;
       const clave = JSON.stringify([registro.proveedor_id, normalizar(linea.codigo) || normalizar(linea.descripcion), unidadAgrupada]);
-      const fila = grupos.get(clave) || { clave, proveedor: registro.proveedor, articulo: linea.descripcion, unidad: unidadAgrupada, cantidad: 0, importe: null, sinImporte: 0, documentos: new Map() };
+      const fila = grupos.get(clave) || { clave, proveedor: registro.proveedor, articulo: linea.descripcion, codigo: linea.codigo, unidad: unidadAgrupada, cantidad: 0, importe: null, sinImporte: 0, documentos: new Map() };
       fila.cantidad += Number(linea.cantidad);
       if (linea.importe == null) fila.sinImporte++;
       else fila.importe = (fila.importe ?? 0) + Number(linea.importe);
@@ -231,7 +231,7 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
   </section>;
 }
 
-export function ComprasFichaProveedor({ proveedorId }) {
+export function ComprasFichaProveedor({ proveedorId, children }) {
   const [anio, setAnio] = useState(String(new Date().getFullYear()));
   const [resultado, setResultado] = useState(null);
   const [aviso, setAviso] = useState("");
@@ -275,21 +275,9 @@ export function ComprasFichaProveedor({ proveedorId }) {
     <h3>Compras registradas</h3>
     <label>Año <input type="number" min="2000" max="2100" value={anio} onChange={e => setAnio(e.target.value)} /></label>
     {aviso && <p role="alert">{aviso}</p>}
-    {!resultado ? <p role="status">Cargando compras…</p> : resultado.error ? <p role="alert">{resultado.error}</p> :
-      filas.length ? <>
-        <p><strong>Total registrado</strong> · {hayImporte ? euros.format(total) : "Sin importe"}{sinImporte > 0 && ` · ${sinImporte} línea(s) sin importe`}</p>
-        <div className="tabla-responsive"><table>
-          <thead><tr><th>Artículo</th><th>Cantidad</th><th>Unidad</th><th>Importe registrado</th><th>Albaranes</th></tr></thead>
-          <tbody>{filas.map(fila => <tr key={fila.clave}>
-            <td>{fila.articulo}</td><td>{cantidadFormato.format(fila.cantidad)}</td><td>{fila.unidad}</td>
-            <td>{fila.importe == null ? "Sin importe" : euros.format(fila.importe)}</td>
-            <td><details><summary>{fila.documentos.size} albarán(es)</summary>
-              {[...fila.documentos.values()].map(({ registro, numero, fecha }) =>
-                <div key={registro.id}><button type="button" onClick={() => abrirAlbaran(registro)}>{numero} · {fecha}</button></div>
-              )}
-            </details></td>
-          </tr>)}</tbody>
-        </table></div>
-      </> : <p>Sin albaranes validados para este año.</p>}
+    {!resultado && <p role="status">Cargando compras…</p>}
+    {resultado?.error && <p role="alert">{resultado.error}</p>}
+    {filas.length > 0 && <p><strong>Total registrado</strong> · {hayImporte ? euros.format(total) : "Sin importe"}{sinImporte > 0 && ` · ${sinImporte} línea(s) sin importe`}</p>}
+    {children(filas, abrirAlbaran)}
   </section>;
 }

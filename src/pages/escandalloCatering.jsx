@@ -16,19 +16,23 @@ export default function EscandalloCatering(){
  const [gastos,setGastos]=useState(defaultGastos);
  const [productos,setProductos]=useState({});
  const [escandallos,setEscandallos]=useState({});
+ const [relaciones,setRelaciones]=useState([]);
+ const [catalogo,setCatalogo]=useState({});
  const [filtro,setFiltro]=useState("");
  const [error,setError]=useState("");
  const [mensaje,setMensaje]=useState("");
  const [cargando,setCargando]=useState(true);
  const [guardando,setGuardando]=useState(false);
  useEffect(()=>{let activo=true;(async()=>{try{
-  const [p,pro,esc]=await Promise.all([
+  const [p,pro,esc,rel,cat]=await Promise.all([
    supabase.from("presupuestos").select("id,numero,fecha,estado,cliente,numero_personas,base_imponible,subtotal,total,tipo_documento,clientes(nombre,empresa)").order("fecha",{ascending:false}).limit(1000),
    supabase.from("productos").select("id,coste,coste_estimado"),
-   supabase.from("escandallos").select("producto_id,coste_total,rendimiento,unidades_producidas")
+   supabase.from("escandallos").select("id,producto_id,coste_total,rendimiento,unidades_producidas"),
+   supabase.from("producto_buenas_practicas_relaciones").select("producto_id,escandallo_id,catalogo_proveedor_id,cantidad_por_unidad,merma_pct,activo").eq("activo",true).not("catalogo_proveedor_id","is",null),
+   supabase.from("catalogo_proveedores").select("id,producto,proveedor,precio_unitario,precio_sin_iva,cantidad_formato,unidad,activo")
   ]);
-  if(p.error)throw p.error;if(pro.error)throw pro.error;if(esc.error)throw esc.error;
-  if(activo){setPresupuestos(p.data||[]);setProductos(Object.fromEntries((pro.data||[]).map(x=>[x.id,x])));setEscandallos(Object.fromEntries((esc.data||[]).filter(x=>x.producto_id).map(x=>[x.producto_id,x])));}
+  if(p.error)throw p.error;if(pro.error)throw pro.error;if(esc.error)throw esc.error;if(rel.error)throw rel.error;if(cat.error)throw cat.error;
+  if(activo){setPresupuestos(p.data||[]);setProductos(Object.fromEntries((pro.data||[]).map(x=>[x.id,x])));setEscandallos(Object.fromEntries((esc.data||[]).filter(x=>x.producto_id).map(x=>[x.producto_id,x])));setRelaciones(rel.data||[]);setCatalogo(Object.fromEntries((cat.data||[]).map(x=>[x.id,x])));}
  }catch(e){if(activo)setError(e.message)}finally{if(activo)setCargando(false)}})();return()=>{activo=false}},[]);
  useEffect(()=>{let activo=true;setLineas([]);setCostes({});setGastos(defaultGastos);setMensaje("");if(!id)return;
  (async()=>{try{setCargando(true);setError("");
@@ -41,7 +45,28 @@ export default function EscandalloCatering(){
  if(activo){setLineas(l.data||[]);setCostes(Object.fromEntries((c.data||[]).map(x=>[x.presupuesto_linea_id,x.coste_unitario===null?"":String(x.coste_unitario)])));setGastos(g.data||defaultGastos);}
  }catch(e){if(activo)setError(e.message)}finally{if(activo)setCargando(false)}})();return()=>{activo=false}},[id]);
  const actual=presupuestos.find(p=>p.id===id);
- const sugerencias=useMemo(()=>Object.fromEntries(lineas.map(l=>{const p=productos[l.producto_id];const e=escandallos[l.producto_id];const divisor=Number(e?.unidades_producidas||e?.rendimiento||0);const costeEsc=Number(e?.coste_total);if(e?.coste_total!=null&&divisor>0&&Number.isFinite(costeEsc))return [l.id,{coste:costeEsc/divisor,fuente:"Escandallo"}];const cp=p?.coste??p?.coste_estimado;if(cp!=null&&Number.isFinite(Number(cp)))return [l.id,{coste:Number(cp),fuente:"Producto"}];return [l.id,null]})),[lineas,productos,escandallos]);
+ const sugerencias=useMemo(()=>Object.fromEntries(lineas.map(l=>{
+  const p=productos[l.producto_id];
+  const e=escandallos[l.producto_id];
+  const vinculadas=relaciones.filter(r=>String(r.producto_id)===String(l.producto_id)&&(!r.escandallo_id||!e?.id||String(r.escandallo_id)===String(e.id)));
+  if(vinculadas.length){
+   let total=0;let completas=true;
+   for(const r of vinculadas){
+    const articulo=catalogo[r.catalogo_proveedor_id];
+    const precio=articulo?.precio_unitario!=null?Number(articulo.precio_unitario):(articulo?.precio_sin_iva!=null&&Number(articulo.cantidad_formato)>0?Number(articulo.precio_sin_iva)/Number(articulo.cantidad_formato):null);
+    if(!articulo||articulo.activo===false||precio===null||!Number.isFinite(precio)||precio<0){completas=false;break;}
+    total+=Number(r.cantidad_por_unidad||0)*(1+Number(r.merma_pct||0)/100)*precio;
+   }
+   if(completas)return [l.id,{coste:total,fuente:"Catálogo de proveedores"}];
+   return [l.id,null];
+  }
+  const divisor=Number(e?.unidades_producidas||e?.rendimiento||0);
+  const costeEsc=Number(e?.coste_total);
+  if(e?.coste_total!=null&&divisor>0&&Number.isFinite(costeEsc))return [l.id,{coste:costeEsc/divisor,fuente:"Escandallo"}];
+  const cp=p?.coste??p?.coste_estimado;
+  if(cp!=null&&Number.isFinite(Number(cp))&&Number(cp)>0)return [l.id,{coste:Number(cp),fuente:"Producto"}];
+  return [l.id,null];
+ })),[lineas,productos,escandallos,relaciones,catalogo]);
  const efectivo=l=>costes[l.id]!==undefined&&costes[l.id]!==""?Number(costes[l.id]):sugerencias[l.id]?.coste;
  const resumen=useMemo(()=>{
   const faltantes=lineas.filter(l=>efectivo(l)==null);
@@ -68,7 +93,7 @@ export default function EscandalloCatering(){
  const inputStyle={width:"100%",maxWidth:140,padding:8};
  return <section style={{padding:20,maxWidth:1200,margin:"auto"}}>
   <h1>📊 Escandallos de Catering</h1>
-  <p>Control interno de costes y rentabilidad. Los importes no aparecen en el presupuesto del cliente. Se propone el coste de producto o escandallo cuando existe una vinculación por ID; el coste manual tiene prioridad.</p>
+  <p>Control interno de costes y rentabilidad. Los importes no aparecen en el presupuesto del cliente. Los costes se calculan desde los artículos vinculados del Catálogo de Proveedores, con sus precios actuales sin IVA. Los costes manuales tienen prioridad.</p>
   {error&&<p role="alert" style={{color:"#a32238"}}>{error}</p>}{mensaje&&<p role="status" style={{color:"#176b3a"}}>{mensaje}</p>}
   <label>Buscar presupuesto <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Cliente, número o fecha" style={{padding:8,margin:8}}/></label>
   <label>Seleccionar presupuesto <select value={id||""} onChange={e=>setParams(e.target.value?{presupuesto_id:e.target.value}:{})} style={{padding:8,maxWidth:"100%"}}>

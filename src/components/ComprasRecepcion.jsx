@@ -48,7 +48,7 @@ function acumular(registros, anio, proveedor) {
   return [...grupos.values()].sort((a, b) => (a.proveedor || "").localeCompare(b.proveedor || "", "es") || a.articulo.localeCompare(b.articulo, "es"));
 }
 
-export default function ComprasRecepcion({ registros, proveedores, recargar, abrir, ocupado }) {
+export default function ComprasRecepcion({ registros, proveedores, recargar, abrir, ocupado, solicitud, cerrar }) {
   const [anio, setAnio] = useState(String(new Date().getFullYear()));
   const [proveedor, setProveedor] = useState("");
   const [grupoDocumento, setGrupoDocumento] = useState("");
@@ -83,8 +83,11 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
   const documentosProveedor = gruposDocumentos.find(g => g.clave === grupoDocumento)?.documentos || [];
   const documentoSeleccionado = documentosProveedor.find(r => r.id === documento);
 
-  async function revisar() {
-    const registro = documentoSeleccionado;
+  useEffect(() => {
+    if (solicitud) revisar(solicitud.registro);
+  }, [solicitud]);
+
+  async function revisar(registro = documentoSeleccionado) {
     if (!registro) return;
     setMensaje("");
     setProcesando(true);
@@ -132,6 +135,7 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
       setRevision(null);
       await recargar();
       setMensaje("Albarán validado e incluido en el acumulado.");
+      if (solicitud) cerrar();
     } catch (error) {
       setMensaje(error.code === "23505" ? "Ya hay un albarán validado de ese proveedor con el mismo número y año." : error.message);
     } finally {
@@ -160,7 +164,7 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
   }
 
   return <section className="recepcion-revision">
-    <h2>Compras por proveedor</h2>
+    <div className="recepcion-form-title"><h2>Compras por proveedor</h2><button type="button" disabled={procesando} onClick={() => { setRevision(null); cerrar(); }}>Volver a recepción</button></div>
     <div className="recepcion-grid">
       <label>Año<input type="number" min="2000" max="2100" value={anio} onChange={e => setAnio(e.target.value)}/></label>
       <label>Proveedor<select value={proveedor} onChange={e => setProveedor(e.target.value)}>
@@ -199,7 +203,7 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
         {documentosProveedor.map(r => <option key={r.id} value={r.id}>{r.compra_albaran?.fecha || r.fecha_recepcion} · {r.compra_albaran?.numero || r.archivo_nombre} · {r.compra_albaran?.validado ? "Validado" : r.compra_albaran ? "Por revisar" : "Por leer"}</option>)}
       </select></label>
     </div>
-    <button type="button" disabled={!documentoSeleccionado || procesando || ocupado || !!revision} onClick={revisar}>Leer o revisar artículos</button>
+    <button type="button" disabled={!documentoSeleccionado || procesando || ocupado || !!revision} onClick={() => revisar()}>Leer o revisar artículos</button>
     {mensaje && <p role="status">{mensaje}</p>}
     {revision && <form onSubmit={guardar}>
       <button type="button" onClick={() => abrir(registros.find(r => r.id === revision.id), true)}>Ver albarán original</button>

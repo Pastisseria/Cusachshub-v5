@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase.js";
 import { analizarDocumentoIA } from "../ai/parserIA.js";
 import { leerDocumentoInteligenteV3 } from "../services/lectorInteligenteV3.js";
@@ -228,5 +228,68 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
         <button type="button" disabled={procesando} onClick={() => setRevision(null)}>Cerrar</button>
       </div>
     </form>}
+  </section>;
+}
+
+export function ComprasFichaProveedor({ proveedorId }) {
+  const [anio, setAnio] = useState(String(new Date().getFullYear()));
+  const [resultado, setResultado] = useState(null);
+  const [aviso, setAviso] = useState("");
+
+  useEffect(() => {
+    let vigente = true;
+    async function cargar() {
+      const registros = [];
+      const pagina = 200;
+      try {
+        while (vigente) {
+          const { data, error } = await supabase.from("higiene_control_recepcion")
+            .select("id,proveedor,proveedor_id,compra_albaran,archivo_ruta")
+            .eq("proveedor_id", proveedorId).eq("compra_albaran->>validado", "true")
+            .order("id").range(registros.length, registros.length + pagina - 1);
+          if (error) throw error;
+          registros.push(...data);
+          if (data.length < pagina) break;
+        }
+        if (vigente) setResultado({ registros });
+      } catch (error) {
+        if (vigente) setResultado({ error: error.message });
+      }
+    }
+    cargar();
+    return () => { vigente = false; };
+  }, [proveedorId]);
+
+  const filas = useMemo(() => acumular(resultado?.registros || [], anio, proveedorId), [resultado, anio, proveedorId]);
+  const hayImporte = filas.some(fila => fila.importe != null);
+  const total = filas.reduce((suma, fila) => suma + (fila.importe ?? 0), 0);
+  const sinImporte = filas.reduce((suma, fila) => suma + fila.sinImporte, 0);
+
+  async function abrirAlbaran(registro) {
+    const { data, error } = await supabase.storage.from("higiene-pdfs").createSignedUrl(registro.archivo_ruta, 120);
+    if (error) setAviso(error.message);
+    else window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
+  return <section>
+    <h3>Compras registradas</h3>
+    <label>Año <input type="number" min="2000" max="2100" value={anio} onChange={e => setAnio(e.target.value)} /></label>
+    {aviso && <p role="alert">{aviso}</p>}
+    {!resultado ? <p role="status">Cargando compras…</p> : resultado.error ? <p role="alert">{resultado.error}</p> :
+      filas.length ? <>
+        <p><strong>Total registrado</strong> · {hayImporte ? euros.format(total) : "Sin importe"}{sinImporte > 0 && ` · ${sinImporte} línea(s) sin importe`}</p>
+        <div className="tabla-responsive"><table>
+          <thead><tr><th>Artículo</th><th>Cantidad</th><th>Unidad</th><th>Importe registrado</th><th>Albaranes</th></tr></thead>
+          <tbody>{filas.map(fila => <tr key={fila.clave}>
+            <td>{fila.articulo}</td><td>{cantidadFormato.format(fila.cantidad)}</td><td>{fila.unidad}</td>
+            <td>{fila.importe == null ? "Sin importe" : euros.format(fila.importe)}</td>
+            <td><details><summary>{fila.documentos.size} albarán(es)</summary>
+              {[...fila.documentos.values()].map(({ registro, numero, fecha }) =>
+                <div key={registro.id}><button type="button" onClick={() => abrirAlbaran(registro)}>{numero} · {fecha}</button></div>
+              )}
+            </details></td>
+          </tr>)}</tbody>
+        </table></div>
+      </> : <p>Sin albaranes validados para este año.</p>}
   </section>;
 }

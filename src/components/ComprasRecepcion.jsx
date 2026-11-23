@@ -7,14 +7,23 @@ const cantidadFormato = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 
 const euros = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
 const normalizar = valor => String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
 const unidades = { u: "unidad", ud: "unidad", uds: "unidad", unidades: "unidad", kgs: "kg", gr: "g", lt: "l", litros: "l", cajas: "caja", paquetes: "paquete", bolsas: "bolsa", botellas: "botella", bandejas: "bandeja" };
-const nuevaLinea = () => ({ codigo: "", descripcion: "", cantidad: "", unidad: "unidad", importe: "" });
+const nuevaLinea = () => ({ codigo: "", descripcion: "", cantidad: "", unidad: "unidad", precio_proveedor: "" });
+
+function totalLinea(linea) {
+  if (linea.precio_proveedor == null || linea.precio_proveedor === "" || linea.cantidad === "") return null;
+  const total = Number(linea.precio_proveedor) * Number(linea.cantidad);
+  if (!Number.isFinite(total)) return null;
+  if (linea.importe_original != null && Number(linea.cantidad) === linea.cantidad_original &&
+      Number(linea.precio_proveedor) === linea.precio_original) return linea.importe_original;
+  return Math.sign(total) * Math.round((Math.abs(total) + Number.EPSILON) * 100) / 100;
+}
 
 export async function leerCompraRecepcion(archivo, proveedores, onProgreso) {
   const lectura = await leerDocumentoInteligenteV3(archivo, { proveedores, onProgreso });
   const analisis = analizarDocumentoIA(lectura);
   const lineas = (analisis.lineas || []).map(l => ({
     codigo: l.codigo || "", descripcion: l.descripcion, cantidad: l.cantidad,
-    unidad: l.unidad || "unidad", importe: Number(l.total_linea) > 0 ? l.total_linea : "",
+    unidad: l.unidad || "unidad", precio_proveedor: Number(l.precio_unitario) > 0 ? l.precio_unitario : "",
   }));
   if (!lineas.length) {
     for (const linea of lectura.lineas || []) {
@@ -99,7 +108,16 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
         const archivo = new File([descarga.data], registro.archivo_nombre, { type: "application/pdf" });
         ({ compra } = await leerCompraRecepcion(archivo, proveedores, ({ estado }) => setMensaje(estado)));
       }
-      setRevision({ ...compra, anterior: registro.compra_albaran, id: registro.id, proveedor: registro.proveedor_id || "", fecha: compra.fecha || registro.fecha_recepcion });
+      const corregirSubirats = !compra.validado && normalizar(registro.proveedor).includes("embutidos subirats") && String(compra.numero).trim() === "184";
+      const lineas = compra.lineas.map(linea => {
+        if (linea.precio_proveedor != null) return linea;
+        if (linea.importe == null || linea.importe === "") return { ...linea, precio_proveedor: "" };
+        if (corregirSubirats) return { ...linea, precio_proveedor: linea.importe };
+        const cantidad = Number(linea.cantidad);
+        const precio = cantidad ? Number(linea.importe) / cantidad : 0;
+        return { ...linea, precio_proveedor: precio, precio_original: precio, cantidad_original: cantidad, importe_original: Number(linea.importe) };
+      });
+      setRevision({ ...compra, lineas, anterior: registro.compra_albaran, id: registro.id, proveedor: registro.proveedor_id || "", fecha: compra.fecha || registro.fecha_recepcion });
       setMensaje(compra.lineas.length ? "" : "No se han detectado líneas. Puedes añadirlas consultando el PDF.");
     } catch (error) {
       setMensaje(error.message || "No se pudo leer el documento.");
@@ -120,7 +138,7 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
       fecha: revision.fecha, numero: revision.numero.trim(), validado: true,
       lineas: revision.lineas.map(l => ({
         codigo: l.codigo.trim(), descripcion: l.descripcion.trim(), unidad: l.unidad.trim(),
-        cantidad: Number(l.cantidad), importe: l.importe == null || l.importe === "" ? null : Number(l.importe),
+        cantidad: Number(l.cantidad), precio_proveedor: l.precio_proveedor === "" || l.precio_proveedor == null ? null : Number(l.precio_proveedor), importe: totalLinea(l),
       })),
     };
     setProcesando(true);
@@ -216,13 +234,14 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
         <label>Nº de albarán<input required value={revision.numero} onChange={e => setRevision({ ...revision, numero: e.target.value })}/></label>
       </div>
       <div className="tabla-responsive"><table>
-        <thead><tr><th>Código</th><th>Artículo</th><th>Cantidad</th><th>Unidad</th><th>Importe de línea</th><th></th></tr></thead>
+        <thead><tr><th>Código</th><th>Artículo</th><th>Cantidad</th><th>Unidad</th><th>Precio del proveedor (€ por unidad)</th><th>Total de línea</th><th></th></tr></thead>
         <tbody>{revision.lineas.map((l, i) => <tr key={i}>
           <td><input aria-label={`Código de línea ${i + 1}`} value={l.codigo} onChange={e => cambiarLinea(i, "codigo", e.target.value)}/></td>
           <td><input required aria-label={`Artículo de línea ${i + 1}`} value={l.descripcion} onChange={e => cambiarLinea(i, "descripcion", e.target.value)}/></td>
           <td><input required type="number" step="any" aria-label={`Cantidad de línea ${i + 1}`} value={l.cantidad} onChange={e => cambiarLinea(i, "cantidad", e.target.value)}/></td>
           <td><input required aria-label={`Unidad de línea ${i + 1}`} value={l.unidad} onChange={e => cambiarLinea(i, "unidad", e.target.value)}/></td>
-          <td><input type="number" step="any" aria-label={`Importe de línea ${i + 1}`} value={l.importe ?? ""} onChange={e => cambiarLinea(i, "importe", e.target.value)}/></td>
+          <td><input type="number" step="any" aria-label={`Precio del proveedor de línea ${i + 1}`} value={l.precio_proveedor ?? ""} onChange={e => cambiarLinea(i, "precio_proveedor", e.target.value)}/></td>
+          <td>{totalLinea(l) == null ? "Sin importe" : euros.format(totalLinea(l))}</td>
           <td><button type="button" aria-label={`Quitar línea ${i + 1}`} onClick={() => setRevision({ ...revision, lineas: revision.lineas.filter((_, indice) => i !== indice) })}>Quitar</button></td>
         </tr>)}</tbody>
       </table></div>

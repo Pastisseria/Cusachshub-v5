@@ -62,6 +62,7 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
   const [proveedor, setProveedor] = useState("");
   const [grupoDocumento, setGrupoDocumento] = useState("");
   const [documento, setDocumento] = useState("");
+  const [verTotales, setVerTotales] = useState(false);
   const [revision, setRevision] = useState(null);
   const [mensaje, setMensaje] = useState("");
   const [procesando, setProcesando] = useState(false);
@@ -93,7 +94,10 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
   const documentoSeleccionado = documentosProveedor.find(r => r.id === documento);
 
   useEffect(() => {
-    if (solicitud) revisar(solicitud.registro);
+    if (solicitud) {
+      setVerTotales(false);
+      revisar(solicitud.registro);
+    }
   }, [solicitud]);
 
   async function revisar(registro = documentoSeleccionado) {
@@ -182,7 +186,7 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
   }
 
   return <section className="recepcion-revision">
-    <div className="recepcion-form-title"><h2>Compras por proveedor</h2><button type="button" disabled={procesando} onClick={() => { setRevision(null); cerrar(); }}>Volver a recepción</button></div>
+    <div className="recepcion-form-title"><h2>{verTotales ? "Resumen anual por proveedor" : "Compras por proveedor"}</h2><button type="button" disabled={procesando} onClick={() => { setRevision(null); setVerTotales(false); cerrar(); }}>Volver a recepción</button></div>
     <div className="recepcion-grid">
       <label>Año<input type="number" min="2000" max="2100" value={anio} onChange={e => setAnio(e.target.value)}/></label>
       <label>Proveedor<select value={proveedor} onChange={e => setProveedor(e.target.value)}>
@@ -191,9 +195,11 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
       </select></label>
     </div>
     <div className="recepcion-toolbar">
-      <button type="button" disabled={!filas.length} onClick={exportar}>Exportar Excel</button>
+      <button type="button" disabled={!!revision || procesando} onClick={() => setVerTotales(actual => !actual)}>{verTotales ? "Volver al detalle" : "Ver resumen anual"}</button>
+      {!verTotales && <button type="button" disabled={!filas.length} onClick={exportar}>Exportar Excel</button>}
     </div>
-    {totales.size > 0 && <ul>{[...totales].map(([nombre, total]) => <li key={nombre}><strong>{nombre}</strong> · {total.importe == null ? "Sin importe" : euros.format(total.importe)}{total.sinImporte > 0 && ` · ${total.sinImporte} línea(s) sin importe`}</li>)}</ul>}
+    {verTotales && (totales.size > 0 ? <ul>{[...totales].map(([nombre, total]) => <li key={nombre}><strong>{nombre}</strong> · {total.importe == null ? "Sin importe" : euros.format(total.importe)}{total.sinImporte > 0 && ` · ${total.sinImporte} línea(s) sin importe`}</li>)}</ul> : <p>Sin compras validadas para esta selección.</p>)}
+    <div hidden={verTotales}>
     {filas.length ? <div className="tabla-responsive"><table>
       <thead><tr><th>Proveedor</th><th>Artículo</th><th>Cantidad</th><th>Unidad</th><th>Importe registrado</th><th>Albaranes</th></tr></thead>
       <tbody>{filas.map(f => <tr key={f.clave}>
@@ -251,6 +257,7 @@ export default function ComprasRecepcion({ registros, proveedores, recargar, abr
         <button type="button" disabled={procesando} onClick={() => setRevision(null)}>Cerrar</button>
       </div>
     </form>}
+    </div>
   </section>;
 }
 
